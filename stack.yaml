@@ -17,6 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
+
 resolver: lts-12.26
 
 # User packages to be built.
@@ -32,8 +33,10 @@ resolver: lts-12.26
 #  subdirs:
 #  - auto-update
 #  - wai
+
 packages:
 - .
+
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)

@@ -22,11 +22,11 @@ freshUnique = do
     return $ Unique i
 
 data Var = Var
-    { varUniq :: Unique
-    , varName :: String
+    { _varUniq :: Unique
+    , _varName :: String
     }
 
--- TODO: use 'Pretty' and derive 'Show' as is approriate.
+-- TODO: use 'Pretty' and derive 'Show' as is appropriate.
 instance Show Unique where
     show (Unique int) = show int
 
