@@ -11,7 +11,7 @@ import           TinyLang.Prelude
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    }
+    } deriving (Eq)
 
 type SupplyT = StateT Unique
 
@@ -24,7 +24,7 @@ freshUnique = do
 data Var = Var
     { _varUniq :: Unique
     , _varName :: String
-    }
+    } deriving (Eq)
 
 -- TODO: use 'Pretty' and derive 'Show' as is appropriate.
 instance Show Unique where
