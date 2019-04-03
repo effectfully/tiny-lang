@@ -13,7 +13,8 @@ newtype Unique = Unique
     { unUnique :: Int
     } deriving (Generic)
 
-instance Monad m => Serial m Unique
+instance Monad m => Serial m Unique where
+    series = Unique . getNonNegative <$> series
 
 type SupplyT = StateT Unique
 
@@ -35,7 +36,8 @@ instance Show Unique where
 instance Show Var where
     show (Var uniq name) = name ++ "_" ++ show uniq
 
-instance Monad m => Serial m Var
+instance Monad m => Serial m Var where
+    series = flip Var "x" <$> series
 
 freshVar :: Monad m => String -> SupplyT m Var
 freshVar name = flip Var name <$> freshUnique
