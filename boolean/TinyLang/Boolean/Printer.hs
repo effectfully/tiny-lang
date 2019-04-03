@@ -5,12 +5,6 @@ import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Environment (lookupVar)
 import           TinyLang.Var
 
--- Do we want () round something when printing it inside some other expression?
-isSimple :: Expr -> Bool
-isSimple (EVal _) = True
-isSimple (EVar _) = True
-isSimple _        = False
-
 toStringUnOp :: UnOp -> String
 toStringUnOp Not = "not "
 
@@ -18,6 +12,12 @@ toStringBinOp :: BinOp -> String
 toStringBinOp Or  = " or "
 toStringBinOp And = " and "
 toStringBinOp Xor = " xor "
+
+-- Do we want () round something when printing it inside some other expression?
+isSimple :: Expr -> Bool
+isSimple (EVal _) = True
+isSimple (EVar _) = True
+isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
 toString1 :: Expr -> String
