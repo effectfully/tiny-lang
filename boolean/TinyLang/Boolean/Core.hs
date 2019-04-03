@@ -4,15 +4,18 @@ module TinyLang.Boolean.Core
     , Expr (..)
     ) where
 
+import           TinyLang.Prelude
 import           TinyLang.Var
 
 data UnOp
     = Not
+    deriving (Generic)
 
 data BinOp
     = Or
     | And
     | Xor
+    deriving (Generic)
 
 -- TODO:
 -- 1. pretty-printing
@@ -25,3 +28,8 @@ data Expr
     | EIf Expr Expr Expr
     | EAppUnOp UnOp Expr
     | EAppBinOp BinOp Expr Expr
+    deriving (Generic)
+
+instance Monad m => Serial m UnOp
+instance Monad m => Serial m BinOp
+instance Monad m => Serial m Expr

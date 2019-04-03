@@ -19,8 +19,18 @@ library
                        TinyLang.Var
                        TinyLang.Boolean.Core
   build-depends:       base >= 4.7 && < 5,
-                       mtl
+                       mtl,
+                       smallcheck
   default-language:    Haskell2010
+  default-extensions:
+    MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
+    ScopedTypeVariables, ConstraintKinds, DefaultSignatures
+    GADTs, DataKinds, PolyKinds, RankNTypes, TypeFamilies, FunctionalDependencies
+    DeriveFunctor, DeriveFoldable, DeriveTraversable,
+    DeriveGeneric, DeriveDataTypeable, StandaloneDeriving
+    EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
+    TypeOperators, PatternSynonyms, TypeApplications
+    OverloadedStrings, StrictData
 
 source-repository head
   type:     git
