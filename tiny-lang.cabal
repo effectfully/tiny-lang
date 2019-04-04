@@ -20,7 +20,6 @@ library
                        TinyLang.Boolean.Core
                        TinyLang.Boolean.Evaluator
                        TinyLang.Boolean.Environment
-                       TinyLang.Boolean.Parser
                        TinyLang.Boolean.Printer
   build-depends:       base >= 4.7 && < 5,
                        megaparsec,
