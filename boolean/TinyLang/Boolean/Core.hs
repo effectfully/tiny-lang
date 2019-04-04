@@ -8,11 +8,13 @@ import           TinyLang.Var
 
 data UnOp
     = Not
+      deriving (Show)
 
 data BinOp
     = Or
     | And
     | Xor
+      deriving (Show)
 
 -- TODO:
 -- 1. pretty-printing
@@ -25,6 +27,7 @@ data Expr
     | EIf Expr Expr Expr
     | EAppUnOp UnOp Expr
     | EAppBinOp BinOp Expr Expr
+      deriving (Show)
 
 
 

@@ -5,8 +5,8 @@ import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Environment (Env, lookupVar)
 import           TinyLang.Var
 
--- | A recursive evaluator for expressions.  Environments are threaded through the
--- | evaluator at present, but could be put in a monad to tidy things up.
+-- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
+
 evalExpr :: Env -> Expr -> Bool
 evalExpr env (EVal b)      = b
 evalExpr env (EVar v)      = lookupVar v env

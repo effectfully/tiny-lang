@@ -23,6 +23,7 @@ isSimple _        = False
 toString1 :: Expr -> String
 toString1 e = if isSimple e then toString e else "(" ++ toString e ++ ")"
 
+-- Main function
 toString :: Expr -> String
 toString (EVal b) = if b then "T" else "F"
 toString (EVar v) = _varName v
