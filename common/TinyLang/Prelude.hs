@@ -38,7 +38,10 @@ import           Test.SmallCheck.Series as Export
 import           Text.Read              as Export (Read (..), readEither,
                                                    readMaybe)
 
-
 -- mtl
 --------------------
 import           Control.Monad.State    as Export hiding (fail)
+
+-- containers
+--------------------
+import           Data.IntMap.Strict     as Export (IntMap)

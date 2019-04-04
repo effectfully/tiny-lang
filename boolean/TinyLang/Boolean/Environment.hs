@@ -1,11 +1,21 @@
 module TinyLang.Boolean.Environment
-where
+    ( Env (..)
+    , lookupUnique
+    , lookupVar
+    ) where
 
+import           TinyLang.Prelude
 import           TinyLang.Var
 
--- | A simple representation of environments as association lists mapping variables to values
-type Env = [(Var, Bool)]
+import qualified Data.IntMap.Strict as IntMap
 
-lookupVar :: Var -> Env -> Bool
-lookupVar v []        = error $ "Variable " ++ show v ++ " not found in environment"
-lookupVar v ((w,b):l) = if v==w then b else lookupVar v l
+-- | A simple representation of environments as 'IntMap's mapping variables to values
+newtype Env a = Env
+    { unEnv :: IntMap a
+    }
+
+lookupUnique :: Unique -> Env a -> a
+lookupUnique (Unique ind) (Env env) = env IntMap.! ind
+
+lookupVar :: Var -> Env a -> a
+lookupVar = lookupUnique . _varUniq
