@@ -27,8 +27,8 @@ freshUnique = do
 data Var = Var
     { _varUniq :: Unique
     , _varName :: String
-    } deriving (Eq, (Generic)
-
+    } deriving (Eq, Generic)
+                  
 -- TODO: use 'Pretty' and derive 'Show' as is appropriate.
 instance Show Unique where
     show (Unique int) = show int
