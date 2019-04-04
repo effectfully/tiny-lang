@@ -11,7 +11,7 @@ import           TinyLang.Prelude
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    } deriving (Generic)
+    } deriving (Eq, Generic)
 
 instance Monad m => Serial m Unique where
     series = Unique . getNonNegative <$> series
@@ -27,8 +27,8 @@ freshUnique = do
 data Var = Var
     { _varUniq :: Unique
     , _varName :: String
-    } deriving (Generic)
-
+    } deriving (Eq, Generic)
+                  
 -- TODO: use 'Pretty' and derive 'Show' as is appropriate.
 instance Show Unique where
     show (Unique int) = show int
