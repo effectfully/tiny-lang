@@ -1,5 +1,8 @@
-module TinyLang.Boolean.Evaluator (evalExpr)
-where
+module TinyLang.Boolean.Evaluator
+    ( evalUnOp
+    , evalBinOp
+    , evalExpr
+    ) where
 
 import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Environment (Env, lookupVar)
