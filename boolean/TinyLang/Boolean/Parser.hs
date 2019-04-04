@@ -104,10 +104,10 @@ varExpr = do
 -}
 
 -- expr1: things that can appear inside operExpr. This does not
--- include operExpr, because that would cause infinite recursion.
--- If an ifExpr has to appear inside an operExpr it has to be parenthesised.
+-- include operExpr itself, because that would cause infinite recursion.
 -- Note that an operExpr doesn't have to contain an operator: it
 -- can just be a single expr1.
+-- If an ifExpr has to appear inside an operExpr it has to be parenthesised.
 expr1 :: Parser Expr
 expr1 =  valExpr <|> varExpr <|> parens expr
 
@@ -115,7 +115,7 @@ expr1 =  valExpr <|> varExpr <|> parens expr
 expr :: Parser Expr
 expr = ifExpr <|> operExpr
 
--- operExpr: experssions involving unary and binary operators
+-- operExpr: expressions involving unary and binary operators
 operExpr :: Parser Expr
 operExpr = makeExprParser expr1 operators
 
