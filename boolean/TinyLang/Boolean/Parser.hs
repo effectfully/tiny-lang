@@ -21,8 +21,9 @@
   See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
 
+-- | TODO: Generate unique names properly when parsing variable names
 
-module TinyLang.Boolean.Parser
+module TinyLang.Boolean.Parser (top)
 where
 
 import           Control.Applicative            (empty)
