@@ -13,7 +13,8 @@
 
   Things like 'and' denote keywords.
 
-  Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway)
+  Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway).
+  if-then-else has to be parenthesised unless it's at the very top.
 
   The code is based on the tutorial at
   https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
