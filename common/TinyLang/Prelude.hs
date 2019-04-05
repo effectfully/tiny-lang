@@ -6,8 +6,7 @@ module TinyLang.Prelude
 --------------------
 import           Control.Applicative    as Export
 import           Control.Exception      as Export
-import           Control.Monad          as Export hiding (fail)
-import           Control.Monad.Fail     as Export
+import           Control.Monad          as Export
 import           Control.Monad.IO.Class as Export
 import           Data.Bifunctor         as Export
 import           Data.Bool              as Export
@@ -29,6 +28,7 @@ import           Data.Semigroup         as Export
 import           Data.String            as Export
 import           Data.Traversable       as Export
 import           Data.Tuple             as Export
+import           Data.Void              as Export
 import           Debug.Trace            as Export
 import           GHC.Exts               as Export (groupWith, sortWith)
 import           GHC.Generics           as Export (Generic, Generic1)
@@ -40,7 +40,7 @@ import           Text.Read              as Export (Read (..), readEither,
 
 -- mtl
 --------------------
-import           Control.Monad.State    as Export hiding (fail)
+import           Control.Monad.State    as Export
 
 -- containers
 --------------------

@@ -24,19 +24,24 @@
 
 -- | TODO: Generate unique names properly when parsing variable names
 
-module TinyLang.Boolean.Parser (top)
-where
+module TinyLang.Boolean.Parser
+    ( parseExpr
+    ) where
 
-import           Control.Applicative            (empty)
+import           TinyLang.Boolean.Core
+import           TinyLang.Prelude               hiding (many, try)
+import           TinyLang.Var
+
 import           Control.Monad.Combinators.Expr as E
-import           Data.Void
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
-import           TinyLang.Boolean.Core
-import           TinyLang.Var
+import           Text.Megaparsec.Error
 
 type Parser = Parsec Void String  -- Void -> No custom error messages
+
+parseExpr :: String -> Either String Expr
+parseExpr = first errorBundlePretty . parse top ""
 
 -- The main entry point: parse the whole of an input stream
 top :: Parser Expr
@@ -44,7 +49,7 @@ top = between ws eof expr
 
 -- A temporary workaround to deal with Uniques
 makeVar :: String -> Var
-makeVar s = Var (Unique 0) s
+makeVar = Var (Unique 0)
 
 -- Consume whitespace
 ws :: Parser ()
@@ -81,10 +86,10 @@ identifier =  (lexeme . try) (p >>= check)
 
 -- Constants T and F
 trueExpr :: Parser Expr
-trueExpr =  keyword "T" *> (pure $ EVal True)
+trueExpr =  EVal True <$ keyword "T"
 
 falseExpr :: Parser Expr
-falseExpr = keyword "F" *> (pure $ EVal False)
+falseExpr = EVal False <$ keyword "F"
 
 valExpr :: Parser Expr
 valExpr = trueExpr <|> falseExpr
@@ -92,9 +97,7 @@ valExpr = trueExpr <|> falseExpr
 
 -- Variables
 varExpr :: Parser Expr
-varExpr = do
-  ident <- identifier
-  return $ EVar (makeVar ident)
+varExpr = EVar . makeVar <$> identifier
 
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
@@ -132,5 +135,3 @@ operators = -- The order here determines operator precedence.
 -- if e then r1 else e2
 ifExpr :: Parser Expr
 ifExpr = EIf <$> (keyword "if" *> expr) <*> (keyword "then" *> expr) <*> (keyword "else" *> expr)
-
-
