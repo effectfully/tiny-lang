@@ -5,6 +5,8 @@ import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Environment (lookupVar)
 import           TinyLang.Var
 
+-- | TODO: make it configurable whether printed variable names include their Unique serial number
+
 toStringUnOp :: UnOp -> String
 toStringUnOp Not = "not "
 
