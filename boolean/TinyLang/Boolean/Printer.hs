@@ -1,11 +1,21 @@
-module TinyLang.Boolean.Printer (toString)
-where
+module TinyLang.Boolean.Printer
+    (toStringWithIDs,
+     toStringNoIDs
+    ) where
 
 import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Environment (lookupVar)
 import           TinyLang.Var
 
--- | TODO: make it configurable whether printed variable names include their Unique serial number
+-- | Variable names are equipped with Unique identifiers.  The
+-- PrintStyle type determines whether printed variable names include
+-- these or not ("x_5" versus "x").  If we're going to re-parse the
+-- output of toString we probably don't want the IDs.
+data PrintStyle = WithIDs | NoIDs
+
+toStringVar :: PrintStyle -> Var -> String
+toStringVar NoIDs   (Var _ name) = name
+toStringVar WithIDs v            = show v   -- or explicitly tell it what to do?
 
 toStringUnOp :: UnOp -> String
 toStringUnOp Not = "not "
@@ -22,14 +32,22 @@ isSimple (EVar _) = True
 isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
-toString1 :: Expr -> String
-toString1 e = if isSimple e then toString e else "(" ++ toString e ++ ")"
+toString1 :: PrintStyle -> Expr -> String
+toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
 -- Main function
-toString :: Expr -> String
-toString (EVal b) = if b then "T" else "F"
-toString (EVar v) = _varName v
-toString (EIf e e1 e2) = "if " ++ toString1 e ++ " then " ++ toString1 e1 ++ " else " ++ toString1 e2
-toString (EAppUnOp op e) = toStringUnOp op ++ toString1 e
-toString (EAppBinOp op e1 e2) = toString1 e1 ++ toStringBinOp op ++ toString1 e2
+toString :: PrintStyle -> Expr -> String
+toString s (EVal b)             = if b then "T" else "F"
+toString s (EVar v)             = toStringVar s v
+toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
+toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2
+toString s (EIf e e1 e2)        = "if " ++ toString1 s e ++ " then " ++ toString1 s e1 ++ " else " ++ toString1 s e2
 
+
+-- | Convert an Expr to a String, ignoring Unique IDs in variable names
+toStringNoIDs :: Expr -> String
+toStringNoIDs = toString NoIDs
+
+-- | Convert an Expr to a String, including Unique IDs in variable names
+toStringWithIDs :: Expr -> String
+toStringWithIDs = toString WithIDs
