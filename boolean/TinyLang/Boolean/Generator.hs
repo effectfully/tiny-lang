@@ -144,7 +144,7 @@ forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 
-prop_checkparse e = let r = parseExpr (toStringWithIDs e)
+prop_checkparse e = let r = parseExpr (toStringNoIDs e)
                     in case r of
                          Left _  -> False
                          Right f -> forgetIDs f == forgetIDs e
