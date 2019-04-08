@@ -9,13 +9,13 @@ import           TinyLang.Var
 
 data UnOp
     = Not
-    deriving (Show, Read, Generic)
+    deriving (Show, Read, Generic, Eq)
 
 data BinOp
     = Or
     | And
     | Xor
-    deriving (Show, Read, Generic)
+    deriving (Show, Read, Generic, Eq)
 
 -- TODO:
 -- 1. pretty-printing
@@ -28,7 +28,7 @@ data Expr
     | EIf Expr Expr Expr
     | EAppUnOp UnOp Expr
     | EAppBinOp BinOp Expr Expr
-    deriving (Show, Generic)
+    deriving (Show, Generic, Eq)
 
 instance Monad m => Serial m UnOp
 instance Monad m => Serial m BinOp

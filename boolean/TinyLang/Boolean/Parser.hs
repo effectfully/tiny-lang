@@ -118,7 +118,7 @@ expr1 =  valExpr <|> varExpr <|> parens expr
 
 -- expr: full expressions
 expr :: Parser Expr
-expr = ifExpr <|> operExpr
+expr = operExpr <|> ifExpr
 
 -- operExpr: expressions involving unary and binary operators
 operExpr :: Parser Expr
