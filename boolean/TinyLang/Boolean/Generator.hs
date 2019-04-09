@@ -36,11 +36,11 @@ import           TinyLang.Var
 type VarName = String
 
 -- | A convenience method to convert a list of Strings into a list of
--- Vars. The variables are given unique serial numbers 1,2,3,...,
+-- Vars. The variables are given unique serial numbers 0,1,2,...,
 -- which means that multiple occurrences of the same name will yield
 -- different Vars: this may or may not be what you want.
 makeVars :: [VarName] -> [Var]
-makeVars = zipWith (\index name -> Var (Unique index) name) [1..]
+makeVars = zipWith (\index name -> Var (Unique index) name) [0..]
 
 -- | A list of default variables for convenience.
 defaultVars :: [Var]
