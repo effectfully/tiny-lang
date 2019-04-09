@@ -33,7 +33,7 @@ import           Test.QuickCheck
   in a random expression (but note that repeated Vars should be exactly
   the same, including the Uniqe ID).
 
-  Variable names should be of the form [a-z][a-z0-9]* if they're going
+  Variable names should be of the form [a-z][a-z0-9_]* if they're going
   to be printed and fed to the parser.
 -}
 
