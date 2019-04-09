@@ -153,7 +153,9 @@ instance Arbitrary Expr
     where arbitrary = sized defaultArbitraryExpr
           shrink = shrinkExpr
 
-data ExprWithEnv = ExprWithEnv Expr (Env Bool)
+data ExprWithEnv
+    = ExprWithEnv Expr (Env Bool)
+    deriving (Show, Eq)
 
 instance Arbitrary ExprWithEnv where
     arbitrary = do
