@@ -4,7 +4,6 @@ module TinyLang.Boolean.Printer
     ) where
 
 import           TinyLang.Boolean.Core
-import           TinyLang.Boolean.Environment (lookupVar)
 import           TinyLang.Var
 
 -- | Variable names are equipped with Unique identifiers.  The
@@ -37,7 +36,7 @@ toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
 -- Main function
 toString :: PrintStyle -> Expr -> String
-toString s (EVal b)             = if b then "T" else "F"
+toString _ (EVal b)             = if b then "T" else "F"
 toString s (EVar v)             = toStringVar s v
 toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
 toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2

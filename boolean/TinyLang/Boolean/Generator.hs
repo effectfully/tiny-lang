@@ -1,18 +1,22 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module TinyLang.Boolean.Generator
     (
      makeVars,
      defaultVars,
      boundedAbritraryExpr,
      defaultArbitraryExpr,
-     prop_checkparse
+     prop_checkparse,
+     nodes,
+     depth
     ) where
 
-import           Control.Monad
-import           Test.QuickCheck
 import           TinyLang.Boolean.Core
 import           TinyLang.Boolean.Parser
 import           TinyLang.Boolean.Printer
 import           TinyLang.Var
+
+import           Test.QuickCheck
 
 {-|
   We can't use String as the type of variable names in generators for
@@ -131,11 +135,11 @@ defaultArbitraryExpr = boundedAbritraryExpr defaultVars
  individual subtrees with atoms in failing cases.
 -}
 shrinkExpr :: Expr -> [Expr]
-shrinkExpr (EAppUnOp op e)      = [e]
-shrinkExpr (EAppBinOp op e1 e2) = [e1, e2]
-shrinkExpr (EIf e e1 e2)        = [e,e1,e2]
-shrinkExpr (EVal _)             = []  -- Can't shrink an atom
-shrinkExpr (EVar _)             = []
+shrinkExpr (EAppUnOp _ e)      = [e]
+shrinkExpr (EAppBinOp _ e1 e2) = [e1, e2]
+shrinkExpr (EIf e e1 e2)       = [e,e1,e2]
+shrinkExpr (EVal _)            = []  -- Can't shrink an atom
+shrinkExpr (EVar _)            = []
 
 
 {-| An instance of Arbitrary for Expr.  QuickCheck will use this for
@@ -169,6 +173,7 @@ forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 
+prop_checkparse :: Expr -> Bool
 prop_checkparse e = let r = parseExpr (toStringNoIDs e)
                     in case r of
                          Left _  -> False
@@ -178,15 +183,15 @@ prop_checkparse e = let r = parseExpr (toStringNoIDs e)
 
 -- A couple of functions for checking the output of generators
 nodes :: Expr -> Int
-nodes (EVal b)             = 1
-nodes (EVar v)             = 1
-nodes (EAppUnOp op e)      = 1 + nodes e
-nodes (EAppBinOp op e1 e2) = 1 + nodes e1 + nodes e2
-nodes (EIf e e1 e2)        = 1 + nodes e + nodes e1 + nodes e2
+nodes (EVal _)            = 1
+nodes (EVar _)            = 1
+nodes (EAppUnOp _ e)      = 1 + nodes e
+nodes (EAppBinOp _ e1 e2) = 1 + nodes e1 + nodes e2
+nodes (EIf e e1 e2)       = 1 + nodes e + nodes e1 + nodes e2
 
 depth :: Expr -> Int
-depth (EVal b)             = 1
-depth (EVar v)             = 1
-depth (EAppUnOp op e)      = 1 + depth e
-depth (EAppBinOp op e1 e2) = 1 + max (depth e1) (depth e2)
-depth (EIf e e1 e2)        = 1 + max (depth e) (max (depth e1) (depth e2))
+depth (EVal _)            = 1
+depth (EVar _)            = 1
+depth (EAppUnOp _ e)      = 1 + depth e
+depth (EAppBinOp _ e1 e2) = 1 + max (depth e1) (depth e2)
+depth (EIf e e1 e2)       = 1 + max (depth e) (max (depth e1) (depth e2))

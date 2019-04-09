@@ -40,6 +40,10 @@ library
     EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
     TypeOperators, PatternSynonyms, TypeApplications
     OverloadedStrings, StrictData
+  ghc-options:
+    -Wall
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wredundant-constraints -Widentities
 
 source-repository head
   type:     git
