@@ -170,6 +170,8 @@ instance Arbitrary a => Arbitrary (Env a) where
         uniquesWithVars <- traverse (\i -> (,) i <$> arbitrary) allUniques
         return . Env $ IntMap.fromList uniquesWithVars
 
+    shrink = map (Env . IntMap.fromList) . shrink . IntMap.toList . unEnv
+
 data ExprWithEnv
     = ExprWithEnv Expr (Env Bool)
     deriving (Show, Eq)
