@@ -22,8 +22,6 @@
   See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
 
--- | TODO: Generate unique names properly when parsing variable names
-
 module TinyLang.Boolean.Parser
     ( parseExpr
     ) where
@@ -32,24 +30,44 @@ import           TinyLang.Boolean.Core
 import           TinyLang.Prelude               hiding (many, try)
 import           TinyLang.Var
 
+import           Control.Applicative (pure)
 import           Control.Monad.Combinators.Expr as E
+import qualified Data.Map                       as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
 import           Text.Megaparsec.Error
 
-type Parser = Parsec Void String  -- Void -> No custom error messages
 
+type Parser = ParsecT Void String (TinyLang.Prelude.State IdentifierState) -- Void -> No custom error messages
+
+-- Stuff for generating new Unique names during parsing.  Based on Name.hs in PlutusCore.
+-- IdentifierState maps names onto Vars and remembers a counter for Unique IDs.
+type IdentifierState = (M.Map String Var, Int)
+
+emptyIdentifierState :: IdentifierState
+emptyIdentifierState = (mempty, 0)
+
+-- | Look up a variable name. If we've already seen it, return the corresponding Var;
+-- otherwise, increase the Unique counter and use it to construct a new Var.
+makeVar :: (MonadState IdentifierState m) => String -> m Var
+makeVar name = do
+    (ss, counter) <- get
+    case M.lookup name ss of
+        Just v -> pure v
+        Nothing -> do
+            let counter' = counter + 1
+                v = Var (Unique counter') name
+            put (M.insert name v ss, counter')
+            pure v
+
+-- | The main entry point: parse a string and return Either an error message or an Expr.
 parseExpr :: String -> Either String Expr
-parseExpr = first errorBundlePretty . parse top ""
+parseExpr s = first errorBundlePretty . fst $ runState (runParserT top "" s) emptyIdentifierState
 
--- The main entry point: parse the whole of an input stream
+-- Parse the whole of an input stream
 top :: Parser Expr
 top = between ws eof expr
-
--- A temporary workaround to deal with Uniques
-makeVar :: String -> Var
-makeVar = Var (Unique 0)
 
 -- Consume whitespace
 ws :: Parser ()
@@ -97,8 +115,7 @@ valExpr = trueExpr <|> falseExpr
 
 -- Variables
 varExpr :: Parser Expr
-varExpr = EVar . makeVar <$> identifier
-
+varExpr = EVar <$> (identifier >>= makeVar)
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
