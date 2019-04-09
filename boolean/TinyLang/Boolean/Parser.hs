@@ -1,7 +1,7 @@
 {-| A parser for the boolean language.  The concrete syntax is as follows:
 
   val ::= T | F
-  var ::= [a-z][a-z0-9]*
+  var ::= [a-z][a-z0-9_]*
 
   expr ::= val
            var
@@ -97,7 +97,7 @@ keyword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 identifier :: Parser String
 identifier =  (lexeme . try) (p >>= check)
     where
-      p       = (:) <$> lowerChar <*> many (lowerChar <|> digitChar)
+      p       = (:) <$> lowerChar <*> many (lowerChar <|> digitChar <|> char '_')
       check x = if x `elem` keywords
                 then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                 else return x
