@@ -6,13 +6,16 @@ module TinyLang.Boolean.Generator
      defaultVars,
      boundedAbritraryExpr,
      defaultArbitraryExpr,
+     ExprWithEnv,
      nodes,
      depth
     ) where
 
 import           TinyLang.Boolean.Core
+import           TinyLang.Boolean.Environment
 import           TinyLang.Var
 
+import qualified Data.IntMap.Strict           as IntMap
 import           Test.QuickCheck
 
 {-|
@@ -149,6 +152,20 @@ shrinkExpr (EVar _)            = []
 instance Arbitrary Expr
     where arbitrary = sized defaultArbitraryExpr
           shrink = shrinkExpr
+
+data ExprWithEnv = ExprWithEnv Expr (Env Bool)
+
+instance Arbitrary ExprWithEnv where
+    arbitrary = do
+        -- Generate an expression.
+        expr <- arbitrary
+        -- Generate an arbitrary value for each variable in the generated expression.
+        vals <- traverse (const arbitrary) $ exprVarNames expr
+        return $ ExprWithEnv expr (Env vals)
+    shrink (ExprWithEnv expr (Env vals)) =
+        -- TODO: test me.
+        flip map (shrink expr) $ \shrunkExpr ->
+            ExprWithEnv shrunkExpr . Env . IntMap.intersection vals $ exprVarNames shrunkExpr
 
 -- A couple of functions for checking the output of generators
 nodes :: Expr -> Int
