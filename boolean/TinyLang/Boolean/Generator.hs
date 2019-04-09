@@ -6,7 +6,7 @@ module TinyLang.Boolean.Generator
      defaultVars,
      boundedAbritraryExpr,
      defaultArbitraryExpr,
-     ExprWithEnv,
+     ExprWithEnv (..),
      nodes,
      depth
     ) where
