@@ -153,6 +153,23 @@ instance Arbitrary Expr
     where arbitrary = sized defaultArbitraryExpr
           shrink = shrinkExpr
 
+-- Generates an arbitrary environment that
+--
+-- 1. likely contains values for some likely small prefix of 'defaultVars'
+-- 2. contains values for some sublist of 'defaultVars'
+-- 3. contains values for some arbitrary variables
+instance Arbitrary a => Arbitrary (Env a) where
+    arbitrary = do
+        let len = length defaultVars
+            varsToUniques = map (unUnique . _varUniq)
+        prefixSize <- frequency $ map (\i -> (len - i, choose (0, i))) [0 .. len]
+        let preUniques = varsToUniques $ take prefixSize defaultVars
+        defUniques <- varsToUniques <$> sublistOf defaultVars
+        arbUniques <- map abs <$> arbitrary
+        let allUniques = preUniques ++ defUniques ++ arbUniques
+        uniquesWithVars <- traverse (\i -> (,) i <$> arbitrary) allUniques
+        return . Env $ IntMap.fromList uniquesWithVars
+
 data ExprWithEnv
     = ExprWithEnv Expr (Env Bool)
     deriving (Show, Eq)
