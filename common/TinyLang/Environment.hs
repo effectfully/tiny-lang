@@ -1,4 +1,4 @@
-module TinyLang.Boolean.Environment
+module TinyLang.Environment
     ( Env (..)
     , lookupUnique
     , lookupVar

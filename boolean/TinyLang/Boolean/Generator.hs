@@ -12,10 +12,10 @@ module TinyLang.Boolean.Generator
     ) where
 
 import           TinyLang.Boolean.Core
-import           TinyLang.Boolean.Environment
+import           TinyLang.Environment
 import           TinyLang.Var
 
-import qualified Data.IntMap.Strict           as IntMap
+import qualified Data.IntMap.Strict    as IntMap
 import           Test.QuickCheck
 
 {-|

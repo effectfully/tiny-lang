@@ -14,16 +14,19 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-    hs-source-dirs: common boolean
+    hs-source-dirs: common boolean integer
     exposed-modules:
-        TinyLang.Prelude,
+        TinyLang.Environment
+        TinyLang.Prelude
         TinyLang.Var
         TinyLang.Boolean.Core
         TinyLang.Boolean.Evaluator
-        TinyLang.Boolean.Environment
         TinyLang.Boolean.Generator
         TinyLang.Boolean.Parser
         TinyLang.Boolean.Printer
+        TinyLang.Integer.Core
+        TinyLang.Integer.Evaluator
+        TinyLang.Integer.Printer
     build-depends:
         base >= 4.7 && < 5,
         mtl,

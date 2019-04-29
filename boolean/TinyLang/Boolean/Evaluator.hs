@@ -5,7 +5,7 @@ module TinyLang.Boolean.Evaluator
     ) where
 
 import           TinyLang.Boolean.Core
-import           TinyLang.Boolean.Environment (Env, lookupVar)
+import           TinyLang.Environment  (Env, lookupVar)
 
 evalUnOp :: UnOp -> Bool -> Bool
 evalUnOp Not = not
