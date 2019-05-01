@@ -17,6 +17,7 @@ library
     hs-source-dirs: common boolean rational
     exposed-modules:
         TinyLang.Environment
+        TinyLang.Generator
         TinyLang.Prelude
         TinyLang.Var
         TinyLang.Boolean.Core

@@ -42,7 +42,6 @@ toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
 toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2
 toString s (EIf e e1 e2)        = "if " ++ toString1 s e ++ " then " ++ toString1 s e1 ++ " else " ++ toString1 s e2
 
-
 -- | Convert an Expr to a String, ignoring Unique IDs in variable names
 toStringNoIDs :: Expr -> String
 toStringNoIDs = toString NoIDs
