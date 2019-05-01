@@ -14,7 +14,7 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-    hs-source-dirs: common boolean integer
+    hs-source-dirs: common boolean rational
     exposed-modules:
         TinyLang.Environment
         TinyLang.Prelude
@@ -24,9 +24,9 @@ library
         TinyLang.Boolean.Generator
         TinyLang.Boolean.Parser
         TinyLang.Boolean.Printer
-        TinyLang.Integer.Core
-        TinyLang.Integer.Evaluator
-        TinyLang.Integer.Printer
+        TinyLang.Rational.Core
+        TinyLang.Rational.Evaluator
+        TinyLang.Rational.Printer
     build-depends:
         base >= 4.7 && < 5,
         mtl,

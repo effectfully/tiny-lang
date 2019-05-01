@@ -1,9 +1,9 @@
-module TinyLang.Integer.Printer
+module TinyLang.Rational.Printer
     (toStringWithIDs,
      toStringNoIDs
     ) where
 
-import           TinyLang.Integer.Core
+import           TinyLang.Rational.Core
 import           TinyLang.Var
 
 -- | Variable names are equipped with Unique identifiers.  The
@@ -19,13 +19,17 @@ toStringVar WithIDs v            = show v   -- or explicitly tell it what to do?
 toStringUnOp :: UnOp a b -> String
 toStringUnOp Not  = "not "
 toStringUnOp Neq0 = "neq0 "
+toStringUnOp Inv  = "inv "
 
 toStringBinOp :: BinOp a b c -> String
 toStringBinOp Or  = " or "
 toStringBinOp And = " and "
 toStringBinOp Xor = " xor "
 toStringBinOp Add = " + "
+toStringBinOp Sub = " - "
 toStringBinOp Mul = " * "
+toStringBinOp Div = " / "
+toStringBinOp Pow = " ^ "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr a -> Bool
@@ -40,7 +44,7 @@ toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 -- Main function
 toString :: PrintStyle -> Expr a -> String
 toString _ (EVal Bool b)        = if b then "T" else "F"
-toString _ (EVal Integer i)     = show i
+toString _ (EVal Rational i)    = show i
 toString s (EVar _ v)           = toStringVar s v
 toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
 toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2
