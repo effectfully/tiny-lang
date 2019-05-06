@@ -1,6 +1,6 @@
 module TinyLang.Rational.Printer
-    (toStringWithIDs,
-     toStringNoIDs
+    ( toStringWithIDs
+    , toStringNoIDs
     ) where
 
 import           TinyLang.Rational.Core
@@ -33,18 +33,20 @@ toStringBinOp Pow = " ^ "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr a -> Bool
-isSimple (EVal _ _) = True
-isSimple (EVar _ _) = True
-isSimple _          = False
+isSimple (EVal _) = True
+isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
 toString1 :: PrintStyle -> Expr a -> String
 toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
+toStringUniVal :: UniVal a -> String
+toStringUniVal (UniVal Bool     b) = if b then "T" else "F"
+toStringUniVal (UniVal Rational r) = show r
+
 -- Main function
 toString :: PrintStyle -> Expr a -> String
-toString _ (EVal Bool b)        = if b then "T" else "F"
-toString _ (EVal Rational i)    = show i
+toString _ (EVal uv)            = toStringUniVal uv
 toString s (EVar _ v)           = toStringVar s v
 toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
 toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2

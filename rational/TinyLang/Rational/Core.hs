@@ -1,9 +1,10 @@
 module TinyLang.Rational.Core
-    ( Universe (..)
+    ( Uni (..)
+    , UniVal (..)
     , UnOp (..)
     , BinOp (..)
     , Expr (..)
-    , withGeqUniverse
+    , withGeqUni
     , exprVarNames
     ) where
 
@@ -12,9 +13,12 @@ import           TinyLang.Var
 
 import qualified Data.IntMap.Strict as IntMap
 
-data Universe a where
-    Bool     :: Universe Bool
-    Rational :: Universe Rational
+data Uni a where
+    Bool     :: Uni Bool
+    Rational :: Uni Rational
+
+-- Needed for the sake of deriving.
+data UniVal a = UniVal (Uni a) a
 
 data UnOp a b where
     Not  :: UnOp Bool     Bool
@@ -32,15 +36,14 @@ data BinOp a b c where
     Pow :: BinOp Rational Rational Rational
 
 data Expr a where
-    EVal      :: Universe a -> a -> Expr a
-    EVar      :: Universe a -> Var -> Expr a
+    EVal      :: UniVal a -> Expr a
+    EVar      :: Uni a -> Var -> Expr a
     EIf       :: Expr Bool -> Expr a -> Expr a -> Expr a
-    -- The constrains are added for the ease of deriving, they're not really needed.
-    EAppUnOp  :: Show a => UnOp a b -> Expr a -> Expr b
-    EAppBinOp :: (Show a, Show b) => BinOp a b c -> Expr a -> Expr b -> Expr c
+    EAppUnOp  :: UnOp a b -> Expr a -> Expr b
+    EAppBinOp :: BinOp a b c -> Expr a -> Expr b -> Expr c
 
-deriving instance Show (Universe a)
-deriving instance Eq   (Universe a)
+deriving instance Show (Uni a)
+deriving instance Eq   (Uni a)
 
 deriving instance Show (UnOp a b)
 deriving instance Eq   (UnOp a b)
@@ -48,14 +51,16 @@ deriving instance Eq   (UnOp a b)
 deriving instance Show (BinOp a b c)
 deriving instance Eq   (BinOp a b c)
 
--- The @Show a@ constraint is actually redundant, but it's not clear how to make deriving work
--- without it.
-deriving instance Show a => Show (Expr a)
+instance Show (UniVal a) where
+    show (UniVal Bool     b) = show b
+    show (UniVal Rational r) = show r
 
-withGeqUniverse :: Universe a1 -> Universe a2 -> (a1 ~ a2 => b) -> b -> b
-withGeqUniverse Bool    Bool    y _ = y
-withGeqUniverse Rational Rational y _ = y
-withGeqUniverse _       _       _ z = z
+deriving instance Show (Expr a)
+
+withGeqUni :: Uni a1 -> Uni a2 -> (a1 ~ a2 => b) -> b -> b
+withGeqUni Bool     Bool     y _ = y
+withGeqUni Rational Rational y _ = y
+withGeqUni _       _         _ z = z
 
 withGeqUnOp :: UnOp a1 b1 -> UnOp a2 b2 -> ((a1 ~ a2, b1 ~ b2) => d) -> d -> d
 withGeqUnOp Not  Not  y _ = y
@@ -74,9 +79,12 @@ withGeqBinOp Div Div y _ = y
 withGeqBinOp Pow Pow y _ = y
 withGeqBinOp _   _   _ z = z
 
+instance Eq (UniVal a) where
+    UniVal Bool     b1 == UniVal Bool     b2 = b1 == b2
+    UniVal Rational r1 == UniVal Rational r2 = r1 == r2
+
 instance Eq (Expr a) where
-    EVal Bool b1       == EVal Bool b2       = b1 == b2
-    EVal Rational i1   == EVal Rational i2   = i1 == i2
+    EVal uv1           == EVal uv2           = uv1 == uv2
     EVar _ v1          == EVar _ v2          = v1 == v2
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 (x1 == x2) False
@@ -86,7 +94,7 @@ instance Eq (Expr a) where
 exprVarNames :: Expr a -> IntMap String
 exprVarNames = go mempty where
     go :: IntMap String -> Expr a -> IntMap String
-    go names (EVal _ _)                        = names
+    go names (EVal _)                          = names
     go names (EVar _ (Var (Unique uniq) name)) =
         case IntMap.lookup uniq names of
             Just name'

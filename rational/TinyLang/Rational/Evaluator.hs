@@ -1,5 +1,5 @@
 module TinyLang.Rational.Evaluator
-    ( TypedValue (..)
+    ( SomeUniVal (..)
     , evalUnOp
     , evalBinOp
     , evalExpr
@@ -22,16 +22,16 @@ evalBinOp Add = (+)
 evalBinOp Sub = (-)
 evalBinOp Mul = (*)
 evalBinOp Div = (/)
-evalBinOp Pow = undefined
+evalBinOp Pow = error "not implemented yet"
 
-data TypedValue = forall a. TypedValue (Universe a) a
+data SomeUniVal = forall a. SomeUniVal (Uni a) a
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExpr :: Env TypedValue -> Expr a -> a
-evalExpr _   (EVal _ b) = b
+evalExpr :: Env SomeUniVal -> Expr a -> a
+evalExpr _   (EVal (UniVal _ x)) = x
 evalExpr env (EVar u var) = case lookupVar var env of
-    TypedValue u' val -> withGeqUniverse u u' val $ error "type mismatch"
+    SomeUniVal u' val -> withGeqUni u u' val $ error "type mismatch"
 evalExpr env (EIf e e1 e2) = if evalExpr env e then evalExpr env e1 else evalExpr env e2
 evalExpr env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExpr env (EAppBinOp op e1 e2) =
