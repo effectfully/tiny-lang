@@ -33,7 +33,6 @@ data BinOp a b c where
     Sub :: BinOp Rational Rational Rational
     Mul :: BinOp Rational Rational Rational
     Div :: BinOp Rational Rational Rational
-    Pow :: BinOp Rational Rational Rational
 
 data Expr a where
     EVal      :: UniVal a -> Expr a
@@ -76,7 +75,6 @@ withGeqBinOp Add Add y _ = y
 withGeqBinOp Sub Sub y _ = y
 withGeqBinOp Mul Mul y _ = y
 withGeqBinOp Div Div y _ = y
-withGeqBinOp Pow Pow y _ = y
 withGeqBinOp _   _   _ z = z
 
 instance Eq (UniVal a) where

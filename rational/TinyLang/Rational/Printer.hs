@@ -29,7 +29,6 @@ toStringBinOp Add = " + "
 toStringBinOp Sub = " - "
 toStringBinOp Mul = " * "
 toStringBinOp Div = " / "
-toStringBinOp Pow = " ^ "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr a -> Bool

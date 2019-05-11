@@ -22,7 +22,6 @@ evalBinOp Add = (+)
 evalBinOp Sub = (-)
 evalBinOp Mul = (*)
 evalBinOp Div = (/)
-evalBinOp Pow = error "not implemented yet"
 
 data SomeUniVal = forall a. SomeUniVal (Uni a) a
 
