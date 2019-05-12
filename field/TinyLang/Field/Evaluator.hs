@@ -1,33 +1,33 @@
-module TinyLang.Rational.Evaluator
+module TinyLang.Field.Evaluator
     ( SomeUniVal (..)
     , evalUnOp
     , evalBinOp
     , evalExpr
     ) where
 
+import           Prelude               hiding (div)
 import           TinyLang.Environment  (Env, lookupVar)
-import           TinyLang.Prelude
-import           TinyLang.Rational.Core
+import           TinyLang.Field.Core
 
-evalUnOp :: UnOp a b -> a -> b
+evalUnOp :: (Eq f, Field f) => UnOp f a b -> a -> b
 evalUnOp Not  = not
-evalUnOp Neq0 = (/= 0)
-evalUnOp Inv  = \x -> denominator x % numerator x
+evalUnOp Neq0 = (/= zer)
+evalUnOp Inv  = inv
 
-evalBinOp :: BinOp a b c -> a -> b -> c
+evalBinOp :: Field f => BinOp f a b c -> a -> b -> c
 evalBinOp Or  = (||)
 evalBinOp And = (&&)
 evalBinOp Xor = (/=)
-evalBinOp Add = (+)
-evalBinOp Sub = (-)
-evalBinOp Mul = (*)
-evalBinOp Div = (/)
+evalBinOp Add = add
+evalBinOp Sub = sub
+evalBinOp Mul = mul
+evalBinOp Div = div
 
-data SomeUniVal = forall a. SomeUniVal (Uni a) a
+data SomeUniVal f = forall a. SomeUniVal (Uni f a) a
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExpr :: Env SomeUniVal -> Expr a -> a
+evalExpr :: (Eq f, Show f, Field f) => Env (SomeUniVal f) -> Expr f a -> a
 evalExpr _   (EVal (UniVal _ x)) = x
 evalExpr env (EVar u var) = case lookupVar var env of
     SomeUniVal u' val -> withGeqUni u u' val $ error "type mismatch"

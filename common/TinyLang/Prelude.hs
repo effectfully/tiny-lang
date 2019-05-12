@@ -24,7 +24,6 @@ import           Data.Maybe             as Export
 import           Data.Monoid            as Export hiding (First (..), Last (..))
 import           Data.Ord               as Export
 import           Data.Proxy             as Export
-import           Data.Ratio             as Export
 import           Data.Semigroup         as Export
 import           Data.String            as Export
 import           Data.Traversable       as Export
