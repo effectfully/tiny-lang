@@ -1,5 +1,6 @@
 module TinyLang.Field.Core
     ( Field (..)
+    , AField (..)
     , Uni (..)
     , UniVal (..)
     , UnOp (..)
