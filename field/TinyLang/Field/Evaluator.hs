@@ -14,10 +14,11 @@ evalUnOp Not  = not
 evalUnOp Neq0 = (/= zer)
 evalUnOp Inv  = inv
 
-evalBinOp :: Field f => BinOp f a b c -> a -> b -> c
+evalBinOp :: (Eq f, Field f) => BinOp f a b c -> a -> b -> c
 evalBinOp Or  = (||)
 evalBinOp And = (&&)
 evalBinOp Xor = (/=)
+evalBinOp FEq = (==)
 evalBinOp Add = add
 evalBinOp Sub = sub
 evalBinOp Mul = mul

@@ -95,6 +95,7 @@ data BinOp f a b c where
     Or  :: BinOp f Bool Bool Bool
     And :: BinOp f Bool Bool Bool
     Xor :: BinOp f Bool Bool Bool
+    FEq :: BinOp f f    f    Bool
     Add :: BinOp f f    f    f
     Sub :: BinOp f f    f    f
     Mul :: BinOp f f    f    f
@@ -140,6 +141,7 @@ withGeqBinOp :: BinOp f a1 b1 c1 -> BinOp f a2 b2 c2 -> ((a1 ~ a2, b1 ~ b2, c1 ~
 withGeqBinOp Or  Or  y _ = y
 withGeqBinOp And And y _ = y
 withGeqBinOp Xor Xor y _ = y
+withGeqBinOp FEq FEq y _ = y
 withGeqBinOp Add Add y _ = y
 withGeqBinOp Sub Sub y _ = y
 withGeqBinOp Mul Mul y _ = y

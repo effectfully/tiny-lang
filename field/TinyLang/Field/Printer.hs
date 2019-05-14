@@ -25,6 +25,7 @@ toStringBinOp :: BinOp f a b c -> String
 toStringBinOp Or  = " or "
 toStringBinOp And = " and "
 toStringBinOp Xor = " xor "
+toStringBinOp FEq = " == "
 toStringBinOp Add = " + "
 toStringBinOp Sub = " - "
 toStringBinOp Mul = " * "
