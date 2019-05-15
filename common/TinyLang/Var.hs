@@ -54,7 +54,6 @@ data Var = Var
     , _varName :: String
     } deriving (Eq, Generic)
 
--- TODO: use 'Pretty' and derive 'Show' as is appropriate.
 instance Show Unique where
     show (Unique int) = show int
 
