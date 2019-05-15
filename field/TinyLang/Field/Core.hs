@@ -7,7 +7,8 @@ module TinyLang.Field.Core
     , BinOp (..)
     , Expr (..)
     , withGeqUni
-    , exprVarNames
+    , VarSign (..)
+    , exprVarSigns
     ) where
 
 import           Prelude          hiding (div)
@@ -148,6 +149,13 @@ withGeqBinOp Mul Mul y _ = y
 withGeqBinOp Div Div y _ = y
 withGeqBinOp _   _   _ z = z
 
+-- This doesn't type check:
+--
+-- > UniVal uni1 x1 == UniVal uni2 x2 = withGeqUni uni1 uni2 (x1 == x2) False
+--
+-- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
+-- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
+-- but then it's easier to just pattern match on universes.
 instance Eq f => Eq (UniVal f a) where
     UniVal Bool  b1 == UniVal Bool  b2 = b1 == b2
     UniVal Field i1 == UniVal Field i2 = i1 == i2
@@ -160,17 +168,28 @@ instance Eq f => Eq (Expr f a) where
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
     _                  == _                  = False
 
-exprVarNames :: Expr f a -> IntMap String
-exprVarNames = go mempty where
-    go :: IntMap String -> Expr f a -> IntMap String
-    go names (EVal _)                          = names
-    go names (EVar _ (Var (Unique uniq) name)) =
+data VarSign f = forall a. VarSign
+    { _varSignName :: String
+    , _varSignUni  :: Uni f a
+    }
+
+deriving instance Show (VarSign f)
+
+instance Eq (VarSign f) where
+    VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 (name1 == name2) False
+
+exprVarSigns :: Expr f a -> IntMap (VarSign f)
+exprVarSigns = go mempty where
+    go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
+    go names (EVal _)                            = names
+    go names (EVar uni (Var (Unique uniq) name)) =
         case IntMap.lookup uniq names of
-            Just name'
-                | name == name' -> names
-                | otherwise     ->
-                    error $ concat ["name mismatch: '", name, "' vs '", name', "'"]
-            Nothing -> IntMap.insert uniq name names
-    go names (EAppUnOp _ x)                    = go names x
-    go names (EAppBinOp _ x y)                 = go (go names x) y
-    go names (EIf b x y)                       = go (go (go names b) x) y
+            Just sign'
+                | sign == sign' -> names
+                | otherwise     -> error $
+                    concat ["var signature mismatch: '", show sign, "' vs '", show sign', "'"]
+            Nothing -> IntMap.insert uniq sign names
+        where sign = VarSign name uni
+    go names (EAppUnOp _ x)                      = go names x
+    go names (EAppBinOp _ x y)                   = go (go names x) y
+    go names (EIf b x y)                         = go (go (go names b) x) y
