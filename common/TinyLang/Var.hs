@@ -5,6 +5,8 @@ module TinyLang.Var
     , SupplyT (..)
     , Supply
     , MonadSupply (..)
+    , runFromSupplyT
+    , runSupplyT
     , freshUnique
     , Var (..)
     , freshVar
@@ -42,6 +44,12 @@ class Monad m => MonadSupply m where
 
 instance MonadSupply m => MonadSupply (SupplyT m) where
     liftSupply (SupplyT a) = SupplyT $ hoist generalize a
+
+runFromSupplyT :: Monad m => Unique -> SupplyT m a -> m a
+runFromSupplyT uniq (SupplyT a) = evalStateT a uniq
+
+runSupplyT :: Monad m => SupplyT m a -> m a
+runSupplyT = runFromSupplyT $ Unique 0
 
 freshUnique :: MonadSupply m => m Unique
 freshUnique = liftSupply . SupplyT $ do
