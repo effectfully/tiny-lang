@@ -44,7 +44,7 @@ class Monad m => MonadSupply m where
     default liftSupply :: (m ~ t n, MonadTrans t, MonadSupply n) => Supply a -> m a
     liftSupply = lift . liftSupply
 
-instance MonadSupply m => MonadSupply (SupplyT m) where
+instance Monad m => MonadSupply (SupplyT m) where
     liftSupply (SupplyT a) = SupplyT $ hoist generalize a
 
 instance MonadSupply m => MonadSupply (ExceptT e m)
