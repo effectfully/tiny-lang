@@ -30,6 +30,7 @@ library
         TinyLang.Field.Printer
     build-depends:
         base >= 4.7 && < 5,
+        transformers,
         mtl,
         containers,
         megaparsec,

@@ -28,7 +28,7 @@ newtype SupplyT m a = SupplyT
     { unSupplyT :: StateT Unique m a
     } deriving newtype
         ( Functor, Applicative, Monad
-        , MonadTrans, MonadError e, MonadReader r
+        , MonadTrans, MonadReader r, MonadError e
         , MFunctor
         )
 
@@ -41,9 +41,16 @@ type Supply = SupplyT Identity
 
 class Monad m => MonadSupply m where
     liftSupply :: Supply a -> m a
+    default liftSupply :: (m ~ t n, MonadTrans t, MonadSupply n) => Supply a -> m a
+    liftSupply = lift . liftSupply
 
 instance MonadSupply m => MonadSupply (SupplyT m) where
     liftSupply (SupplyT a) = SupplyT $ hoist generalize a
+
+instance MonadSupply m => MonadSupply (ExceptT e m)
+instance MonadSupply m => MonadSupply (MaybeT m)
+instance MonadSupply m => MonadSupply (ReaderT r m)
+instance MonadSupply m => MonadSupply (StateT s m)
 
 runFromSupplyT :: Monad m => Unique -> SupplyT m a -> m a
 runFromSupplyT uniq (SupplyT a) = evalStateT a uniq
