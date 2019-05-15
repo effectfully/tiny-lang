@@ -41,6 +41,8 @@ import           Text.Read              as Export (Read (..), readEither,
 
 -- mtl
 --------------------
+import           Control.Monad.Except   as Export
+import           Control.Monad.Reader   as Export
 import           Control.Monad.State    as Export
 
 -- containers

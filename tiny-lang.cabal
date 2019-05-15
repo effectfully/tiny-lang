@@ -33,6 +33,7 @@ library
         mtl,
         containers,
         megaparsec,
+        mmorph,
         parser-combinators,
         QuickCheck,
         smallcheck
@@ -41,8 +42,9 @@ library
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
         ScopedTypeVariables, ConstraintKinds, DefaultSignatures
         GADTs, DataKinds, PolyKinds, RankNTypes, TypeFamilies, FunctionalDependencies
-        DeriveFunctor, DeriveFoldable, DeriveTraversable,
-        DeriveGeneric, DeriveDataTypeable, StandaloneDeriving
+        DerivingStrategies, DeriveAnyClass, GeneralizedNewtypeDeriving, StandaloneDeriving
+        DeriveFunctor, DeriveFoldable, DeriveTraversable
+        DeriveGeneric, DeriveDataTypeable,
         EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
         TypeOperators, PatternSynonyms, TypeApplications
         OverloadedStrings, StrictData
@@ -70,8 +72,9 @@ test-suite tiny-lang-test
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
         ScopedTypeVariables, ConstraintKinds, DefaultSignatures
         GADTs, DataKinds, PolyKinds, RankNTypes, TypeFamilies, FunctionalDependencies
-        DeriveFunctor, DeriveFoldable, DeriveTraversable,
-        DeriveGeneric, DeriveDataTypeable, StandaloneDeriving
+        DerivingStrategies, DeriveAnyClass, GeneralizedNewtypeDeriving, StandaloneDeriving
+        DeriveFunctor, DeriveFoldable, DeriveTraversable
+        DeriveGeneric, DeriveDataTypeable,
         EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
         TypeOperators, PatternSynonyms, TypeApplications
         OverloadedStrings, StrictData
