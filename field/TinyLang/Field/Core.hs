@@ -71,6 +71,7 @@ instance Field f => Num (AField f) where
     (*) = mul
 
     fromInteger n = case n of
+        -1            -> neg one
         0             -> zer
         1             -> one
         2             -> one `add` one
