@@ -12,6 +12,7 @@ import           TinyLang.Field.Core
 evalUnOp :: (Eq f, Field f) => UnOp f a b -> a -> b
 evalUnOp Not  = not
 evalUnOp Neq0 = (/= zer)
+evalUnOp Neg  = neg
 evalUnOp Inv  = inv
 
 evalBinOp :: (Eq f, Field f) => BinOp f a b c -> a -> b -> c

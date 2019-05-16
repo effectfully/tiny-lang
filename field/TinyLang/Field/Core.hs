@@ -90,6 +90,7 @@ data UniVal f a = UniVal (Uni f a) a
 data UnOp f a b where
     Not  :: UnOp f Bool      Bool
     Neq0 :: UnOp f (AField f) Bool
+    Neg  :: UnOp f (AField f) (AField f)
     Inv  :: UnOp f (AField f) (AField f)
 
 data BinOp f a b c where

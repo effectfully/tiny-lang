@@ -19,6 +19,7 @@ toStringVar WithIDs v            = show v   -- or explicitly tell it what to do?
 toStringUnOp :: UnOp f a b -> String
 toStringUnOp Not  = "not "
 toStringUnOp Neq0 = "neq0 "
+toStringUnOp Neg  = "neg "
 toStringUnOp Inv  = "inv "
 
 toStringBinOp :: BinOp f a b c -> String
