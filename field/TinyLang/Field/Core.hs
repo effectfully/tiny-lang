@@ -88,19 +88,19 @@ data Uni f a where
 data UniVal f a = UniVal (Uni f a) a
 
 data UnOp f a b where
-    Not  :: UnOp f Bool Bool
-    Neq0 :: UnOp f f    Bool
-    Inv  :: UnOp f f    f
+    Not  :: UnOp f Bool      Bool
+    Neq0 :: UnOp f (AField f) Bool
+    Inv  :: UnOp f (AField f) (AField f)
 
 data BinOp f a b c where
-    Or  :: BinOp f Bool Bool Bool
-    And :: BinOp f Bool Bool Bool
-    Xor :: BinOp f Bool Bool Bool
-    FEq :: BinOp f f    f    Bool
-    Add :: BinOp f f    f    f
-    Sub :: BinOp f f    f    f
-    Mul :: BinOp f f    f    f
-    Div :: BinOp f f    f    f
+    Or  :: BinOp f Bool       Bool       Bool
+    And :: BinOp f Bool       Bool       Bool
+    Xor :: BinOp f Bool       Bool       Bool
+    FEq :: BinOp f (AField f) (AField f) Bool
+    Add :: BinOp f (AField f) (AField f) (AField f)
+    Sub :: BinOp f (AField f) (AField f) (AField f)
+    Mul :: BinOp f (AField f) (AField f) (AField f)
+    Div :: BinOp f (AField f) (AField f) (AField f)
 
 data Expr f a where
     EVal      :: UniVal f a -> Expr f a
