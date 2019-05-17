@@ -18,6 +18,9 @@ import           TinyLang.Var
 
 import qualified Data.IntMap.Strict as IntMap
 
+infixl 6 `add`, `sub`
+infixl 7 `mul`, `div`
+
 class Field f where
     zer :: f
 
