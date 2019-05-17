@@ -111,6 +111,16 @@ data Expr f a where
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
 
+instance Field f => Field (Expr f (AField f)) where
+    zer = EVal (UniVal Field zer)
+    neg = EAppUnOp Neg
+    add = EAppBinOp Add
+    sub = EAppBinOp Sub
+    one = EVal (UniVal Field one)
+    inv = EAppUnOp Inv
+    mul = EAppBinOp Mul
+    div = EAppBinOp Div
+
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
 
