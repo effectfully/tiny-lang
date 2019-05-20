@@ -29,7 +29,7 @@ data SomeUniVal f = forall a. SomeUniVal (Uni f a) a
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExpr :: (Eq f, Show f, Field f) => Env (SomeUniVal f) -> Expr f a -> a
+evalExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> a
 evalExpr _   (EVal (UniVal _ x)) = x
 evalExpr env (EVar u var) = case lookupVar var env of
     SomeUniVal u' val -> withGeqUni u u' val $ error "type mismatch"
