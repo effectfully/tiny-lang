@@ -1,7 +1,9 @@
-module TinyLang.Boolean.Environment
+module TinyLang.Environment
     ( Env (..)
     , lookupUnique
     , lookupVar
+    , insertUnique
+    , insertVar
     ) where
 
 import           TinyLang.Prelude
@@ -12,10 +14,16 @@ import qualified Data.IntMap.Strict as IntMap
 -- | A simple representation of environments as 'IntMap's mapping variables to values
 newtype Env a = Env
     { unEnv :: IntMap a
-    }
+    } deriving (Show, Eq, Functor)
 
 lookupUnique :: Unique -> Env a -> a
 lookupUnique (Unique ind) (Env env) = env IntMap.! ind
 
 lookupVar :: Var -> Env a -> a
 lookupVar = lookupUnique . _varUniq
+
+insertUnique :: Unique -> a -> Env a -> Env a
+insertUnique (Unique i) x (Env xs) = Env $ IntMap.insert i x xs
+
+insertVar :: Var -> a -> Env a -> Env a
+insertVar = insertUnique . _varUniq

@@ -36,7 +36,6 @@ import qualified Data.Map                       as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
-import           Text.Megaparsec.Error
 
 
 type Parser = ParsecT Void String (TinyLang.Prelude.State IdentifierState) -- Void -> No custom error messages

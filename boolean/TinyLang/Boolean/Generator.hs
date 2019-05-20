@@ -1,58 +1,25 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module TinyLang.Boolean.Generator
     (
-     makeVars,
-     defaultVars,
      boundedAbritraryExpr,
      defaultArbitraryExpr,
-     prop_checkparse
+     ExprWithEnv (..),
+     nodes,
+     depth
     ) where
 
-import           Control.Monad
-import           Test.QuickCheck
 import           TinyLang.Boolean.Core
-import           TinyLang.Boolean.Parser
-import           TinyLang.Boolean.Printer
+import           TinyLang.Environment
+import           TinyLang.Generator
 import           TinyLang.Var
 
-{-|
-  We can't use String as the type of variable names in generators for
-  expressions because then it's probable that the variables occurring
-  in a randomly generated expression will all be distinct, which is
-  unrealistic. Also we have to conform to the concrete syntax, and
-  deal sensibly with Unique IDs in some way.
-
-  To deal with these issues we parameterise the expression generator
-  over a list of Vars, and the variables appearing in the expression
-  will be chosen uniformly from this list using QuickCheck's
-  'elements'.  It's OK to have repeated variables: the more often a
-  variable appears in the list, the more often it's likely to appear
-  in a random expression (but note that repeated Vars should be exactly
-  the same, including the Uniqe ID).
-
-  Variable names should be of the form [a-z][a-z0-9_]* if they're going
-  to be printed and fed to the parser.
--}
-
-type VarName = String
-
--- | A convenience method to convert a list of Strings into a list of
--- Vars. The variables are given unique serial numbers 1,2,3,...,
--- which means that multiple occurrences of the same name will yield
--- different Vars: this may or may not be what you want.
-makeVars :: [VarName] -> [Var]
-makeVars = zipWith (\index name -> Var (Unique index) name) [1..]
-
--- | A list of default variables for convenience.
-defaultVars :: [Var]
-defaultVars = makeVars ["a", "b", "c", "d", "e", "f", "g", "h"]
+import qualified Data.IntMap.Strict    as IntMap
+import           Test.QuickCheck
 
 -- | Generator for values
 arbitraryValue :: Gen Bool
 arbitraryValue = arbitrary
-
--- | Generator for variables, choosing from the given list.
-arbitraryVar :: [Var] -> Gen Var
-arbitraryVar = elements
 
 -- | Generator for unary operators.  We only have one at the moment,
 -- so this is kind of trivial: it's easily extensible though.
@@ -131,11 +98,11 @@ defaultArbitraryExpr = boundedAbritraryExpr defaultVars
  individual subtrees with atoms in failing cases.
 -}
 shrinkExpr :: Expr -> [Expr]
-shrinkExpr (EAppUnOp op e)      = [e]
-shrinkExpr (EAppBinOp op e1 e2) = [e1, e2]
-shrinkExpr (EIf e e1 e2)        = [e,e1,e2]
-shrinkExpr (EVal _)             = []  -- Can't shrink an atom
-shrinkExpr (EVar _)             = []
+shrinkExpr (EAppUnOp _ e)      = [e]
+shrinkExpr (EAppBinOp _ e1 e2) = [e1, e2]
+shrinkExpr (EIf e e1 e2)       = [e,e1,e2]
+shrinkExpr (EVal _)            = []  -- Can't shrink an atom
+shrinkExpr (EVar _)            = []
 
 
 {-| An instance of Arbitrary for Expr.  QuickCheck will use this for
@@ -149,44 +116,33 @@ instance Arbitrary Expr
     where arbitrary = sized defaultArbitraryExpr
           shrink = shrinkExpr
 
+data ExprWithEnv
+    = ExprWithEnv Expr (Env Bool)
+    deriving (Show, Eq)
 
----------------------------------------------------------------------------
--- Since we've got a generator, let's use it to test the parser and printer.
-
--- We want to check that printing then parsing is the identity, but in
--- general it won't be because the Uniques in the variables will change.
--- Let's get round that by setting all the IDs to 0.
--- I'm sure there's a fancy Haskell way to do this, but it's not hard to
--- do it the old-fashioned way.
-
-forgetID :: Var -> Var
-forgetID v = Var (Unique 0) (_varName v)
-
-forgetIDs :: Expr -> Expr
-forgetIDs (EVal b)             = EVal b
-forgetIDs (EVar v)             = EVar (forgetID v)
-forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
-forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
-forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
-
-prop_checkparse e = let r = parseExpr (toStringNoIDs e)
-                    in case r of
-                         Left _  -> False
-                         Right f -> forgetIDs f == forgetIDs e
-
-
+instance Arbitrary ExprWithEnv where
+    arbitrary = do
+        -- Generate an expression.
+        expr <- arbitrary
+        -- Generate an arbitrary value for each variable in the generated expression.
+        vals <- traverse (const arbitrary) $ exprVarNames expr
+        return $ ExprWithEnv expr (Env vals)
+    shrink (ExprWithEnv expr (Env vals)) =
+        -- TODO: test me.
+        flip map (shrink expr) $ \shrunkExpr ->
+            ExprWithEnv shrunkExpr . Env . IntMap.intersection vals $ exprVarNames shrunkExpr
 
 -- A couple of functions for checking the output of generators
 nodes :: Expr -> Int
-nodes (EVal b)             = 1
-nodes (EVar v)             = 1
-nodes (EAppUnOp op e)      = 1 + nodes e
-nodes (EAppBinOp op e1 e2) = 1 + nodes e1 + nodes e2
-nodes (EIf e e1 e2)        = 1 + nodes e + nodes e1 + nodes e2
+nodes (EVal _)            = 1
+nodes (EVar _)            = 1
+nodes (EAppUnOp _ e)      = 1 + nodes e
+nodes (EAppBinOp _ e1 e2) = 1 + nodes e1 + nodes e2
+nodes (EIf e e1 e2)       = 1 + nodes e + nodes e1 + nodes e2
 
 depth :: Expr -> Int
-depth (EVal b)             = 1
-depth (EVar v)             = 1
-depth (EAppUnOp op e)      = 1 + depth e
-depth (EAppBinOp op e1 e2) = 1 + max (depth e1) (depth e2)
-depth (EIf e e1 e2)        = 1 + max (depth e) (max (depth e1) (depth e2))
+depth (EVal _)            = 1
+depth (EVar _)            = 1
+depth (EAppUnOp _ e)      = 1 + depth e
+depth (EAppBinOp _ e1 e2) = 1 + max (depth e1) (depth e2)
+depth (EIf e e1 e2)       = 1 + max (depth e) (max (depth e1) (depth e2))
