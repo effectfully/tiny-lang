@@ -5,7 +5,7 @@ module TinyLang.Boolean.Evaluator
     ) where
 
 import           TinyLang.Boolean.Core
-import           TinyLang.Environment  (Env, lookupVar)
+import           TinyLang.Environment
 
 evalUnOp :: UnOp -> Bool -> Bool
 evalUnOp Not = not
@@ -18,7 +18,7 @@ evalBinOp Xor = (/=)
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
 evalExpr :: Env Bool -> Expr -> Bool
 evalExpr _   (EVal b) = b
-evalExpr env (EVar v) = lookupVar v env
+evalExpr env (EVar v) = unsafeLookupVar v env
 evalExpr env (EIf e e1 e2) = if evalExpr env e then evalExpr env e1 else evalExpr env e2
 evalExpr env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExpr env (EAppBinOp op e1 e2) =

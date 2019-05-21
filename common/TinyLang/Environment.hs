@@ -2,6 +2,8 @@ module TinyLang.Environment
     ( Env (..)
     , lookupUnique
     , lookupVar
+    , unsafeLookupUnique
+    , unsafeLookupVar
     , insertUnique
     , insertVar
     ) where
@@ -16,11 +18,17 @@ newtype Env a = Env
     { unEnv :: IntMap a
     } deriving (Show, Eq, Functor)
 
-lookupUnique :: Unique -> Env a -> a
-lookupUnique (Unique ind) (Env env) = env IntMap.! ind
+lookupUnique :: Unique -> Env a -> Maybe a
+lookupUnique (Unique ind) (Env env) = IntMap.lookup ind env
 
-lookupVar :: Var -> Env a -> a
+lookupVar :: Var -> Env a -> Maybe a
 lookupVar = lookupUnique . _varUniq
+
+unsafeLookupUnique :: Unique -> Env a -> a
+unsafeLookupUnique (Unique ind) (Env env) = env IntMap.! ind
+
+unsafeLookupVar :: Var -> Env a -> a
+unsafeLookupVar = unsafeLookupUnique . _varUniq
 
 insertUnique :: Unique -> a -> Env a -> Env a
 insertUnique (Unique i) x (Env xs) = Env $ IntMap.insert i x xs
