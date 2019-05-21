@@ -1,5 +1,6 @@
 module TinyLang.Prelude
     ( module Export
+    , (.*)
     ) where
 
 -- base
@@ -55,3 +56,8 @@ import           Control.Monad.State       as Export
 -- containers
 --------------------
 import           Data.IntMap.Strict        as Export (IntMap)
+
+infixr 9 .*
+
+(.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+(.*) = (.) . (.)
