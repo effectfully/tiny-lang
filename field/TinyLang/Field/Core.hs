@@ -89,7 +89,10 @@ data Uni f a where
     Field :: Uni f (AField f)
 
 -- Needed for the sake of deriving.
-data UniVal f a = UniVal (Uni f a) a
+data UniVal f a = UniVal
+    { _uniValUni :: Uni f a
+    , _uniValVal :: a
+    }
 
 data UnOp f a b where
     Not  :: UnOp f Bool      Bool
