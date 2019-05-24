@@ -87,6 +87,13 @@ instance Field f => Num (AField f) where
 data Uni f a where
     Bool  :: Uni f Bool
     Field :: Uni f (AField f)
+    -- ^ We need this additional 'AField' wrapper in order to make 'Uni' a singleton.
+    -- That is, if we made it @Field :: Uni f f@, then with @f@ instantiated to @Bool@, both
+    -- @Bool@ and @Field@ would be of the same type: @Uni Bool Bool@. Since we use @Uni@ in order
+    -- to reflect types at the term level, we do want it to be a singleton.
+    -- Originally @Field@ didn't use the wrapper and we were getting annoying
+    -- "pattern matching is not exhaustive" warnings. Now @a@ uniquely determines the constructor
+    -- and we do not have such warnings.
 
 -- Needed for the sake of deriving.
 data UniVal f a = UniVal
