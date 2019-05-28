@@ -1,3 +1,6 @@
+-- | Some functions/types lifted out of the Parser module so that we can use them in ParsableField
+-- TODO: clean up the imports/exports
+
 module TinyLang.Field.ParserUtils (lexeme, ws, symbol, parens, emptyIdentifierState, Parser, IdentifierState)
 where
 

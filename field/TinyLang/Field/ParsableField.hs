@@ -1,3 +1,5 @@
+-- | A class for fields which can be parsed, allowing us to make the parser parametric
+
 module TinyLang.Field.ParsableField
 where
 
