@@ -53,6 +53,8 @@ import           Text.Megaparsec.Char
 import           TinyLang.Field.ParsableField    
 import           TinyLang.Field.ParserUtils
 
+-- A uniform type to contain exprs of type bool/numeric.  Maybe this
+-- could go in Core.hs;  do we really need it though?
 data ExprWrapper f =
     BoolExpr (Expr f Bool)
   | FieldExpr (Expr f (AField f))
