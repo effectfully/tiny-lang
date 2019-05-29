@@ -22,6 +22,38 @@ import qualified Data.IntMap.Strict as IntMap
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
 
+-- There is a funny thing we can do: build a lazy tree like this:
+--
+--       0
+--       +
+--       1
+--       +
+--       2
+--      + *
+--     3   4
+--    *   + *
+--   6   5   8
+--
+-- (where @+@ means @+1@ and @*@ means @*2@.
+--
+-- This way we can efficiently convert integers to field elements.
+-- And we can probably rebalance this tree in order to be able to efficiently perform search in it,
+-- which would allow us to check whether a field element is in fact an integer and nicely print it
+-- as such (especially useful when the field is Q).
+
+-- We can also use previous elements in order to obtain new elements from them,
+-- for example we can obtain @15@ using only addition like this:
+--
+-- 1 + 1 = 2
+-- 2 + 1 = 3
+-- 3 + 3 = 6
+-- 6 + 6 = 12
+-- 12 + 3 = 15
+
+-- but this is known to be a computationally hard problem (see https://projecteuler.net/problem=122)
+-- and we also need to use multiplication, so this is more of a Project Euler task than something
+-- that we definitely need. Anyway, would nice to have, just too much of a bother.
+
 class Field f where
     zer :: f
 
