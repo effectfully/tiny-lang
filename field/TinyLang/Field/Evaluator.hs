@@ -2,6 +2,7 @@ module TinyLang.Field.Evaluator
     ( SomeUniVal (..)
     , evalUnOp
     , evalBinOp
+    , evalExprUni
     , evalExpr
     , normExpr
     ) where
