@@ -29,14 +29,18 @@ evalBinOp Div = UniVal Field .* div
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
+evalExprUni :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
+evalExprUni _   (EVal uniVal) = uniVal
+evalExprUni env (EVar u var) = case unsafeLookupVar var env of
+    SomeUniVal uniVal@(UniVal u' _) -> withGeqUni u u' uniVal $ error "type mismatch"
+evalExprUni env (EIf e e1 e2) = if evalExpr env e then evalExprUni env e1 else evalExprUni env e2
+evalExprUni env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
+evalExprUni env (EAppBinOp op e1 e2) =
+    evalBinOp op (evalExpr env e1) (evalExpr env e2)
+
+-- | A recursive evaluator for expressions.
 evalExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> a
-evalExpr _   (EVal (UniVal _ x)) = x
-evalExpr env (EVar u var) = case unsafeLookupVar var env of
-    SomeUniVal (UniVal u' val) -> withGeqUni u u' val $ error "type mismatch"
-evalExpr env (EIf e e1 e2) = if evalExpr env e then evalExpr env e1 else evalExpr env e2
-evalExpr env (EAppUnOp op e) = _uniValVal $ evalUnOp op (evalExpr env e)
-evalExpr env (EAppBinOp op e1 e2) =
-    _uniValVal $ evalBinOp op (evalExpr env e1) (evalExpr env e2)
+evalExpr env = _uniValVal . evalExprUni env
 
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
