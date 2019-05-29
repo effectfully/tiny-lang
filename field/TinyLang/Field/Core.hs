@@ -3,6 +3,7 @@ module TinyLang.Field.Core
     , AField (..)
     , Uni (..)
     , UniVal (..)
+    , SomeUniVal (..)
     , UnOp (..)
     , BinOp (..)
     , Expr (..)
@@ -101,6 +102,8 @@ data UniVal f a = UniVal
     , _uniValVal :: a
     }
 
+data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
+
 data UnOp f a b where
     Not  :: UnOp f Bool      Bool
     Neq0 :: UnOp f (AField f) Bool
@@ -151,6 +154,8 @@ instance Show f => Show (UniVal f a) where
     show (UniVal Field i) = show i
 
 deriving instance Show f => Show (Expr f a)
+
+deriving instance Show f => Show (SomeUniVal f)
 
 withGeqUni :: Uni f a1 -> Uni f a2 -> (a1 ~ a2 => b) -> b -> b
 withGeqUni Bool  Bool  y _ = y
