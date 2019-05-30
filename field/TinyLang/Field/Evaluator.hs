@@ -4,6 +4,7 @@ module TinyLang.Field.Evaluator
     , evalExprUni
     , evalExpr
     , denoteUniVal
+    , denoteSomeUniVal
     , denoteExpr
     , normExpr
     ) where
@@ -48,6 +49,9 @@ evalExpr env = _uniValVal . evalExprUni env
 denoteUniVal :: Field f => UniVal f a -> f
 denoteUniVal (UniVal Bool  b) = if b then one else zer
 denoteUniVal (UniVal Field i) = unAField i
+
+denoteSomeUniVal :: Field f => SomeUniVal f -> f
+denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
 
 denoteExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
