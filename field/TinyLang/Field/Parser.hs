@@ -41,17 +41,15 @@ module TinyLang.Field.Parser
     ) where
 
 import           TinyLang.Field.Core
---import           TinyLang.Field.Printer
 import           TinyLang.Prelude               hiding (many, try)
 import           TinyLang.Var
+import           TinyLang.Field.ParsableField
+import           TinyLang.Field.ParserUtils
 
-import           Control.Applicative (pure)
 import           Control.Monad.Combinators.Expr as E
 import qualified Data.Map                       as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import           TinyLang.Field.ParsableField    
-import           TinyLang.Field.ParserUtils
 
 -- A uniform type to contain exprs of type bool/numeric.  Maybe this
 -- could go in Core.hs;  do we really need it though?
@@ -86,7 +84,7 @@ expr = (try (BoolExpr <$> expr_B)) <|> (FieldExpr <$> expr_F)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
-      
+
 -- Keywords
 keywords :: [String]
 keywords = ["T", "F", "not", "and", "or", "xor", "if", "then", "else", "neq0", "neg", "inv"]
@@ -109,7 +107,7 @@ identifier_F = (lexeme . try) (p >>= check)
                 then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                 else return x
 
-                
+
 identifier_B :: Parser String
 identifier_B =  (lexeme . try) (p >>= check)
     where
@@ -131,9 +129,9 @@ valExpr_B = trueVal <|> falseVal
 -- Literal constants from the field
 valExpr_F :: forall f . ParsableField f => Parser (Expr f (AField f))
 valExpr_F = (\v -> EVal (UniVal Field v)) <$> (parseFieldElement :: Parser (AField f))
-          
+
 -- Variables
-varExpr_F :: ParsableField f => Parser (Expr f (AField f))
+varExpr_F :: Parser (Expr f (AField f))
 varExpr_F = EVar Field <$> (identifier_F >>= makeVar)
 
 varExpr_B :: Parser (Expr f Bool)
@@ -172,9 +170,9 @@ expr_B :: ParsableField f => Parser (Expr f Bool)
 expr_B = try eqExpr <|> try operExpr_B <|> ifExpr_B
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
-expr_F = (try operExpr_F) <|> ifExpr_F 
+expr_F = (try operExpr_F) <|> ifExpr_F
 
-         
+
 -- operExpr: expressions involving unary and binary operators
 -- We have to deal with eq and neq0 separately.
 
@@ -200,7 +198,7 @@ operators_F = -- The order here determines operator precedence.
   , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
-             
+
 
 -- if e then r1 else e2
 

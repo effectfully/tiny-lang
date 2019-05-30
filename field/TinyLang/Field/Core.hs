@@ -14,6 +14,7 @@ module TinyLang.Field.Core
 
 import           Prelude          hiding (div)
 import qualified Prelude          (div)
+
 import           TinyLang.Prelude
 import           TinyLang.Var
 

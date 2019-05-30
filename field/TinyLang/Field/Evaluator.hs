@@ -8,6 +8,7 @@ module TinyLang.Field.Evaluator
     ) where
 
 import           Prelude              hiding (div)
+
 import           TinyLang.Environment
 import           TinyLang.Field.Core
 import           TinyLang.Prelude
