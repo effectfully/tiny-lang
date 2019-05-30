@@ -27,7 +27,12 @@ library
         TinyLang.Boolean.Printer
         TinyLang.Field.Core
         TinyLang.Field.Evaluator
+        TinyLang.Field.Generator
+        TinyLang.Field.ParsableField
+        TinyLang.Field.Parser
+        TinyLang.Field.ParserUtils
         TinyLang.Field.Printer
+        TinyLang.Field.F17
     build-depends:
         base >= 4.7 && < 5,
         transformers,
