@@ -1,15 +1,23 @@
 -- | Some functions/types lifted out of the Parser module so that we can use them in ParsableField
 -- TODO: clean up the imports/exports
 
-module TinyLang.Field.ParserUtils (lexeme, ws, symbol, parens, emptyIdentifierState, Parser, IdentifierState)
-where
+module TinyLang.Field.ParserUtils
+    ( lexeme
+    , ws
+    , symbol
+    , parens
+    , emptyIdentifierState
+    , Parser
+    , IdentifierState
+    ) where
+
+import           TinyLang.Prelude           hiding (many, try)
+import           TinyLang.Var
 
 import qualified Data.Map                   as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
-import           TinyLang.Prelude           hiding (many, try)
-import           TinyLang.Var
 
 -- Stuff for generating new Unique names during parsing.  Based on Name.hs in PlutusCore.
 -- IdentifierState maps names onto Vars and remembers a counter for Unique IDs.
@@ -36,4 +44,3 @@ symbol = L.symbol ws
 -- 'parens' parses something between parenthesis.
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
-

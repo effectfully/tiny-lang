@@ -3,11 +3,12 @@
 module TinyLang.Field.ParsableField
 where
 
-import           Text.Megaparsec
-import qualified Text.Megaparsec.Char.Lexer as L
 import           TinyLang.Field.Core
 import           TinyLang.Field.ParserUtils
 import           TinyLang.Prelude           hiding (many, try)
+
+import           Text.Megaparsec
+import qualified Text.Megaparsec.Char.Lexer as L
 
 class Field f => ParsableField f
     where parseFieldElement :: Parser f
@@ -21,4 +22,3 @@ instance ParsableField Rational where
         try ((%) <$>  signedDecimal <* symbol "%" <*> lexeme L.decimal)
                 <|> (%1) <$> signedDecimal
         where signedDecimal = L.signed ws (lexeme L.decimal)
-

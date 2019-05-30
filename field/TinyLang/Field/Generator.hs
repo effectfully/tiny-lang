@@ -4,7 +4,6 @@ module TinyLang.Field.Generator
 where
 
 import TinyLang.Environment ()
-    
 import TinyLang.Field.Core
 import TinyLang.Generator ()
 import TinyLang.Field.Printer ()
@@ -35,12 +34,11 @@ instance Arbitrary (BinOp f (AField f) (AField f) (AField f)) where
     arbitrary = elements [Add, Sub, Mul, Div]
 
 instance Arbitrary (UniVal f Bool) where
-    arbitrary = UniVal Bool <$> (arbitrary :: Gen Bool)
+    arbitrary = UniVal Bool <$> arbitrary
 
 instance (Arbitrary (AField f)) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field  <$> arbitrary
 
-                 
 boundedAbritraryExpr_B :: forall f. (Field f, Arbitrary f) => Int -> Gen (Expr f Bool)
 boundedAbritraryExpr_B size =
     if size <= 1 then EVal <$> arbitrary
@@ -79,4 +77,3 @@ boundedAbritraryExpr_F size =
 
 -- boundedAbritraryExpr :: forall f a. (Arbitrary (AField f)) => Int -> Gen (Expr f a)
 -- boundedAbritraryExpr size = oneof [boundedAbritraryExpr_B size, boundedAbritraryExpr_F size]
-
