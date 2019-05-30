@@ -4,6 +4,7 @@ module TinyLang.Field.Core
     , Uni (..)
     , UniVal (..)
     , SomeUniVal (..)
+    , SomeUniExpr (..)
     , UnOp (..)
     , BinOp (..)
     , Expr (..)
@@ -136,6 +137,8 @@ data UniVal f a = UniVal
     }
 
 data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
+
+data SomeUniExpr f = forall a. SomeUniExpr (Uni f a) (Expr f a)
 
 data UnOp f a b where
     Not  :: UnOp f Bool      Bool

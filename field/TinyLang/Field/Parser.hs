@@ -36,8 +36,7 @@
 -}
 
 module TinyLang.Field.Parser
-    ( parseExpr,
-      ExprWrapper(..)
+    ( parseExpr
     ) where
 
 import           TinyLang.Field.Core
@@ -50,13 +49,6 @@ import           Control.Monad.Combinators.Expr as E
 import qualified Data.Map                       as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-
--- A uniform type to contain exprs of type bool/numeric.  Maybe this
--- could go in Core.hs;  do we really need it though?
-data ExprWrapper f =
-    BoolExpr (Expr f Bool)
-  | FieldExpr (Expr f (AField f))
-    deriving (Show)
 
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
@@ -72,15 +64,15 @@ makeVar name = do
             pure v
 
 -- | The main entry point: parse a string and return Either an error message or an Expr.
-parseExpr :: ParsableField f => String -> Either String (ExprWrapper f)
+parseExpr :: ParsableField f => String -> Either String (SomeUniExpr f)
 parseExpr s = first errorBundlePretty . fst $ runState (runParserT top "" s) emptyIdentifierState
 
 -- Parse the whole of an input stream
-top :: ParsableField f => Parser (ExprWrapper f)
+top :: ParsableField f => Parser (SomeUniExpr f)
 top = between ws eof expr
 
-expr :: ParsableField f => Parser (ExprWrapper f)
-expr = (try (BoolExpr <$> expr_B)) <|> (FieldExpr <$> expr_F)
+expr :: ParsableField f => Parser (SomeUniExpr f)
+expr = (try (SomeUniExpr Bool <$> expr_B)) <|> (SomeUniExpr Field <$> expr_F)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
