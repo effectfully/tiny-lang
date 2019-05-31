@@ -160,7 +160,7 @@ data ExprWithEnv f a
 instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f a) where
     arbitrary = do
         expr <- arbitrary
-        vals <- let SomeUniExpr _ e = expr in genEnvFromVarSigns (exprVarSigns e)
+        vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
         return $ ExprWithEnv expr vals
 
 {-
