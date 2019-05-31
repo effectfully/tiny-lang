@@ -163,20 +163,3 @@ instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f a) where
         vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
         return $ ExprWithEnv expr vals
 
-{-
-  This works:
-instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f a) where
-    arbitrary = do
-        expr <- arbitrary
-        vals <- let SomeUniExpr _ e = expr in genEnvFromVarSigns (exprVarSigns e)
-        return $ ExprWithEnv expr vals
-
-where
-
-exprVarSigns2 :: SomeUniExpr f -> IntMap (VarSign f)
-exprVarSigns2 (SomeUniExpr _ e) = go mempty e where
-    go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
-    go names (EVal _)                            = names
-    ...
--}
-
