@@ -1,6 +1,6 @@
 module TinyLang.Field.Printer
     ( toStringWithIDs
-    , toStringNoIDs
+    , toStringNoIDs, tos
     ) where
 
 import           TinyLang.Field.Core
@@ -34,7 +34,7 @@ toStringBinOp Div = " / "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
-isSimple (EVal _) = True
+-- isSimple (EVal _) = True  -- No!  Rationals cause problems: for example, neq0 (-1) % 2 is hard to parse
 isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
@@ -43,7 +43,7 @@ toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
 toStringUniVal :: Show f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
-toStringUniVal (UniVal Field i) = show i
+toStringUniVal (UniVal Field i) = "(" ++ show i ++ ")"
 
 -- Main function
 toString :: Show f => PrintStyle -> Expr f a -> String
@@ -60,3 +60,6 @@ toStringNoIDs = toString NoIDs
 -- | Convert an Expr to a String, including Unique IDs in variable names
 toStringWithIDs :: Show f => Expr f a -> String
 toStringWithIDs = toString WithIDs
+
+tos :: (Show f) => SomeUniExpr f -> String
+tos (SomeUniExpr _ e) = toStringNoIDs e

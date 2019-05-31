@@ -11,6 +11,7 @@ module TinyLang.Field.Core
     , withGeqUni
     , VarSign (..)
     , exprVarSigns
+    , exprVarSigns2
     ) where
 
 import           Prelude          hiding (div)
@@ -193,6 +194,8 @@ deriving instance Show f => Show (Expr f a)
 
 deriving instance Show f => Show (SomeUniVal f)
 
+deriving instance Show f => Show (SomeUniExpr f)
+
 withGeqUni :: Uni f a1 -> Uni f a2 -> (a1 ~ a2 => b) -> b -> b
 withGeqUni Bool  Bool  y _ = y
 withGeqUni Field Field y _ = y
@@ -246,6 +249,23 @@ instance Eq (VarSign f) where
 
 exprVarSigns :: Expr f a -> IntMap (VarSign f)
 exprVarSigns = go mempty where
+    go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
+    go names (EVal _)                            = names
+    go names (EVar uni (Var (Unique uniq) name)) =
+        case IntMap.lookup uniq names of
+            Just sign'
+                | sign == sign' -> names
+                | otherwise     -> error $
+                    concat ["var signature mismatch: '", show sign, "' vs '", show sign', "'"]
+            Nothing -> IntMap.insert uniq sign names
+        where sign = VarSign name uni
+    go names (EAppUnOp _ x)                      = go names x
+    go names (EAppBinOp _ x y)                   = go (go names x) y
+    go names (EIf b x y)                         = go (go (go names b) x) y
+
+
+exprVarSigns2 :: SomeUniExpr f -> IntMap (VarSign f)
+exprVarSigns2 (SomeUniExpr _ e) = go mempty e where
     go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
     go names (EVal _)                            = names
     go names (EVar uni (Var (Unique uniq) name)) =
