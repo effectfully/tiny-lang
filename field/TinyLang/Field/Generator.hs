@@ -123,21 +123,38 @@ boundedAbritraryExpr vars size = oneof [SomeUniExpr Bool <$> boundedAbritraryExp
 defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> Gen (SomeUniExpr f)
 defaultArbitraryExpr = boundedAbritraryExpr defaultVars
 
+uniOfUnOpArg :: UnOp f a b -> Uni f a
+uniOfUnOpArg Not  = Bool
+uniOfUnOpArg Neq0 = Field
+uniOfUnOpArg Inv  = Field
+uniOfUnOpArg Neg  = Field
+
+unisOfBinOpArg :: BinOp f a b c ->  (Uni f a, Uni f b)
+unisOfBinOpArg Or  = (Bool, Bool)
+unisOfBinOpArg And = (Bool, Bool)
+unisOfBinOpArg Xor = (Bool, Bool)
+unisOfBinOpArg FEq = (Field, Field)
+unisOfBinOpArg Add = (Field, Field)
+unisOfBinOpArg Sub = (Field, Field)
+unisOfBinOpArg Mul = (Field, Field)
+unisOfBinOpArg Div = (Field, Field)
+
+
+shrinkExpr :: SomeUniExpr f -> [SomeUniExpr f]
+shrinkExpr (SomeUniExpr k expr) =
+    case expr of
+      EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
+      EAppBinOp op e1 e2 ->
+          case unisOfBinOpArg op of
+            (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
+      EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr k e1, SomeUniExpr k e2]
+      EVal _ -> []
+      EVar _ _ -> []
+
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
     where arbitrary = sized defaultArbitraryExpr
-
-{-
--- A simple shrinker (could be improved)
-shrinkExpr :: Expr f a -> [Expr f a]
-shrinkExpr (EAppUnOp _ e)      = [e]
-shrinkExpr (EAppBinOp _ e1 e2) = [e1, e2]
-shrinkExpr (EIf e e1 e2)       = [e, e1, e2]
-shrinkExpr (EVal _)            = []  -- Can't shrink an atom
-shrinkExpr (EVar _ _)          = []
--}
-
-
+          shrink = shrinkExpr
 
 genUni :: Field f => Uni f a -> Gen a
 genUni Bool  = arbitrary
