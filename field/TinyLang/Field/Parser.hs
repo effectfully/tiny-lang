@@ -31,7 +31,7 @@
   Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway).
   if-then-else has to be parenthesised unless it's at the very top.
 
-  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,-}.
+  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
   Things like "neg inv 5" are illegal: use parentheses.
   
 

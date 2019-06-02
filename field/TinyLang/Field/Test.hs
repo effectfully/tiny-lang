@@ -3,7 +3,7 @@
    a string and then parse it again.
 -}
 
-module TinyLang.Field.Test
+module TinyLang.Field.Test (prop_Ftest)
 where
 
 import           TinyLang.Field.Core
