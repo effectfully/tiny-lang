@@ -203,6 +203,7 @@ withGeqUni _     _     _ z = z
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> ((a1 ~ a2, b1 ~ b2) => d) -> d -> d
 withGeqUnOp Not  Not  y _ = y
 withGeqUnOp Neq0 Neq0 y _ = y
+withGeqUnOp Neg  Neg  y _ = y
 withGeqUnOp Inv  Inv  y _ = y
 withGeqUnOp _    _    _ z = z
 

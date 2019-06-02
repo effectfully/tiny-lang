@@ -43,7 +43,7 @@ toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
 toStringUniVal :: Show f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
-toStringUniVal (UniVal Field i) = "(" ++ show i ++ ")"
+toStringUniVal (UniVal Field i) = show i
 
 -- Main function
 toString :: Show f => PrintStyle -> Expr f a -> String

@@ -3,15 +3,14 @@
 module TinyLang.Field.Generator
 where
 
-import           TinyLang.Environment   (Env (..))
+import           TinyLang.Environment     (Env (..))
 import           TinyLang.Field.Core
-import           TinyLang.Field.F17
-import           TinyLang.Field.Printer ()
-import           TinyLang.Generator     ()
+import           TinyLang.Field.Evaluator
+import           TinyLang.Generator       ()
 import           TinyLang.Var
 
 
-import qualified Data.IntMap.Strict     as IntMap
+import qualified Data.IntMap.Strict       as IntMap
 import           Test.QuickCheck
 
 -- Some stuff adapted from Vars.hs;  we need separate var names for
@@ -80,7 +79,7 @@ boundedAbritraryExpr_B vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
               (1, EVal <$> arbitrary),
-              (2, arbitraryEVar_B (boolVars vars)),
+              (1, arbitraryEVar_B (boolVars vars)),
               (2, EIf <$> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
                       <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
                       <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)),
@@ -101,7 +100,7 @@ boundedAbritraryExpr_F vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
               (1, EVal <$> arbitrary),
-              (2, arbitraryEVar_F (fieldVars vars)),
+              (1, arbitraryEVar_F (fieldVars vars)),
               (3, EIf <$>
                 boundedAbritraryExpr_B vars (size `Prelude.div` 3) <*>
                 boundedAbritraryExpr_F vars (size `Prelude.div` 3) <*>
@@ -141,13 +140,13 @@ unisOfBinOpArg Div = (Field, Field)
 
 
 shrinkExpr :: SomeUniExpr f -> [SomeUniExpr f]
-shrinkExpr (SomeUniExpr k expr) =
+shrinkExpr (SomeUniExpr f expr) =
     case expr of
       EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
       EAppBinOp op e1 e2 ->
           case unisOfBinOpArg op of
             (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
-      EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr k e1, SomeUniExpr k e2]
+      EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
       EVal _ -> []
       EVar _ _ -> []
 
@@ -170,11 +169,11 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
     where arbitrary = oneof [SomeUniVal <$> (arbitrary :: Gen (UniVal f (AField f))),
                              SomeUniVal <$> (arbitrary :: Gen (UniVal f Bool))]
 
-data ExprWithEnv f a
-    = ExprWithEnv (SomeUniExpr f) (Env (SomeUniVal f))
-      deriving (Show)
-
-instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f a) where
+-- | Generate a random ExprWithEnv.  Note that you can say things like
+-- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
+-- bigger expressions.  There's no means provided to generate things
+-- over non-default sets of variables, but this would be easy to do.
+instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         expr <- arbitrary
         vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)

@@ -4,6 +4,10 @@
   fvar ::= [a-z][a-z0-9_]*
   bvar ::=  '?'[a-z][a-z0-9_]*
 
+  Note that boolean variable names must begin with '?' so that
+  the parser knows what the type is.  We'd need environments  
+  or type annotations or something to avoid this.
+
   expr ::= val
            fvar
            bvar
@@ -27,7 +31,9 @@
   Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway).
   if-then-else has to be parenthesised unless it's at the very top.
 
-  FIXME: what about numeric operators?
+  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,-}.
+  Things like "neg inv 5" are illegal: use parentheses.
+  
 
   The code is based on the tutorial at
   https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
