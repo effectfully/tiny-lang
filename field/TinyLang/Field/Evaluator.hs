@@ -6,6 +6,9 @@ module TinyLang.Field.Evaluator
     , evalExprUni
     , evalExpr
     , evalExprWithEnv
+    , denoteUniVal
+    , denoteSomeUniVal
+    , denoteExpr
     , normExpr
     ) where
 
@@ -55,6 +58,17 @@ data ExprWithEnv f
 evalExprWithEnv :: (Eq f, Field f) => ExprWithEnv f -> SomeUniVal f
 evalExprWithEnv (ExprWithEnv (SomeUniExpr t e) env) =
           SomeUniVal (UniVal t (TinyLang.Field.Evaluator.evalExpr env e))
+
+
+denoteUniVal :: Field f => UniVal f a -> f
+denoteUniVal (UniVal Bool  b) = if b then one else zer
+denoteUniVal (UniVal Field i) = unAField i
+
+denoteSomeUniVal :: Field f => SomeUniVal f -> f
+denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
+
+denoteExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> f
+denoteExpr env = denoteUniVal . evalExprUni env
 
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
