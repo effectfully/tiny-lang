@@ -48,7 +48,6 @@ instance Field F17 where
         _  -> error $ "F17 is not in the [0, 16] range: " ++ show n
 
 -- | Choose a random element uniformly. If you use this in
-
 -- randomly-generated expressions there's a good chance that you'll
 -- get division by zero (-> undefined).
 instance Arbitrary F17 where

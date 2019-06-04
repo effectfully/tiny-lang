@@ -1,6 +1,7 @@
 module TinyLang.Field.Printer
-    ( toStringWithIDs
-    , toStringNoIDs, tos
+    ( PrintStyle(..)
+    , exprToString
+    , someExprToString
     ) where
 
 import           TinyLang.Field.Core
@@ -38,28 +39,21 @@ isSimple :: Expr f a -> Bool
 isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
-toString1 :: Show f => PrintStyle -> Expr f a -> String
-toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
+exprToString1 :: Show f => PrintStyle -> Expr f a -> String
+exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString s e ++ ")"
 
 toStringUniVal :: Show f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
 toStringUniVal (UniVal Field i) = show i
 
 -- Main function
-toString :: Show f => PrintStyle -> Expr f a -> String
-toString _ (EVal uv)            = toStringUniVal uv
-toString s (EVar _ v)           = toStringVar s v
-toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
-toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2
-toString s (EIf e e1 e2)        = "if " ++ toString1 s e ++ " then " ++ toString1 s e1 ++ " else " ++ toString1 s e2
+exprToString :: Show f => PrintStyle -> Expr f a -> String
+exprToString _ (EVal uv)            = toStringUniVal uv
+exprToString s (EVar _ v)           = toStringVar s v
+exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
+exprToString s (EAppBinOp op e1 e2) = exprToString1 s e1 ++ toStringBinOp op ++ exprToString1 s e2
+exprToString s (EIf e e1 e2)        = "if " ++ exprToString1 s e ++ " then " ++ exprToString1 s e1 ++ " else " ++ exprToString1 s e2
 
--- | Convert an Expr to a String, ignoring Unique IDs in variable names
-toStringNoIDs :: Show f => Expr f a -> String
-toStringNoIDs = toString NoIDs
 
--- | Convert an Expr to a String, including Unique IDs in variable names
-toStringWithIDs :: Show f => Expr f a -> String
-toStringWithIDs = toString WithIDs
-
-tos :: (Show f) => SomeUniExpr f -> String
-tos (SomeUniExpr _ e) = toStringNoIDs e
+someExprToString :: (Show f) => PrintStyle -> SomeUniExpr f -> String
+someExprToString s (SomeUniExpr _ e) = exprToString s e

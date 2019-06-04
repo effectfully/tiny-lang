@@ -34,7 +34,7 @@ prop_Ftest :: forall f . (Eq f, Show f, ParsableField f) => SomeUniExpr f -> Boo
 prop_Ftest expr =
     case expr of
       SomeUniExpr Field e ->
-          case parseExpr (toStringNoIDs e) of
+          case parseExpr (exprToString NoIDs e) of
             Left _   -> False
             Right (expr'::SomeUniExpr f) ->  
                 case expr' of
@@ -43,7 +43,7 @@ prop_Ftest expr =
           -- Without the type ascription on expr' you get errors about untouchable types.
 
       SomeUniExpr Bool e ->
-          case parseExpr (toStringNoIDs e) of
+          case parseExpr (exprToString NoIDs e) of
             Left _   -> False
             Right (expr'::SomeUniExpr f) ->
                 case expr' of
