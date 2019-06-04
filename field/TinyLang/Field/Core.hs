@@ -193,6 +193,8 @@ deriving instance Show f => Show (Expr f a)
 
 deriving instance Show f => Show (SomeUniVal f)
 
+deriving instance Show f => Show (SomeUniExpr f)
+
 withGeqUni :: Uni f a1 -> Uni f a2 -> (a1 ~ a2 => b) -> b -> b
 withGeqUni Bool  Bool  y _ = y
 withGeqUni Field Field y _ = y
@@ -201,6 +203,7 @@ withGeqUni _     _     _ z = z
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> ((a1 ~ a2, b1 ~ b2) => d) -> d -> d
 withGeqUnOp Not  Not  y _ = y
 withGeqUnOp Neq0 Neq0 y _ = y
+withGeqUnOp Neg  Neg  y _ = y
 withGeqUnOp Inv  Inv  y _ = y
 withGeqUnOp _    _    _ z = z
 

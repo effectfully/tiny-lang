@@ -3,13 +3,47 @@
 module TinyLang.Field.Generator
 where
 
-import TinyLang.Environment ()
-import TinyLang.Field.Core
-import TinyLang.Generator ()
-import TinyLang.Field.Printer ()
+import           TinyLang.Environment     (Env (..))
+import           TinyLang.Field.Core
+import           TinyLang.Field.Evaluator
+import           TinyLang.Generator       ()
+import           TinyLang.Var
 
-import qualified Data.IntMap.Strict   as IntMap ()
+
+import qualified Data.IntMap.Strict       as IntMap
 import           Test.QuickCheck
+
+-- Some stuff adapted from Vars.hs;  we need separate var names for
+-- booleans and field elements, and boolean var names have to start with '?'
+-- for the benefit of the parser.
+
+type VarName = String
+
+makeVars :: Int -> [VarName] -> [Var]
+makeVars base = zipWith (\index name -> Var (Unique index) name) [base..]
+
+defaultVars_F :: [Var]
+defaultVars_F = makeVars 0 ["x", "y", "z", "p", "q", "r", "s", "t"]
+
+-- Not terribly elegant
+defaultVars_B :: [Var]
+defaultVars_B = makeVars (length defaultVars_F)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
+
+-- A pair of lists of vars for use by expression generators
+data Vars = Vars {fieldVars::[Var], boolVars::[Var]}
+
+defaultVars::Vars
+defaultVars = Vars defaultVars_F defaultVars_B
+
+--  Generator for variables, choosing from the given list.
+arbitraryVar :: [Var] -> Gen Var
+arbitraryVar = elements
+
+arbitraryEVar_B :: [Var] -> Gen (Expr f Bool)
+arbitraryEVar_B vars = EVar Bool <$> (arbitraryVar vars)
+
+arbitraryEVar_F :: [Var] -> Gen (Expr f (AField f))
+arbitraryEVar_F vars = EVar Field <$> (arbitraryVar vars)
 
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
@@ -36,45 +70,112 @@ instance Arbitrary (BinOp f (AField f) (AField f) (AField f)) where
 instance Arbitrary (UniVal f Bool) where
     arbitrary = UniVal Bool <$> arbitrary
 
-instance (Arbitrary (AField f)) => Arbitrary (UniVal f (AField f)) where
+instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field  <$> arbitrary
 
 
-boundedAbritraryExpr_B :: forall f. (Field f, Arbitrary f) => Int -> Gen (Expr f Bool)
-boundedAbritraryExpr_B size =
+boundedAbritraryExpr_B :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f Bool)
+boundedAbritraryExpr_B vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
               (1, EVal <$> arbitrary),
-              (2, EIf <$> boundedAbritraryExpr_B (size `Prelude.div` 3)
-                      <*> boundedAbritraryExpr_B (size `Prelude.div` 3)
-                      <*> boundedAbritraryExpr_B (size `Prelude.div` 3)),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_B (size-1)),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_F (size-1)),
+              (1, arbitraryEVar_B (boolVars vars)),
+              (2, EIf <$> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
+                      <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
+                      <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)),
+              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_B vars (size-1)),
+              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_F vars (size-1)),
               (2, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_B (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_B (size `Prelude.div` 2)),
+                boundedAbritraryExpr_B vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExpr_B vars (size `Prelude.div` 2)),
               (2, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 2))
+                boundedAbritraryExpr_F vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExpr_F vars (size `Prelude.div` 2))
              ]
 
-boundedAbritraryExpr_F :: forall f. (Field f, Arbitrary f) => Int -> Gen (Expr f (AField f))
-boundedAbritraryExpr_F size =
+boundedAbritraryExpr_F :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
+boundedAbritraryExpr_F vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
-              (1, EVal <$> (arbitrary :: Gen (UniVal f (AField f)))),
+              (1, EVal <$> arbitrary),
+              (1, arbitraryEVar_F (fieldVars vars)),
               (3, EIf <$>
-                boundedAbritraryExpr_B (size `Prelude.div` 3) <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 3) <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 3)),
-              (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExpr_F (size-1)),
+                boundedAbritraryExpr_B vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExpr_F vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExpr_F vars (size `Prelude.div` 3)),
+              (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExpr_F vars (size-1)),
               (3, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_F (size `Prelude.div` 2))
+                boundedAbritraryExpr_F vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExpr_F vars (size `Prelude.div` 2))
              ]
 
--- boundedAbritraryExpr :: forall f a. (Arbitrary (AField f)) => Int -> Gen (Expr f a)
--- boundedAbritraryExpr size = oneof [boundedAbritraryExpr_B size, boundedAbritraryExpr_F size]
+-- Generate an expression from a collection of variables with the
+-- number of nodes (approximately) bounded by 'size'
+boundedAbritraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> Gen (SomeUniExpr f)
+boundedAbritraryExpr vars size = oneof [SomeUniExpr Bool <$> boundedAbritraryExpr_B vars size,
+                                   (SomeUniExpr Field <$> (boundedAbritraryExpr_F vars size))]
+
+-- Generate an expression over the default variables.  Again, this is bounded by 'size'.
+defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> Gen (SomeUniExpr f)
+defaultArbitraryExpr = boundedAbritraryExpr defaultVars
+
+uniOfUnOpArg :: UnOp f a b -> Uni f a
+uniOfUnOpArg Not  = Bool
+uniOfUnOpArg Neq0 = Field
+uniOfUnOpArg Inv  = Field
+uniOfUnOpArg Neg  = Field
+
+unisOfBinOpArg :: BinOp f a b c ->  (Uni f a, Uni f b)
+unisOfBinOpArg Or  = (Bool, Bool)
+unisOfBinOpArg And = (Bool, Bool)
+unisOfBinOpArg Xor = (Bool, Bool)
+unisOfBinOpArg FEq = (Field, Field)
+unisOfBinOpArg Add = (Field, Field)
+unisOfBinOpArg Sub = (Field, Field)
+unisOfBinOpArg Mul = (Field, Field)
+unisOfBinOpArg Div = (Field, Field)
+
+
+shrinkExpr :: SomeUniExpr f -> [SomeUniExpr f]
+shrinkExpr (SomeUniExpr f expr) =
+    case expr of
+      EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
+      EAppBinOp op e1 e2 ->
+          case unisOfBinOpArg op of
+            (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
+      EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
+      EVal _ -> []
+      EVar _ _ -> []
+
+-- An instance that QuickCheck can use for tests.
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
+    where arbitrary = sized defaultArbitraryExpr
+          shrink = shrinkExpr
+
+genUni :: Field f => Uni f a -> Gen a
+genUni Bool  = arbitrary
+genUni Field = fromInteger <$> arbitrary
+
+genSomeUniVal :: Field f => Uni f a -> Gen (SomeUniVal f)
+genSomeUniVal uni = SomeUniVal . UniVal uni <$> genUni uni
+
+genEnvFromVarSigns :: Field f => IntMap.IntMap (VarSign f) -> Gen (Env (SomeUniVal f))
+genEnvFromVarSigns = fmap Env . traverse (\(VarSign _ uni) -> genSomeUniVal uni)
+
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
+    where arbitrary = oneof [SomeUniVal <$> (arbitrary :: Gen (UniVal f (AField f))),
+                             SomeUniVal <$> (arbitrary :: Gen (UniVal f Bool))]
+
+-- | Generate a random ExprWithEnv.  Note that you can say things like
+-- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
+-- bigger expressions.  There's no means provided to generate things
+-- over non-default sets of variables, but this would be easy to do.
+instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
+    arbitrary = do
+        expr <- arbitrary
+        vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
+        return $ ExprWithEnv expr vals
+

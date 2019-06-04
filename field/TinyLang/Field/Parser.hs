@@ -4,6 +4,10 @@
   fvar ::= [a-z][a-z0-9_]*
   bvar ::=  '?'[a-z][a-z0-9_]*
 
+  Note that boolean variable names must begin with '?' so that
+  the parser knows what the type is.  We'd need environments  
+  or type annotations or something to avoid this.
+
   expr ::= val
            fvar
            bvar
@@ -27,7 +31,9 @@
   Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway).
   if-then-else has to be parenthesised unless it's at the very top.
 
-  FIXME: what about numeric operators?
+  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
+  Things like "neg inv 5" are illegal: use parentheses.
+  
 
   The code is based on the tutorial at
   https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
@@ -99,7 +105,6 @@ identifier_F = (lexeme . try) (p >>= check)
                 then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                 else return x
 
-
 identifier_B :: Parser String
 identifier_B =  (lexeme . try) (p >>= check)
     where
@@ -164,7 +169,6 @@ expr_B = try eqExpr <|> try operExpr_B <|> ifExpr_B
 expr_F :: ParsableField f => Parser (Expr f (AField f))
 expr_F = (try operExpr_F) <|> ifExpr_F
 
-
 -- operExpr: expressions involving unary and binary operators
 -- We have to deal with eq and neq0 separately.
 
@@ -190,7 +194,6 @@ operators_F = -- The order here determines operator precedence.
   , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
-
 
 -- if e then r1 else e2
 
