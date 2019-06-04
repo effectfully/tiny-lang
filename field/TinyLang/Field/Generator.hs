@@ -22,28 +22,31 @@ type VarName = String
 makeVars :: Int -> [VarName] -> [Var]
 makeVars base = zipWith (\index name -> Var (Unique index) name) [base..]
 
-defaultVars_F :: [Var]
-defaultVars_F = makeVars 0 ["x", "y", "z", "p", "q", "r", "s", "t"]
+defaultVarsF :: [Var]
+defaultVarsF = makeVars 0 ["x", "y", "z", "p", "q", "r", "s", "t"]
 
 -- Not terribly elegant
-defaultVars_B :: [Var]
-defaultVars_B = makeVars (length defaultVars_F)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
+defaultVarsB :: [Var]
+defaultVarsB = makeVars (length defaultVarsF)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
 
 -- A pair of lists of vars for use by expression generators
-data Vars = Vars {fieldVars::[Var], boolVars::[Var]}
+data Vars = Vars
+    { fieldVars :: [Var]
+    , boolVars  :: [Var]
+    }
 
-defaultVars::Vars
-defaultVars = Vars defaultVars_F defaultVars_B
+defaultVars ::Vars
+defaultVars = Vars defaultVarsF defaultVarsB
 
 --  Generator for variables, choosing from the given list.
 arbitraryVar :: [Var] -> Gen Var
 arbitraryVar = elements
 
-arbitraryEVar_B :: [Var] -> Gen (Expr f Bool)
-arbitraryEVar_B vars = EVar Bool <$> (arbitraryVar vars)
+arbitraryEVarB :: [Var] -> Gen (Expr f Bool)
+arbitraryEVarB vars = EVar Bool <$> arbitraryVar vars
 
-arbitraryEVar_F :: [Var] -> Gen (Expr f (AField f))
-arbitraryEVar_F vars = EVar Field <$> (arbitraryVar vars)
+arbitraryEVarF :: [Var] -> Gen (Expr f (AField f))
+arbitraryEVarF vars = EVar Field <$> arbitraryVar vars
 
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
@@ -74,49 +77,49 @@ instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field  <$> arbitrary
 
 
-boundedAbritraryExpr_B :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f Bool)
-boundedAbritraryExpr_B vars size =
+boundedAbritraryExprB :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f Bool)
+boundedAbritraryExprB vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
               (1, EVal <$> arbitrary),
-              (1, arbitraryEVar_B (boolVars vars)),
-              (2, EIf <$> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
-                      <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)
-                      <*> boundedAbritraryExpr_B vars (size `Prelude.div` 3)),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_B vars (size-1)),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExpr_F vars (size-1)),
+              (1, arbitraryEVarB (boolVars vars)),
+              (2, EIf <$> boundedAbritraryExprB vars (size `Prelude.div` 3)
+                      <*> boundedAbritraryExprB vars (size `Prelude.div` 3)
+                      <*> boundedAbritraryExprB vars (size `Prelude.div` 3)),
+              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExprB vars (size-1)),
+              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExprF vars (size-1)),
               (2, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_B vars (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_B vars (size `Prelude.div` 2)),
+                boundedAbritraryExprB vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExprB vars (size `Prelude.div` 2)),
               (2, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 2))
+                boundedAbritraryExprF vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExprF vars (size `Prelude.div` 2))
              ]
 
-boundedAbritraryExpr_F :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
-boundedAbritraryExpr_F vars size =
+boundedAbritraryExprF :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
+boundedAbritraryExprF vars size =
     if size <= 1 then EVal <$> arbitrary
     else frequency [
               (1, EVal <$> arbitrary),
-              (1, arbitraryEVar_F (fieldVars vars)),
+              (1, arbitraryEVarF (fieldVars vars)),
               (3, EIf <$>
-                boundedAbritraryExpr_B vars (size `Prelude.div` 3) <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 3) <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 3)),
-              (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExpr_F vars (size-1)),
+                boundedAbritraryExprB vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExprF vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExprF vars (size `Prelude.div` 3)),
+              (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExprF vars (size-1)),
               (3, EAppBinOp <$>
                 arbitrary <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 2) <*>
-                boundedAbritraryExpr_F vars (size `Prelude.div` 2))
+                boundedAbritraryExprF vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExprF vars (size `Prelude.div` 2))
              ]
 
 -- Generate an expression from a collection of variables with the
 -- number of nodes (approximately) bounded by 'size'
 boundedAbritraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> Gen (SomeUniExpr f)
-boundedAbritraryExpr vars size = oneof [SomeUniExpr Bool <$> boundedAbritraryExpr_B vars size,
-                                   (SomeUniExpr Field <$> (boundedAbritraryExpr_F vars size))]
+boundedAbritraryExpr vars size = oneof [SomeUniExpr Bool <$> boundedAbritraryExprB vars size,
+                                   (SomeUniExpr Field <$> (boundedAbritraryExprF vars size))]
 
 -- Generate an expression over the default variables.  Again, this is bounded by 'size'.
 defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> Gen (SomeUniExpr f)
@@ -178,4 +181,3 @@ instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
         expr <- arbitrary
         vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
         return $ ExprWithEnv expr vals
-
