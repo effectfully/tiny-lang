@@ -3,15 +3,21 @@
    a string and then parse it again.
 -}
 
-module TinyLang.Field.Test (prop_Ftest)
-where
+module Field.Textual
+    ( test_checkparse
+    ) where
 
 import           TinyLang.Field.Core
+import           TinyLang.Field.F17
 import           TinyLang.Field.Parser
 import           TinyLang.Field.Printer
 import           TinyLang.Field.Generator ()
 import           TinyLang.Field.ParsableField
 import           TinyLang.Var
+
+import           Test.QuickCheck
+import           Test.Tasty
+import           Test.Tasty.QuickCheck
 
 forgetID :: Var -> Var
 forgetID v = Var (Unique 0) (_varName v)
@@ -26,7 +32,7 @@ forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))
-   or  
+   or
        quickCheck (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
 -}
 
@@ -36,7 +42,7 @@ prop_Ftest expr =
       SomeUniExpr Field e ->
           case parseExpr (exprToString NoIDs e) of
             Left _   -> False
-            Right (expr'::SomeUniExpr f) ->  
+            Right (expr'::SomeUniExpr f) ->
                 case expr' of
                   SomeUniExpr Field e' -> forgetIDs e' == forgetIDs e
                   _ -> False
@@ -50,5 +56,7 @@ prop_Ftest expr =
                   SomeUniExpr Bool e' -> forgetIDs e' == forgetIDs e
                   _ -> False
 
-
-
+test_checkparse :: TestTree
+test_checkparse =
+    testProperty "printer-parser roundtrip" $
+        withMaxSuccess 1000 . property $ prop_Ftest @F17
