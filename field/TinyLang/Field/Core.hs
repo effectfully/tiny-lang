@@ -11,6 +11,9 @@ module TinyLang.Field.Core
     , withGeqUni
     , VarSign (..)
     , exprVarSigns
+    , embedBoolUnOp
+    , embedBoolBinOp
+    , embedBoolExpr
     ) where
 
 import           Prelude          hiding (div)
@@ -18,6 +21,7 @@ import qualified Prelude          (div)
 
 import           TinyLang.Prelude
 import           TinyLang.Var
+import qualified TinyLang.Boolean.Core as Boolean
 
 import qualified Data.IntMap.Strict as IntMap
 
@@ -262,3 +266,19 @@ exprVarSigns = go mempty where
     go names (EAppUnOp _ x)                      = go names x
     go names (EAppBinOp _ x y)                   = go (go names x) y
     go names (EIf b x y)                         = go (go (go names b) x) y
+
+embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
+embedBoolUnOp Boolean.Not = Not
+
+embedBoolBinOp :: Boolean.BinOp -> BinOp f Bool Bool Bool
+embedBoolBinOp Boolean.Or  = Or
+embedBoolBinOp Boolean.And = And
+embedBoolBinOp Boolean.Xor = Xor
+
+embedBoolExpr :: Boolean.Expr -> Expr f Bool
+embedBoolExpr = go where
+    go (Boolean.EVal b)           = EVal $ UniVal Bool b
+    go (Boolean.EVar v)           = EVar Bool v
+    go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
+    go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)
+    go (Boolean.EAppBinOp op x y) = EAppBinOp (embedBoolBinOp op) (go x) (go y)
