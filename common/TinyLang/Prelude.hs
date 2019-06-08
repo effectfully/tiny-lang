@@ -56,6 +56,7 @@ import           Control.Monad.State       as Export
 -- containers
 --------------------
 import           Data.IntMap.Strict        as Export (IntMap)
+import           Data.IntSet               as Export (IntSet)
 
 infixr 9 .*
 

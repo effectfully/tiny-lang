@@ -1,5 +1,6 @@
 module TinyLang.Field.Core
     ( Field (..)
+    , two
     , AField (..)
     , Uni (..)
     , UniVal (..)
@@ -83,6 +84,9 @@ class Field f where
 
     {-# MINIMAL zer, add, one, mul, (neg | sub), (inv | div) #-}
 
+two :: Field f => f
+two = one `add` one
+
 newtype AField f = AField
     { unAField :: f
     } deriving (Eq)
@@ -116,9 +120,8 @@ instance Field f => Num (AField f) where
         -1            -> neg one
         0             -> zer
         1             -> one
-        2             -> one `add` one
-        _ | even n    -> 2 * fromInteger (n `Prelude.div` 2)
-          | otherwise -> 1 + fromInteger (n - 1)
+        _ | even n    -> two `mul` fromInteger (n `Prelude.div` 2)
+          | otherwise -> one `add` fromInteger (n - 1)
 
     abs    = error "no 'abs'"
     signum = error "no 'signum'"
