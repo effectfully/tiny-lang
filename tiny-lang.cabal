@@ -14,8 +14,9 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-    hs-source-dirs: common boolean field
+    hs-source-dirs: library common boolean field
     exposed-modules:
+        Data.Field
         TinyLang.Environment
         TinyLang.Generator
         TinyLang.Prelude
