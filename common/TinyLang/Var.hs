@@ -59,8 +59,8 @@ runFromSupplyT uniq (SupplyT a) = evalStateT a uniq
 runSupplyT :: Monad m => SupplyT m a -> m a
 runSupplyT = runFromSupplyT $ Unique 0
 
-supplyFrom :: MonadSupply m => Unique -> m a -> m a
-supplyFrom from a = liftSupply (SupplyT $ put from) *> a
+supplyFrom :: MonadSupply m => Unique -> m ()
+supplyFrom = liftSupply . SupplyT . put
 
 freshUnique :: MonadSupply m => m Unique
 freshUnique = liftSupply . SupplyT $ do
