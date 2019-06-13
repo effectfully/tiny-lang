@@ -5,8 +5,8 @@ module TinyLang.Var
     , SupplyT (..)
     , Supply
     , MonadSupply (..)
-    , runFromSupplyT
     , runSupplyT
+    , runSupply
     , supplyFrom
     , freshUnique
     , Var (..)
@@ -53,11 +53,11 @@ instance MonadSupply m => MonadSupply (MaybeT m)
 instance MonadSupply m => MonadSupply (ReaderT r m)
 instance MonadSupply m => MonadSupply (StateT s m)
 
-runFromSupplyT :: Monad m => Unique -> SupplyT m a -> m a
-runFromSupplyT uniq (SupplyT a) = evalStateT a uniq
-
 runSupplyT :: Monad m => SupplyT m a -> m a
-runSupplyT = runFromSupplyT $ Unique 0
+runSupplyT (SupplyT a) = evalStateT a $ Unique 0
+
+runSupply :: Supply a -> a
+runSupply = runIdentity . runSupplyT
 
 supplyFrom :: MonadSupply m => Unique -> m ()
 supplyFrom = liftSupply . SupplyT . put
