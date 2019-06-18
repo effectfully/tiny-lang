@@ -1,5 +1,6 @@
 module TinyLang.Environment
     ( Env (..)
+    , mapEnv
     , lookupUnique
     , lookupVar
     , unsafeLookupUnique
@@ -17,6 +18,9 @@ import qualified Data.IntMap.Strict as IntMap
 newtype Env a = Env
     { unEnv :: IntMap a
     } deriving (Show, Eq, Functor)
+
+mapEnv :: (IntMap a -> IntMap b) -> Env a -> Env b
+mapEnv = coerce
 
 lookupUnique :: Unique -> Env a -> Maybe a
 lookupUnique (Unique ind) (Env env) = IntMap.lookup ind env
