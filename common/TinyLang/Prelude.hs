@@ -35,12 +35,12 @@ import           Data.Void                 as Export
 import           Debug.Trace               as Export
 import           GHC.Exts                  as Export (groupWith, sortWith)
 import           GHC.Generics              as Export (Generic, Generic1)
+import           GHC.Stack                 as Export
 import           Numeric                   as Export
 import           System.IO                 as Export
 import           Test.SmallCheck.Series    as Export
 import           Text.Read                 as Export (Read (..), readEither,
                                                       readMaybe)
-
 
 -- transformers
 --------------------

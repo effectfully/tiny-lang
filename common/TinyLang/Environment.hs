@@ -28,8 +28,9 @@ lookupUnique (Unique ind) (Env env) = IntMap.lookup ind env
 lookupVar :: Var -> Env a -> Maybe a
 lookupVar = lookupUnique . _varUniq
 
-unsafeLookupUnique :: Unique -> Env a -> a
-unsafeLookupUnique (Unique ind) (Env env) = env IntMap.! ind
+unsafeLookupUnique :: HasCallStack => Unique -> Env a -> a
+unsafeLookupUnique (Unique ind) (Env env) = fromMaybe err $ IntMap.lookup ind env where
+    err = error $ "The " ++ show ind ++ " unique is not present"
 
 unsafeLookupVar :: Var -> Env a -> a
 unsafeLookupVar = unsafeLookupUnique . _varUniq
