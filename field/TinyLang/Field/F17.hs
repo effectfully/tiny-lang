@@ -4,6 +4,7 @@ module TinyLang.Field.F17
     ) where
 
 import           TinyLang.Field.Core
+import           TinyLang.Prelude
 
 import           Test.QuickCheck
 
@@ -28,7 +29,7 @@ instance Field F17 where
     sub (F17 m) (F17 n) = toF17 $ m - n
     mul (F17 m) (F17 n) = toF17 $ m * n
     inv (F17 n) = F17 $ case n of
-        0  -> error "F17: divide by zero"
+        0  -> throw DivideByZero
         1  -> 1
         2  -> 9
         3  -> 6
