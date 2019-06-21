@@ -141,22 +141,25 @@ unisOfBinOpArg Sub = (Field, Field)
 unisOfBinOpArg Mul = (Field, Field)
 unisOfBinOpArg Div = (Field, Field)
 
+shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
+shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
+shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
 
-shrinkExpr :: SomeUniExpr f -> [SomeUniExpr f]
-shrinkExpr (SomeUniExpr f expr) =
+shrinkExpr :: (Eq f, Field f, Arbitrary f) => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
+shrinkExpr env (SomeUniExpr f expr) = SomeUniExpr f (normExpr env expr) :
     case expr of
       EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
       EAppBinOp op e1 e2 ->
           case unisOfBinOpArg op of
             (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
       EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
-      EVal _ -> []
+      EVal uniVal -> SomeUniExpr f . EVal <$> shrinkUniVal uniVal
       EVar _ _ -> []
 
 -- An instance that QuickCheck can use for tests.
-instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
+instance (Eq f, Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
     where arbitrary = sized defaultArbitraryExpr
-          shrink = shrinkExpr
+          shrink = shrinkExpr mempty
 
 genUni :: Field f => Uni f a -> Gen a
 genUni Bool  = arbitrary
@@ -176,8 +179,12 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
 -- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
 -- bigger expressions.  There's no means provided to generate things
 -- over non-default sets of variables, but this would be easy to do.
-instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
+instance (Eq f, Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         expr <- arbitrary
         vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
         return $ ExprWithEnv expr vals
+    shrink (ExprWithEnv expr env@(Env vals)) =
+        -- TODO: test me.
+        flip map (shrinkExpr env expr) $ \shrunkExpr@(SomeUniExpr _ se) ->
+            ExprWithEnv shrunkExpr . Env . IntMap.intersection vals $ exprVarSigns se

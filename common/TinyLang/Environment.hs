@@ -18,6 +18,7 @@ import qualified Data.IntMap.Strict as IntMap
 newtype Env a = Env
     { unEnv :: IntMap a
     } deriving (Show, Eq, Functor)
+      deriving newtype (Semigroup, Monoid)
 
 mapEnv :: (IntMap a -> IntMap b) -> Env a -> Env b
 mapEnv = coerce
