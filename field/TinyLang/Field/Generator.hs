@@ -146,7 +146,7 @@ shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
 shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
 
 shrinkExpr :: (Eq f, Field f, Arbitrary f) => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
-shrinkExpr env (SomeUniExpr f expr) = SomeUniExpr f (normExpr env expr) :
+shrinkExpr env (SomeUniExpr f expr) = [SomeUniExpr f normed | normed /= expr] ++
     case expr of
       EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
       EAppBinOp op e1 e2 ->
@@ -155,6 +155,8 @@ shrinkExpr env (SomeUniExpr f expr) = SomeUniExpr f (normExpr env expr) :
       EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
       EVal uniVal -> SomeUniExpr f . EVal <$> shrinkUniVal uniVal
       EVar _ _ -> []
+    where
+      normed = normExpr env expr
 
 -- An instance that QuickCheck can use for tests.
 instance (Eq f, Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
