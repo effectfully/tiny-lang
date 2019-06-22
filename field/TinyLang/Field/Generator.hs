@@ -145,8 +145,10 @@ shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
 shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
 
-shrinkExpr :: (Eq f, Field f, Arbitrary f) => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
-shrinkExpr env (SomeUniExpr f expr) = [SomeUniExpr f normed | normed /= expr] ++
+-- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
+-- but do not forget to catch exceptions.
+shrinkExpr :: Arbitrary f => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
+shrinkExpr _ (SomeUniExpr f expr) =
     case expr of
       EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
       EAppBinOp op e1 e2 ->
@@ -155,11 +157,9 @@ shrinkExpr env (SomeUniExpr f expr) = [SomeUniExpr f normed | normed /= expr] ++
       EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
       EVal uniVal -> SomeUniExpr f . EVal <$> shrinkUniVal uniVal
       EVar _ _ -> []
-    where
-      normed = normExpr env expr
 
 -- An instance that QuickCheck can use for tests.
-instance (Eq f, Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
     where arbitrary = sized defaultArbitraryExpr
           shrink = shrinkExpr mempty
 
@@ -181,7 +181,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
 -- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
 -- bigger expressions.  There's no means provided to generate things
 -- over non-default sets of variables, but this would be easy to do.
-instance (Eq f, Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
+instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         expr <- arbitrary
         vals <- case expr of SomeUniExpr _ e -> genEnvFromVarSigns (exprVarSigns e)
