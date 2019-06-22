@@ -53,3 +53,4 @@ instance Field F17 where
 -- get division by zero (-> undefined).
 instance Arbitrary F17 where
     arbitrary = F17 <$> elements [0..16]
+    shrink (F17 i) = F17 <$> [0 .. i - 1]
