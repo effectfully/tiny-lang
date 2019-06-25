@@ -14,6 +14,7 @@ import           Test.QuickCheck
 
 newtype F17 = F17 { unF17 :: Int }
     deriving (Eq)
+    deriving newtype (Hashable)
 
 -- Always use mod, not rem! Rem gives the wrong result for negative values.
 toF17 :: Int -> F17
