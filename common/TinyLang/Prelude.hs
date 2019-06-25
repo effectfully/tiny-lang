@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module TinyLang.Prelude
     ( module Export
     , (.*)
@@ -69,7 +71,12 @@ import           Data.Hashable             as Export
 import           Data.HashMap.Strict       as Export (HashMap)
 import           Data.HashSet              as Export (HashSet)
 
+import qualified Data.IntMap.Strict        as IntMap
+
 infixr 9 .*
 
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.*) = (.) . (.)
+
+instance Hashable a => Hashable (IntMap a) where
+    hashWithSalt salt = hashWithSalt salt . IntMap.toList
