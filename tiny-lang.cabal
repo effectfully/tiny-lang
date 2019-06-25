@@ -39,6 +39,8 @@ library
         transformers,
         mtl,
         containers,
+        hashable,
+        unordered-containers,
         megaparsec,
         mmorph,
         parser-combinators,
