@@ -55,8 +55,8 @@ makeVar name = do
     case M.lookup name ss of
         Just v -> pure v
         Nothing -> do
-            let counter' = counter + 1
-                v = Var (Unique counter') name
+            let v = Var (Unique counter) name
+                counter' = counter + 1
             put (M.insert name v ss, counter')
             pure v
 

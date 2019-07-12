@@ -1,10 +1,12 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module TinyLang.Prelude
     ( module Export
     , (.*)
     ) where
 
 -- base
---------------------
+------------------------------
 import           Control.Applicative       as Export
 import           Control.Exception         as Export
 import           Control.Monad             as Export
@@ -43,22 +45,38 @@ import           Text.Read                 as Export (Read (..), readEither,
                                                       readMaybe)
 
 -- transformers
---------------------
+------------------------------
 import           Control.Monad.Trans.Maybe as Export
 
 -- mtl
---------------------
+------------------------------
 import           Control.Monad.Except      as Export
 import           Control.Monad.Reader      as Export
 import           Control.Monad.State       as Export
 
 
 -- containers
---------------------
+------------------------------
 import           Data.IntMap.Strict        as Export (IntMap)
 import           Data.IntSet               as Export (IntSet)
+import           Data.Map.Strict           as Export (Map)
+import           Data.Set                  as Export (Set)
+
+-- hashable
+------------------------------
+import           Data.Hashable             as Export
+
+-- unordered-containers
+------------------------------
+import           Data.HashMap.Strict       as Export (HashMap)
+import           Data.HashSet              as Export (HashSet)
+
+import qualified Data.IntMap.Strict        as IntMap
 
 infixr 9 .*
 
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.*) = (.) . (.)
+
+instance Hashable a => Hashable (IntMap a) where
+    hashWithSalt salt = hashWithSalt salt . IntMap.toList

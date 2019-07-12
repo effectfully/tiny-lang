@@ -5,7 +5,7 @@
   bvar ::=  '?'[a-z][a-z0-9_]*
 
   Note that boolean variable names must begin with '?' so that
-  the parser knows what the type is.  We'd need environments  
+  the parser knows what the type is.  We'd need environments
   or type annotations or something to avoid this.
 
   expr ::= val
@@ -33,7 +33,7 @@
 
   Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
   Things like "neg inv 5" are illegal: use parentheses.
-  
+
 
   The code is based on the tutorial at
   https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
@@ -64,8 +64,8 @@ makeVar name = do
     case M.lookup name ss of
         Just v -> pure v
         Nothing -> do
-            let counter' = counter + 1
-                v = Var (Unique counter') name
+            let v = Var (Unique counter) name
+                counter' = counter + 1
             put (M.insert name v ss, counter')
             pure v
 
