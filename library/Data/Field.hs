@@ -100,12 +100,15 @@ instance Field f => Num (AField f) where
     (-) = sub
     (*) = mul
 
-    fromInteger n = case n of
-        -1            -> neg one
-        0             -> zer
-        1             -> one
-        _ | even n    -> two `mul` fromInteger (n `Prelude.div` 2)
-          | otherwise -> one `add` fromInteger (n - 1)
+    fromInteger n0
+        | n0 >= 0   = go n0
+        | otherwise = neg $ go (- n0)
+        where
+            go 0          = zer
+            go 1          = one
+            go 2          = two
+            go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
+            go n          = one `add` fromInteger (n - 1)
 
     abs    = error "no 'abs'"
     signum = error "no 'signum'"
