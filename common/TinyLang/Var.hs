@@ -71,13 +71,19 @@ freshUnique = liftSupply . SupplyT $ do
 data Var = Var
     { _varUniq :: Unique
     , _varName :: String
-    } deriving (Eq, Generic)
+    } deriving (Generic)
 
 instance Show Unique where
     show (Unique int) = show int
 
 instance Show Var where
     show (Var uniq name) = name ++ "_" ++ show uniq
+
+instance Eq Var where
+    Var i _ == Var j _ = i == j
+
+instance Ord Var where
+    Var i _ `compare` Var j _ = i `compare` j
 
 instance Monad m => Serial m Var where
     series = flip Var "x" <$> series
