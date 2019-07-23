@@ -4,6 +4,7 @@ module TinyLang.Field.F17
     ) where
 
 import           TinyLang.Field.Core
+import           TinyLang.Prelude
 
 import           Test.QuickCheck
 
@@ -13,6 +14,7 @@ import           Test.QuickCheck
 
 newtype F17 = F17 { unF17 :: Int }
     deriving (Eq)
+    deriving newtype (Hashable)
 
 -- Always use mod, not rem! Rem gives the wrong result for negative values.
 toF17 :: Int -> F17
@@ -28,7 +30,7 @@ instance Field F17 where
     sub (F17 m) (F17 n) = toF17 $ m - n
     mul (F17 m) (F17 n) = toF17 $ m * n
     inv (F17 n) = F17 $ case n of
-        0  -> error "F17: divide by zero"
+        0  -> throw DivideByZero
         1  -> 1
         2  -> 9
         3  -> 6
@@ -52,3 +54,4 @@ instance Field F17 where
 -- get division by zero (-> undefined).
 instance Arbitrary F17 where
     arbitrary = F17 <$> elements [0..16]
+    shrink (F17 i) = F17 <$> [0 .. i - 1]

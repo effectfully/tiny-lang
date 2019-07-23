@@ -5,8 +5,9 @@ module TinyLang.Var
     , SupplyT (..)
     , Supply
     , MonadSupply (..)
-    , runFromSupplyT
     , runSupplyT
+    , runSupply
+    , supplyFrom
     , freshUnique
     , Var (..)
     , freshVar
@@ -19,7 +20,7 @@ import           Control.Monad.Morph
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    } deriving (Eq, Generic)
+    } deriving (Eq, Ord, Generic)
 
 instance Monad m => Serial m Unique where
     series = Unique . getNonNegative <$> series
@@ -52,11 +53,14 @@ instance MonadSupply m => MonadSupply (MaybeT m)
 instance MonadSupply m => MonadSupply (ReaderT r m)
 instance MonadSupply m => MonadSupply (StateT s m)
 
-runFromSupplyT :: Monad m => Unique -> SupplyT m a -> m a
-runFromSupplyT uniq (SupplyT a) = evalStateT a uniq
-
 runSupplyT :: Monad m => SupplyT m a -> m a
-runSupplyT = runFromSupplyT $ Unique 0
+runSupplyT (SupplyT a) = evalStateT a $ Unique 0
+
+runSupply :: Supply a -> a
+runSupply = runIdentity . runSupplyT
+
+supplyFrom :: MonadSupply m => Unique -> m ()
+supplyFrom = liftSupply . SupplyT . put
 
 freshUnique :: MonadSupply m => m Unique
 freshUnique = liftSupply . SupplyT $ do
@@ -67,13 +71,19 @@ freshUnique = liftSupply . SupplyT $ do
 data Var = Var
     { _varUniq :: Unique
     , _varName :: String
-    } deriving (Eq, Generic)
+    } deriving (Generic)
 
 instance Show Unique where
     show (Unique int) = show int
 
 instance Show Var where
     show (Var uniq name) = name ++ "_" ++ show uniq
+
+instance Eq Var where
+    Var i _ == Var j _ = i == j
+
+instance Ord Var where
+    Var i _ `compare` Var j _ = i `compare` j
 
 instance Monad m => Serial m Var where
     series = flip Var "x" <$> series

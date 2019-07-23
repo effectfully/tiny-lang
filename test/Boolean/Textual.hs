@@ -1,4 +1,4 @@
-module Textual
+module Boolean.Textual
     ( test_checkparse
     ) where
 
