@@ -46,7 +46,7 @@ data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
 data SomeUniExpr f = forall a. SomeUniExpr (Uni f a) (Expr f a)
 
 data UnOp f a b where
-    Not  :: UnOp f Bool      Bool
+    Not  :: UnOp f Bool       Bool
     Neq0 :: UnOp f (AField f) Bool
     Neg  :: UnOp f (AField f) (AField f)
     Inv  :: UnOp f (AField f) (AField f)
@@ -61,12 +61,15 @@ data BinOp f a b c where
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
 
+-- TODO: check that a variable is always of the same type.
 data Expr f a where
     EVal      :: UniVal f a -> Expr f a
     EVar      :: Uni f a -> Var -> Expr f a
     EIf       :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
+    -- TODO: define @UniVar@ (in the style of @UniVal@).
+    ELet      :: Uni f b -> Var -> Expr f a -> Expr f a -> Expr f a
 
 instance Field f => Field (Expr f (AField f)) where
     zer = EVal (UniVal Field zer)
@@ -149,6 +152,7 @@ deriving instance Show (VarSign f)
 instance Eq (VarSign f) where
     VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 (name1 == name2) False
 
+-- TODO: rename me to @exprFreeVarSings@.
 exprVarSigns :: Expr f a -> IntMap (VarSign f)
 exprVarSigns = go mempty where
     go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
@@ -164,6 +168,7 @@ exprVarSigns = go mempty where
     go names (EAppUnOp _ x)                      = go names x
     go names (EAppBinOp _ x y)                   = go (go names x) y
     go names (EIf b x y)                         = go (go (go names b) x) y
+    go names (ELet _ (Var (Unique uniq) _) _ e)  = IntMap.delete uniq $ go names e
 
 embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
 embedBoolUnOp Boolean.Not = Not

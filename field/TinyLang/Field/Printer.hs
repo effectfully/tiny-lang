@@ -52,8 +52,24 @@ exprToString _ (EVal uv)            = toStringUniVal uv
 exprToString s (EVar _ v)           = toStringVar s v
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
 exprToString s (EAppBinOp op e1 e2) = exprToString1 s e1 ++ toStringBinOp op ++ exprToString1 s e2
-exprToString s (EIf e e1 e2)        = "if " ++ exprToString1 s e ++ " then " ++ exprToString1 s e1 ++ " else " ++ exprToString1 s e2
-
+exprToString s (EIf e e1 e2)        = concat
+    [ "if "
+    , exprToString1 s e
+    , " then "
+    , exprToString1 s e1
+    , " else "
+    , exprToString1 s e2
+    ]
+exprToString s (ELet uni var def e) = concat
+    [ "let "
+    , toStringVar s var
+    , " :: "
+    , show uni
+    , " = "
+    , exprToString s def
+    , "\n"
+    , exprToString s e
+    ]
 
 someExprToString :: (Show f) => PrintStyle -> SomeUniExpr f -> String
 someExprToString s (SomeUniExpr _ e) = exprToString s e
