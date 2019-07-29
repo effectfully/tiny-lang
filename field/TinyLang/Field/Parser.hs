@@ -19,6 +19,10 @@
            expr 'or'  expr
            expr 'xor' expr
            expr == expr
+           expr < expr
+           expr <= expr
+           expr >= expr
+           expr > expr
            expr + expr
            expr - expr
            expr * expr
@@ -91,7 +95,7 @@ keyword :: String -> Parser ()
 keyword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 
 
--- Most of the remanining parsers have a B or F suffix depending on
+-- Most of the remaining parsers have a B or F suffix depending on
 -- whether they're returning something of type Bool or type Field.
 
 -- For type disambiguation purposes variables of type Field have
@@ -161,9 +165,20 @@ neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 eqExpr :: ParsableField f => Parser (Expr f Bool)
 eqExpr = EAppBinOp FEq <$>  expr_F <* symbol "==" <*> expr_F
 
+-- Operations for ordering comparisons of "integer" field elements
+-- GADTs stop us using makeExprParsr here: it expects the input and output type to be the same.
+comparisonExpr :: ParsableField f => Parser (Expr f Bool)
+comparisonExpr =
+    try (EAppBinOp FLt <$> expr_F <*> (keyword "<"  *> expr_F))
+            <|> try (EAppBinOp FLe <$> expr_F <*> (keyword "<=" *> expr_F))
+            <|> try (EAppBinOp FGe <$> expr_F <*> (keyword ">=" *> expr_F))
+            <|> EAppBinOp FGt <$> expr_F <*> (keyword ">"  *> expr_F)
+
+
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = try eqExpr <|> try operExpr_B <|> ifExpr_B
+expr_B = try eqExpr <|> try operExpr_B <|> try comparisonExpr <|> ifExpr_B
+-- I _think_ the precedence is correct here...
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
 expr_F = (try operExpr_F) <|> ifExpr_F
@@ -187,14 +202,12 @@ operators_B = -- The order here determines operator precedence.
 operExpr_F :: ParsableField f => Parser (Expr f (AField f))
 operExpr_F = makeExprParser expr1_F operators_F
 
-operators_F ::[[E.Operator Parser (Expr f (AField f))]]
+operators_F :: [[E.Operator Parser (Expr f (AField f))]]
 operators_F = -- The order here determines operator precedence.
   [ [Prefix (EAppUnOp  Neg <$ keyword "neg"), Prefix (EAppUnOp Inv <$ keyword "inv")]
   , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
-
--- if e then r1 else e2
 
 -- Branches are boolean
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)

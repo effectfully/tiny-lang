@@ -1,9 +1,11 @@
 module Data.Field
     ( Field (..)
     , AField (..)
+    , AsInteger (..)
     , two
     ) where
-
+    
+import qualified GHC.Num          (fromInteger)
 import           Prelude          hiding (div)
 import qualified Prelude          (div)
 
@@ -115,3 +117,15 @@ instance Field f => Num (AField f) where
 
 instance Show f => Show (AField f) where
     show = show . unAField
+
+class AsInteger f where
+    asInteger :: f -> Maybe Integer
+
+instance AsInteger f => AsInteger (AField f) where
+    asInteger = coerce $ asInteger @f
+
+instance AsInteger Rational where
+    asInteger r = if denominator r == 1
+                   then Just (numerator r)
+                   else Nothing
+                   

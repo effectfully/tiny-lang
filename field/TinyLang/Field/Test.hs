@@ -27,7 +27,7 @@ forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))
    or  
-       quickCheck (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
+       quickCheckWith (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
 -}
 
 prop_Ftest :: forall f . (Eq f, Show f, ParsableField f) => SomeUniExpr f -> Bool
