@@ -56,6 +56,10 @@ data BinOp f a b c where
     And :: BinOp f Bool       Bool       Bool
     Xor :: BinOp f Bool       Bool       Bool
     FEq :: BinOp f (AField f) (AField f) Bool
+    FLt :: BinOp f (AField f) (AField f) Bool
+    FLe :: BinOp f (AField f) (AField f) Bool
+    FGe :: BinOp f (AField f) (AField f) Bool
+    FGt :: BinOp f (AField f) (AField f) Bool
     Add :: BinOp f (AField f) (AField f) (AField f)
     Sub :: BinOp f (AField f) (AField f) (AField f)
     Mul :: BinOp f (AField f) (AField f) (AField f)
@@ -80,7 +84,7 @@ instance Field f => Field (Expr f (AField f)) where
     inv = EAppUnOp Inv
     mul = EAppBinOp Mul
     div = EAppBinOp Div
-
+                                              
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
 
@@ -117,6 +121,10 @@ withGeqBinOp Or  Or  y _ = y
 withGeqBinOp And And y _ = y
 withGeqBinOp Xor Xor y _ = y
 withGeqBinOp FEq FEq y _ = y
+withGeqBinOp FLt FLt y _ = y
+withGeqBinOp FLe FLe y _ = y
+withGeqBinOp FGe FGe y _ = y
+withGeqBinOp FGt FGt y _ = y
 withGeqBinOp Add Add y _ = y
 withGeqBinOp Sub Sub y _ = y
 withGeqBinOp Mul Mul y _ = y

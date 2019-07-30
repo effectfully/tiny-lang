@@ -1,4 +1,5 @@
-{-| A parser for the boolean language.  The concrete syntax is as follows:
+{-| A parser for a tiny language involving booleans and field elements.
+  The concrete syntax is as follows:
 
   val ::= T | F
   fvar ::= [a-z][a-z0-9_]*
@@ -19,6 +20,10 @@
            expr 'or'  expr
            expr 'xor' expr
            expr == expr
+           expr < expr
+           expr <= expr
+           expr >= expr
+           expr > expr
            expr + expr
            expr - expr
            expr * expr
@@ -33,7 +38,6 @@
 
   Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
   Things like "neg inv 5" are illegal: use parentheses.
-
 
   The code is based on the tutorial at
   https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
@@ -92,7 +96,7 @@ keyword :: String -> Parser ()
 keyword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
 
 
--- Most of the remanining parsers have a B or F suffix depending on
+-- Most of the remaining parsers have a B or F suffix depending on
 -- whether they're returning something of type Bool or type Field.
 
 -- For type disambiguation purposes variables of type Field have
@@ -162,15 +166,26 @@ neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 eqExpr :: ParsableField f => Parser (Expr f Bool)
 eqExpr = EAppBinOp FEq <$>  expr_F <* symbol "==" <*> expr_F
 
+-- Operations for ordering comparisons of "integer" field elements
+-- GADTs stop us using makeExprParsr here: it expects the input and output type to be the same.
+comparisonExpr :: ParsableField f => Parser (Expr f Bool)
+comparisonExpr =
+    try (EAppBinOp FLt <$> expr_F <*> (keyword "<"  *> expr_F))
+            <|> try (EAppBinOp FLe <$> expr_F <*> (keyword "<=" *> expr_F))
+            <|> try (EAppBinOp FGe <$> expr_F <*> (keyword ">=" *> expr_F))
+            <|> EAppBinOp FGt <$> expr_F <*> (keyword ">"  *> expr_F)
+
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = try eqExpr <|> try operExpr_B <|> ifExpr_B
+expr_B = try eqExpr <|> try operExpr_B <|> try comparisonExpr <|> ifExpr_B
+-- I _think_ the precedence is correct here...
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
 expr_F = (try operExpr_F) <|> ifExpr_F
 
--- operExpr: expressions involving unary and binary operators
--- We have to deal with eq and neq0 separately.
+-- operExpr: expressions involving unary and binary operators.
+-- We have to deal with eq and neq0 separately, and also the order
+-- comaprisons.
 
 -- Boolean epxressions
 operExpr_B :: ParsableField f => Parser (Expr f Bool)
@@ -188,19 +203,17 @@ operators_B = -- The order here determines operator precedence.
 operExpr_F :: ParsableField f => Parser (Expr f (AField f))
 operExpr_F = makeExprParser expr1_F operators_F
 
-operators_F ::[[E.Operator Parser (Expr f (AField f))]]
+operators_F :: [[E.Operator Parser (Expr f (AField f))]]
 operators_F = -- The order here determines operator precedence.
   [ [Prefix (EAppUnOp  Neg <$ keyword "neg"), Prefix (EAppUnOp Inv <$ keyword "inv")]
   , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
 
--- if e then r1 else e2
-
--- Branches are boolean
+-- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
 ifExpr_B = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_B) <*> (keyword "else" *> expr_B)
 
--- Branches are numeric
+-- 'if' with numeric branches
 ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
 ifExpr_F = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_F) <*> (keyword "else" *> expr_F)

@@ -1,9 +1,11 @@
 module Data.Field
     ( Field (..)
     , AField (..)
+    , AsInteger (..)
     , two
     ) where
-
+    
+import qualified GHC.Num          (fromInteger)
 import           Prelude          hiding (div)
 import qualified Prelude          (div)
 
@@ -115,3 +117,28 @@ instance Field f => Num (AField f) where
 
 instance Show f => Show (AField f) where
     show = show . unAField
+
+
+{- | We're dealing with fields in which certain elements can be regarded
+ as integers, and we're only supposed to carry out comparisons on such
+ elements.  In the case of a finite field, these are probably elements
+ of the prime subfield.  The AsInteger class adds an operation which
+ returns the actual integer corresponding to such an element, if there
+ is such an integer.
+-}
+
+class AsInteger f where
+    asInteger :: f -> Maybe Integer
+
+instance AsInteger f => AsInteger (AField f) where
+    asInteger = coerce $ asInteger @f
+
+-- | For Rational, we check if a fraction is in fact an integer.  We
+-- can safely use the 'denominator' function to do this because it
+-- reduces fractions to lowest terms before computing the result (eg,
+-- denominator (111/3) == 1)
+instance AsInteger Rational where
+    asInteger r = if denominator r == 1     
+                   then Just (numerator r)  
+                   else Nothing
+                   

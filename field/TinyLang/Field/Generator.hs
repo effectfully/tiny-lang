@@ -1,5 +1,25 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+{- | NOTE: comparisons.
+
+   We're now allowing comparisons of field elements with the operators
+   <, <=, >=, and >.  We're only supposed to compare things which have
+   "integer" values, and then the comparison is on the corresponding
+   integers.  In this context, "integer" means (we think) some integer
+   multiple of 1.  In the characteristic zero case this will mean a
+   genuine integer, and in the characteristic p case it will mean an
+   element of the prime subfield, which is isomorphic to Z_p.
+
+   This has involved adding new generators for integer-valued things,
+   and these have names ending with 'I' below.  The Num instance of
+   Field contains a fromInteger function which produces integer values
+   as binary expansions in terms of 'one'.  For a proper finite field
+   implementation fromInteger would probably have a much more direct
+   implementation.  In the evaluator we use fields equipped with an
+   'asInteger' operation which converts in the opposite direction so
+   we can actually perform comparisons of integers.
+-}
+
 module TinyLang.Field.Generator
 where
 
@@ -8,7 +28,6 @@ import           TinyLang.Field.Core
 import           TinyLang.Field.Evaluator
 import           TinyLang.Generator       ()
 import           TinyLang.Var
-
 
 import qualified Data.IntMap.Strict       as IntMap
 import           Test.QuickCheck
@@ -48,6 +67,9 @@ arbitraryEVarB vars = EVar Bool <$> arbitraryVar vars
 arbitraryEVarF :: [Var] -> Gen (Expr f (AField f))
 arbitraryEVarF vars = EVar Field <$> arbitraryVar vars
 
+-- | An arbitrary integer value (for use in comparisons)
+arbitraryValI :: Field f => Gen (UniVal f (AField f))
+arbitraryValI = UniVal Field . fromInteger <$> (arbitrary :: Gen Integer)
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
     arbitrary = AField <$> arbitrary
@@ -64,11 +86,17 @@ instance Arbitrary (UnOp f (AField f) (AField f)) where
 instance Arbitrary (BinOp f Bool Bool Bool) where
     arbitrary = elements [Or, And, Xor]
 
-instance Arbitrary (BinOp f (AField f) (AField f) Bool) where
-    arbitrary = elements [FEq]
-
 instance Arbitrary (BinOp f (AField f) (AField f) (AField f)) where
     arbitrary = elements [Add, Sub, Mul, Div]
+
+-- We can compare any two elements of a field for equality.
+arbitraryFFcomparison :: Gen (BinOp f (AField f) (AField f) Bool)
+arbitraryFFcomparison = elements [FEq]
+
+-- ... but we're only supposed to perform order comparisons on integer
+-- values, so we need a separate generator for caomprison operations.
+arbitraryIIcomparison :: Gen (BinOp f (AField f) (AField f) Bool)
+arbitraryIIcomparison = elements [FLt, FLe, FGe, FGt]
 
 instance Arbitrary (UniVal f Bool) where
     arbitrary = UniVal Bool <$> arbitrary
@@ -77,6 +105,7 @@ instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field  <$> arbitrary
 
 -- TODO: generate 'ELet's.
+-- | An arbitrary boolean-valued expression
 boundedAbritraryExprB :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f Bool)
 boundedAbritraryExprB vars size =
     if size <= 1 then EVal <$> arbitrary
@@ -93,11 +122,19 @@ boundedAbritraryExprB vars size =
                 boundedAbritraryExprB vars (size `Prelude.div` 2) <*>
                 boundedAbritraryExprB vars (size `Prelude.div` 2)),
               (2, EAppBinOp <$>
-                arbitrary <*>
+                arbitraryFFcomparison <*>
                 boundedAbritraryExprF vars (size `Prelude.div` 2) <*>
-                boundedAbritraryExprF vars (size `Prelude.div` 2))
+                boundedAbritraryExprF vars (size `Prelude.div` 2)),
+              (2, EAppBinOp <$>
+                arbitraryIIcomparison <*>
+                usuallyIntValuedArbitraryExpr vars (size `Prelude.div` 2) <*>
+                usuallyIntValuedArbitraryExpr vars (size `Prelude.div` 2))
+                -- ^ We're only supposed to compare integer-valued
+                -- expressions, but we generate occasional non-integer
+                -- ones for testing purposes.
              ]
 
+-- | An arbitrary field-valued expression
 boundedAbritraryExprF :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
 boundedAbritraryExprF vars size =
     if size <= 1 then EVal <$> arbitrary
@@ -114,6 +151,64 @@ boundedAbritraryExprF vars size =
                 boundedAbritraryExprF vars (size `Prelude.div` 2) <*>
                 boundedAbritraryExprF vars (size `Prelude.div` 2))
              ]
+
+-- | Arbitrary unary operation for generating integer-valued
+-- expressions.  We're disallowing Inv, so we only have negation.  Inv
+-- would be OK in a finite field.
+arbitraryUnOpRing :: Gen (UnOp f (AField f) (AField f))
+arbitraryUnOpRing = elements [Neg]
+
+-- | Arbitrary ring operation for generating integer-valued
+-- expressions.  If we're in the rationals then division would usually
+-- gice us non-integers, so / is omitted.  Note that if we're dealing
+-- with a finite field then it's probably safe to allow / as well,
+-- since we think that "integer" means something in the prime subfield
+-- in that case, and that's closed under division (except for division
+-- by zero).
+arbitraryBinOpRing :: Gen (BinOp f (AField f) (AField f) (AField f))
+arbitraryBinOpRing = elements [Add, Sub, Mul]
+
+-- | This produces an arbitrary integer-valued expression.
+-- Comparisons are only supposed to involve integers, so this
+-- generates suitable arguments for them.  We've disallowed Inv and
+-- Div, so we'll never get division by zero errors here.  The
+-- expressions generated by this function don't include variables: see
+-- the note below.
+boundedAbritraryExprI :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
+boundedAbritraryExprI vars size =
+    if size <= 1 then EVal <$> arbitraryValI
+    else frequency [
+              (1, EVal <$> arbitraryValI),
+              (0, arbitraryEVarF (fieldVars vars)),
+              {- ^ NOTE.  If we allow variables here we won't generally know in
+                 advance that they'll have integer values, so there
+                 would be a danger that our comparisons will have a
+                 high probability of failing.  We could fill the
+                 environment with lots of integer-valued variables to
+                 reduce the risk of this, or supply a separate list of
+                 variables which we're certain will only contain integer
+                 values.
+               -}
+
+              (3, EIf <$>
+                boundedAbritraryExprB vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExprI vars (size `Prelude.div` 3) <*>
+                boundedAbritraryExprI vars (size `Prelude.div` 3)),
+              (3, EAppUnOp <$> arbitraryUnOpRing <*>  boundedAbritraryExprI vars (size-1)),
+              (3, EAppBinOp <$>
+                arbitraryBinOpRing <*>
+                boundedAbritraryExprI vars (size `Prelude.div` 2) <*>
+                boundedAbritraryExprI vars (size `Prelude.div` 2))
+             ]
+
+-- | Either a general field expression or one which is guaranteed to
+-- be integer-valued.  We want the latter most of the time, but not
+-- always.
+usuallyIntValuedArbitraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
+usuallyIntValuedArbitraryExpr vars size =
+    frequency [(1, boundedAbritraryExprF vars size),
+               (9, boundedAbritraryExprI vars size)
+              ]
 
 -- Generate an expression from a collection of variables with the
 -- number of nodes (approximately) bounded by 'size'
@@ -136,6 +231,10 @@ unisOfBinOpArg Or  = (Bool, Bool)
 unisOfBinOpArg And = (Bool, Bool)
 unisOfBinOpArg Xor = (Bool, Bool)
 unisOfBinOpArg FEq = (Field, Field)
+unisOfBinOpArg FLt = (Field, Field)
+unisOfBinOpArg FLe = (Field, Field)
+unisOfBinOpArg FGe = (Field, Field)
+unisOfBinOpArg FGt = (Field, Field)
 unisOfBinOpArg Add = (Field, Field)
 unisOfBinOpArg Sub = (Field, Field)
 unisOfBinOpArg Mul = (Field, Field)

@@ -18,17 +18,35 @@ import           TinyLang.Environment
 import           TinyLang.Field.Core
 import           TinyLang.Prelude
 
+
+-- | We want to allow order comparisons on elements of the field, but only
+-- if they're integers (whatever that means), and only if they're positive.
+-- If we get a non-integer we throw Denormal, and if we get something negative
+-- we throw Underflow. Maybe we want our own exceptions here.
+compareIntegerValues :: AsInteger f => (Integer -> Integer -> Bool) -> f -> f -> Bool
+compareIntegerValues op a b =
+    case (asInteger a, asInteger b) of
+      (Just m, Just n) ->
+          if m<0 || n<0
+          then throw Underflow
+          else op m n
+      _                -> throw Denormal
+
 evalUnOp :: (Eq f, Field f) => UnOp f a b -> a -> UniVal f b
 evalUnOp Not  = UniVal Bool . not
 evalUnOp Neq0 = UniVal Bool . (/= zer)
 evalUnOp Neg  = UniVal Field . neg
 evalUnOp Inv  = UniVal Field . inv
 
-evalBinOp :: (Eq f, Field f) => BinOp f a b c -> a -> b -> UniVal f c
+evalBinOp :: (Eq f, Field f, AsInteger f) => BinOp f a b c -> a -> b -> UniVal f c
 evalBinOp Or  = UniVal Bool .* (||)
 evalBinOp And = UniVal Bool .* (&&)
 evalBinOp Xor = UniVal Bool .* (/=)
 evalBinOp FEq = UniVal Bool .* (==)
+evalBinOp FLt = UniVal Bool .* compareIntegerValues (<)
+evalBinOp FLe = UniVal Bool .* compareIntegerValues (<=)
+evalBinOp FGe = UniVal Bool .* compareIntegerValues (>=)
+evalBinOp FGt = UniVal Bool .* compareIntegerValues (>)
 evalBinOp Add = UniVal Field .* add
 evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
@@ -36,7 +54,7 @@ evalBinOp Div = UniVal Field .* div
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExprUni :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
+evalExprUni :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
 evalExprUni _   (EVal uniVal) = uniVal
 evalExprUni env (EVar u var) = case unsafeLookupVar var env of
     SomeUniVal uniVal@(UniVal u' _) -> withGeqUni u u' uniVal $ error "type mismatch"
@@ -48,7 +66,7 @@ evalExprUni env (ELet _ var def expr) =
     evalExprUni (insertVar var (SomeUniVal $ evalExprUni env def) env) expr
 
 -- | A recursive evaluator for expressions.
-evalExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> a
+evalExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> a
 evalExpr env = _uniValVal . evalExprUni env
 
 -- | A type of expressions together with environments
@@ -57,7 +75,7 @@ data ExprWithEnv f
       deriving (Show)
 
 -- | Evaluate an expression in a given environment
-evalExprWithEnv :: (Eq f, Field f) => ExprWithEnv f -> SomeUniVal f
+evalExprWithEnv :: (Eq f, Field f, AsInteger f) => ExprWithEnv f -> SomeUniVal f
 evalExprWithEnv (ExprWithEnv (SomeUniExpr t e) env) =
           SomeUniVal (UniVal t (TinyLang.Field.Evaluator.evalExpr env e))
 
@@ -69,11 +87,11 @@ denoteUniVal (UniVal Field i) = unAField i
 denoteSomeUniVal :: Field f => SomeUniVal f -> f
 denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
 
-denoteExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> f
+denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
 
 -- | A recursive normalizer for expressions.
-normExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
+normExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
 normExpr _   expr@EVal{} = expr
 normExpr env expr@(EVar u var) =
     case lookupVar var env of

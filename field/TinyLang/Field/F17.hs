@@ -49,6 +49,11 @@ instance Field F17 where
         16 -> 16
         _  -> error $ "F17 is not in the [0, 16] range: " ++ show n
 
+
+-- | Z_17 is a prime field, so every element can be obtained canonically from an integer.
+instance AsInteger F17 where
+    asInteger = Just . fromIntegral . unF17
+
 -- | Choose a random element uniformly. If you use this in
 -- randomly-generated expressions there's a good chance that you'll
 -- get division by zero (-> undefined).
