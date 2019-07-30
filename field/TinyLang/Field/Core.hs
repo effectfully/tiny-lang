@@ -155,7 +155,7 @@ instance Eq (VarSign f) where
 data ScopedVarSigns f = ScopedVarSigns
     { _scopedVarSignsFree  :: Env (VarSign f)
     , _scopedVarSignsBound :: Env (VarSign f)
-    }
+    } deriving (Show)
 
 isTracked :: (Eq a, Show a) => Unique -> a -> Env a -> Bool
 isTracked uniq x env =
@@ -169,7 +169,7 @@ isTracked uniq x env =
 exprVarSigns :: Expr f a -> ScopedVarSigns f
 exprVarSigns = go $ ScopedVarSigns mempty mempty where
     go :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
-    go signs (EVal _)                       = signs
+    go signs (EVal _)                            = signs
     go signs (EVar uni (Var uniq name))
         | tracked   = signs
         | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
@@ -177,13 +177,13 @@ exprVarSigns = go $ ScopedVarSigns mempty mempty where
             ScopedVarSigns free bound = signs
             sign = VarSign name uni
             tracked = isTracked uniq sign bound || isTracked uniq sign free
-    go signs (EAppUnOp _ x)                 = go signs x
-    go signs (EAppBinOp _ x y)              = go (go signs x) y
-    go signs (EIf b x y)                    = go (go (go signs b) x) y
-    go signs (ELet uni (Var uniq name) _ e) =
-        go (ScopedVarSigns free $ insertUnique uniq sign bound) e
+    go signs (EAppUnOp _ x)                      = go signs x
+    go signs (EAppBinOp _ x y)                   = go (go signs x) y
+    go signs (EIf b x y)                         = go (go (go signs b) x) y
+    go signs (ELet uni (Var uniq name) def expr) =
+        go (ScopedVarSigns free $ insertUnique uniq sign bound) expr
       where
-        ScopedVarSigns free bound = signs
+        ScopedVarSigns free bound = go signs def
         sign = VarSign name uni
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
