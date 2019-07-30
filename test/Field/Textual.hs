@@ -28,6 +28,7 @@ forgetIDs (EVar u v)           = EVar u (forgetID v)
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
+forgetIDs (ELet u v d e)       = ELet u (forgetID v) (forgetIDs d) (forgetIDs e)
 
 
 {- Call this with eg

@@ -9,7 +9,9 @@ module TinyLang.Field.Core
     , Expr (..)
     , withGeqUni
     , VarSign (..)
+    , ScopedVarSigns (..)
     , exprVarSigns
+    , exprFreeVarSigns
     , embedBoolUnOp
     , embedBoolBinOp
     , embedBoolExpr
@@ -18,11 +20,9 @@ module TinyLang.Field.Core
 import           Prelude
 
 import           Data.Field            as Field
-import           TinyLang.Prelude
 import           TinyLang.Var
+import           TinyLang.Environment
 import qualified TinyLang.Boolean.Core as Boolean
-
-import qualified Data.IntMap.Strict as IntMap
 
 data Uni f a where
     Bool  :: Uni f Bool
@@ -46,7 +46,7 @@ data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
 data SomeUniExpr f = forall a. SomeUniExpr (Uni f a) (Expr f a)
 
 data UnOp f a b where
-    Not  :: UnOp f Bool      Bool
+    Not  :: UnOp f Bool       Bool
     Neq0 :: UnOp f (AField f) Bool
     Neg  :: UnOp f (AField f) (AField f)
     Inv  :: UnOp f (AField f) (AField f)
@@ -65,12 +65,15 @@ data BinOp f a b c where
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
 
+-- TODO: check that a variable is always of the same type.
 data Expr f a where
     EVal      :: UniVal f a -> Expr f a
     EVar      :: Uni f a -> Var -> Expr f a
     EIf       :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
+    -- TODO: define @UniVar@ (in the style of @UniVal@).
+    ELet      :: Uni f b -> Var -> Expr f b -> Expr f a -> Expr f a
 
 instance Field f => Field (Expr f (AField f)) where
     zer = EVal (UniVal Field zer)
@@ -157,21 +160,42 @@ deriving instance Show (VarSign f)
 instance Eq (VarSign f) where
     VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 (name1 == name2) False
 
-exprVarSigns :: Expr f a -> IntMap (VarSign f)
-exprVarSigns = go mempty where
-    go :: IntMap (VarSign f) -> Expr f a -> IntMap (VarSign f)
-    go names (EVal _)                            = names
-    go names (EVar uni (Var (Unique uniq) name)) =
-        case IntMap.lookup uniq names of
-            Just sign'
-                | sign == sign' -> names
-                | otherwise     -> error $
-                    concat ["var signature mismatch: '", show sign, "' vs '", show sign', "'"]
-            Nothing -> IntMap.insert uniq sign names
-        where sign = VarSign name uni
-    go names (EAppUnOp _ x)                      = go names x
-    go names (EAppBinOp _ x y)                   = go (go names x) y
-    go names (EIf b x y)                         = go (go (go names b) x) y
+data ScopedVarSigns f = ScopedVarSigns
+    { _scopedVarSignsFree  :: Env (VarSign f)
+    , _scopedVarSignsBound :: Env (VarSign f)
+    } deriving (Show)
+
+isTracked :: (Eq a, Show a) => Unique -> a -> Env a -> Bool
+isTracked uniq x env =
+    case lookupUnique uniq env of
+        Just x'
+            | x == x'   -> True
+            | otherwise -> error $ concat ["mismatch: '", show x, "' vs '", show x', "'"]
+        Nothing -> False
+
+-- TODO: test me somehow.
+exprVarSigns :: Expr f a -> ScopedVarSigns f
+exprVarSigns = go $ ScopedVarSigns mempty mempty where
+    go :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
+    go signs (EVal _)                            = signs
+    go signs (EVar uni (Var uniq name))
+        | tracked   = signs
+        | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
+        where
+            ScopedVarSigns free bound = signs
+            sign = VarSign name uni
+            tracked = isTracked uniq sign bound || isTracked uniq sign free
+    go signs (EAppUnOp _ x)                      = go signs x
+    go signs (EAppBinOp _ x y)                   = go (go signs x) y
+    go signs (EIf b x y)                         = go (go (go signs b) x) y
+    go signs (ELet uni (Var uniq name) def expr) =
+        go (ScopedVarSigns free $ insertUnique uniq sign bound) expr
+      where
+        ScopedVarSigns free bound = go signs def
+        sign = VarSign name uni
+
+exprFreeVarSigns :: Expr f a -> Env (VarSign f)
+exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
 
 embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
 embedBoolUnOp Boolean.Not = Not

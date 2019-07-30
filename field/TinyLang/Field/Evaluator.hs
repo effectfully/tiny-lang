@@ -62,6 +62,8 @@ evalExprUni env (EIf e e1 e2) = if evalExpr env e then evalExprUni env e1 else e
 evalExprUni env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExprUni env (EAppBinOp op e1 e2) =
     evalBinOp op (evalExpr env e1) (evalExpr env e2)
+evalExprUni env (ELet _ var def expr) =
+    evalExprUni (insertVar var (SomeUniVal $ evalExprUni env def) env) expr
 
 -- | A recursive evaluator for expressions.
 evalExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> a
@@ -111,3 +113,7 @@ normExpr env (EAppBinOp op e1 e2) =
     case (normExpr env e1, normExpr env e2) of
         (EVal (UniVal _ x1), EVal (UniVal _ x2)) -> EVal $ evalBinOp op x1 x2
         (e1N, e2N)                               -> EAppBinOp op e1N e2N
+normExpr env (ELet uni var def expr) =
+    case normExpr env def of
+        EVal uniVal -> normExpr (insertVar var (SomeUniVal uniVal) env) expr
+        def'        -> ELet uni var def' $ normExpr env expr
