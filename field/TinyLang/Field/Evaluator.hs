@@ -72,7 +72,6 @@ denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
 denoteExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
 
--- TODO: delete this once it's not required downstream anymore.
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
 normExpr _   expr@EVal{} = expr

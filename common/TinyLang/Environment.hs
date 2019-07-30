@@ -17,7 +17,7 @@ import qualified Data.IntMap.Strict as IntMap
 -- | A simple representation of environments as 'IntMap's mapping variables to values
 newtype Env a = Env
     { unEnv :: IntMap a
-    } deriving (Show, Eq, Functor)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
       deriving newtype (Semigroup, Monoid)
 
 mapEnv :: (IntMap a -> IntMap b) -> Env a -> Env b
