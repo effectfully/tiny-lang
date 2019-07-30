@@ -69,7 +69,7 @@ arbitraryEVarF vars = EVar Field <$> arbitraryVar vars
 
 -- | An arbitrary integer value (for use in comparisons)
 arbitraryValI :: Field f => Gen (UniVal f (AField f))
-arbitraryValI = UniVal Field <$> fromInteger <$> (arbitrary :: Gen Integer)
+arbitraryValI = UniVal Field . fromInteger <$> (arbitrary :: Gen Integer)
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
     arbitrary = AField <$> arbitrary
