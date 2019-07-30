@@ -71,7 +71,7 @@ exprToString s (ELet uni var def e) = concat
     , show uni
     , " = "
     , exprToString s def
-    , "\n"
+    , "; "
     , exprToString s e
     ]
 
