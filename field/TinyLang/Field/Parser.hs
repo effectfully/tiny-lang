@@ -1,4 +1,5 @@
-{-| A parser for the boolean language.  The concrete syntax is as follows:
+{-| A parser for a tiny language involving booleans and field elements.
+  The concrete syntax is as follows:
 
   val ::= T | F
   fvar ::= [a-z][a-z0-9_]*
@@ -174,7 +175,6 @@ comparisonExpr =
             <|> try (EAppBinOp FGe <$> expr_F <*> (keyword ">=" *> expr_F))
             <|> EAppBinOp FGt <$> expr_F <*> (keyword ">"  *> expr_F)
 
-
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
 expr_B = try eqExpr <|> try operExpr_B <|> try comparisonExpr <|> ifExpr_B
@@ -183,8 +183,9 @@ expr_B = try eqExpr <|> try operExpr_B <|> try comparisonExpr <|> ifExpr_B
 expr_F :: ParsableField f => Parser (Expr f (AField f))
 expr_F = (try operExpr_F) <|> ifExpr_F
 
--- operExpr: expressions involving unary and binary operators
--- We have to deal with eq and neq0 separately.
+-- operExpr: expressions involving unary and binary operators.
+-- We have to deal with eq and neq0 separately, and also the order
+-- comaprisons.
 
 -- Boolean epxressions
 operExpr_B :: ParsableField f => Parser (Expr f Bool)
@@ -209,10 +210,10 @@ operators_F = -- The order here determines operator precedence.
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
 
--- Branches are boolean
+-- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
 ifExpr_B = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_B) <*> (keyword "else" *> expr_B)
 
--- Branches are numeric
+-- 'if' with numeric branches
 ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
 ifExpr_F = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_F) <*> (keyword "else" *> expr_F)

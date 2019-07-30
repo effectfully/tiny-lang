@@ -23,8 +23,8 @@ import           TinyLang.Prelude
 -- if they're integers (whatever that means), and only if they're positive.
 -- If we get a non-integer we throw Denormal, and if we get something negative
 -- we throw Underflow. Maybe we want our own exceptions here.
-compareIntegers :: AsInteger f => (Integer -> Integer -> Bool) -> f -> f -> Bool
-compareIntegers op a b =
+compareIntegerValues :: AsInteger f => (Integer -> Integer -> Bool) -> f -> f -> Bool
+compareIntegerValues op a b =
     case (asInteger a, asInteger b) of
       (Just m, Just n) ->
           if m<0 || n<0
@@ -43,10 +43,10 @@ evalBinOp Or  = UniVal Bool .* (||)
 evalBinOp And = UniVal Bool .* (&&)
 evalBinOp Xor = UniVal Bool .* (/=)
 evalBinOp FEq = UniVal Bool .* (==)
-evalBinOp FLt = UniVal Bool .* compareIntegers (<)
-evalBinOp FLe = UniVal Bool .* compareIntegers (<=)
-evalBinOp FGe = UniVal Bool .* compareIntegers (>=)
-evalBinOp FGt = UniVal Bool .* compareIntegers (>)
+evalBinOp FLt = UniVal Bool .* compareIntegerValues (<)
+evalBinOp FLe = UniVal Bool .* compareIntegerValues (<=)
+evalBinOp FGe = UniVal Bool .* compareIntegerValues (>=)
+evalBinOp FGt = UniVal Bool .* compareIntegerValues (>)
 evalBinOp Add = UniVal Field .* add
 evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
