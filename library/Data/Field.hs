@@ -146,6 +146,7 @@ instance AsInteger Rational where
 -- used only for pretty-printing.
 class IsNegative f where
     isNegative :: f -> Bool
+    default isNegative :: (Ord f, Num f) => f -> Bool
+    isNegative x = x < 0
 
-instance IsNegative Rational where
-    isNegative r = r < 0
+instance IsNegative Rational
