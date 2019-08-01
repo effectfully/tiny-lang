@@ -99,9 +99,11 @@ instance Field Rational where
 
 instance Field f => Num (AField f) where
     negate = neg
-    (+) = add
-    (-) = sub
-    (*) = mul
+    (+)    = add
+    (-)    = sub
+    (*)    = mul
+    abs    = error "no 'abs'"
+    signum = error "no 'signum'"
 
     fromInteger n0
         | n0 >= 0   = go n0
@@ -112,9 +114,6 @@ instance Field f => Num (AField f) where
             go 2          = two
             go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
             go n          = one `add` fromInteger (n - 1)
-
-    abs    = error "no 'abs'"
-    signum = error "no 'signum'"
 
 instance Show f => Show (AField f) where
     show = show . unAField
