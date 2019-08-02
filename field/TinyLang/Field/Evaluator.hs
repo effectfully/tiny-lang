@@ -81,7 +81,7 @@ evalExprWithEnv (ExprWithEnv (SomeUniExpr t e) env) =
 
 
 denoteUniVal :: Field f => UniVal f a -> f
-denoteUniVal (UniVal Bool  b) = if b then one else zer
+denoteUniVal (UniVal Bool  b) = boolToField b
 denoteUniVal (UniVal Field i) = unAField i
 
 denoteSomeUniVal :: Field f => SomeUniVal f -> f

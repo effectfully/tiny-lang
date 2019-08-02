@@ -8,6 +8,7 @@ module TinyLang.Field.Core
     , BinOp (..)
     , Expr (..)
     , withGeqUni
+    , boolToField
     , VarSign (..)
     , ScopedVarSigns (..)
     , exprVarSigns
@@ -185,6 +186,10 @@ instance Eq f => Eq (Expr f a) where
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 (x1 == x2) False
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
     _                  == _                  = False
+
+boolToField :: Field f => Bool -> f
+boolToField False = zer
+boolToField True  = one
 
 data VarSign f = forall a. VarSign
     { _varSignName :: String
