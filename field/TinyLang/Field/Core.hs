@@ -8,6 +8,7 @@ module TinyLang.Field.Core
     , BinOp (..)
     , Expr (..)
     , withGeqUni
+    , boolToField
     , VarSign (..)
     , ScopedVarSigns (..)
     , exprVarSigns
@@ -17,7 +18,7 @@ module TinyLang.Field.Core
     , embedBoolExpr
     ) where
 
-import           Prelude
+import           Prelude               hiding (div)
 
 import           Data.Field            as Field
 import           TinyLang.Var
@@ -75,12 +76,48 @@ data Expr f a where
     -- TODO: define @UniVar@ (in the style of @UniVal@).
     ELet      :: Uni f b -> Var -> Expr f b -> Expr f a -> Expr f a
 
-instance Field f => Field (Expr f (AField f)) where
-    zer = EVal (UniVal Field zer)
+mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
+mapUniVal f (UniVal uni x) = UniVal uni $ f x
+
+zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
+zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
+
+instance (Field f, f ~ f') => Field (UniVal f (AField f')) where
+    zer = UniVal Field zer
+    neg = mapUniVal neg
+    add = zipUniVal add
+    sub = zipUniVal sub
+    one = UniVal Field one
+    inv = mapUniVal inv
+    mul = zipUniVal mul
+    div = zipUniVal div
+
+instance Num (UniVal f Bool) where
+    negate = error "no 'negate'"
+    (+)    = error "no '(+)'"
+    (-)    = error "no '(-)'"
+    (*)    = error "no '(*)'"
+    abs    = error "no 'abs'"
+    signum = error "no 'signum'"
+    fromInteger 0 = UniVal Bool False
+    fromInteger 1 = UniVal Bool True
+    fromInteger n = error $ show n ++ " is not a boolean"
+
+instance (Field f, f ~ f') => Num (UniVal f (AField f')) where
+    negate = neg
+    (+)    = add
+    (-)    = sub
+    (*)    = mul
+    abs    = error "no 'abs'"
+    signum = error "no 'signum'"
+    fromInteger = UniVal Field . fromInteger
+
+instance (Field f, f ~ f') => Field (Expr f (AField f')) where
+    zer = EVal zer
     neg = EAppUnOp Neg
     add = EAppBinOp Add
     sub = EAppBinOp Sub
-    one = EVal (UniVal Field one)
+    one = EVal one
     inv = EAppUnOp Inv
     mul = EAppBinOp Mul
     div = EAppBinOp Div
@@ -95,7 +132,7 @@ deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
 instance Show f => Show (UniVal f a) where
-    show (UniVal Bool  b) = show b
+    show (UniVal Bool  b) = if b then "1" else "0"
     show (UniVal Field i) = show i
 
 deriving instance Show f => Show (Expr f a)
@@ -149,6 +186,10 @@ instance Eq f => Eq (Expr f a) where
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 (x1 == x2) False
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
     _                  == _                  = False
+
+boolToField :: Field f => Bool -> f
+boolToField False = zer
+boolToField True  = one
 
 data VarSign f = forall a. VarSign
     { _varSignName :: String

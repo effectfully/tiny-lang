@@ -1,6 +1,7 @@
 module TinyLang.Environment
     ( Env (..)
     , mapEnv
+    , fromVarList
     , lookupUnique
     , lookupVar
     , unsafeLookupUnique
@@ -22,6 +23,9 @@ newtype Env a = Env
 
 mapEnv :: (IntMap a -> IntMap b) -> Env a -> Env b
 mapEnv = coerce
+
+fromVarList :: [(Var, a)] -> Env a
+fromVarList = foldl' (\acc (var, x) -> insertVar var x acc) mempty
 
 lookupUnique :: Unique -> Env a -> Maybe a
 lookupUnique (Unique ind) (Env env) = IntMap.lookup ind env

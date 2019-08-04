@@ -2,9 +2,10 @@ module Data.Field
     ( Field (..)
     , AField (..)
     , AsInteger (..)
+    , IsNegative (..)
     , two
     ) where
-    
+
 import qualified GHC.Num          (fromInteger)
 import           Prelude          hiding (div)
 import qualified Prelude          (div)
@@ -45,7 +46,7 @@ infixl 7 `mul`, `div`
 
 -- but this is known to be a computationally hard problem (see https://projecteuler.net/problem=122)
 -- and we also need to use multiplication, so this is more of a Project Euler task than something
--- that we definitely need. Anyway, would nice to have, just too much of a bother.
+-- that we definitely need. Anyway, would be nice to have, just too much of a bother.
 
 class Field f where
     zer :: f
@@ -98,9 +99,11 @@ instance Field Rational where
 
 instance Field f => Num (AField f) where
     negate = neg
-    (+) = add
-    (-) = sub
-    (*) = mul
+    (+)    = add
+    (-)    = sub
+    (*)    = mul
+    abs    = error "no 'abs'"
+    signum = error "no 'signum'"
 
     fromInteger n0
         | n0 >= 0   = go n0
@@ -112,12 +115,8 @@ instance Field f => Num (AField f) where
             go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
             go n          = one `add` fromInteger (n - 1)
 
-    abs    = error "no 'abs'"
-    signum = error "no 'signum'"
-
 instance Show f => Show (AField f) where
     show = show . unAField
-
 
 {- | We're dealing with fields in which certain elements can be regarded
  as integers, and we're only supposed to carry out comparisons on such
@@ -126,7 +125,6 @@ instance Show f => Show (AField f) where
  returns the actual integer corresponding to such an element, if there
  is such an integer.
 -}
-
 class AsInteger f where
     asInteger :: f -> Maybe Integer
 
@@ -138,7 +136,16 @@ instance AsInteger f => AsInteger (AField f) where
 -- reduces fractions to lowest terms before computing the result (eg,
 -- denominator (111/3) == 1)
 instance AsInteger Rational where
-    asInteger r = if denominator r == 1     
-                   then Just (numerator r)  
+    asInteger r = if denominator r == 1
+                   then Just (numerator r)
                    else Nothing
-                   
+
+-- | The 'IsNegative' class adds an operation that allows to check whether a field element is
+-- negative. For finite fields like 'F17' we simply always return 'False'. The class is currently
+-- used only for pretty-printing.
+class IsNegative f where
+    isNegative :: f -> Bool
+    default isNegative :: (Ord f, Num f) => f -> Bool
+    isNegative x = x < 0
+
+instance IsNegative Rational
