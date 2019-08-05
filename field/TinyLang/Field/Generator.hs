@@ -62,14 +62,14 @@ arbitraryVar :: [Var] -> Gen Var
 arbitraryVar = elements
 
 arbitraryEVarB :: [Var] -> Gen (Expr f Bool)
-arbitraryEVarB vars = EVar Bool <$> arbitraryVar vars
+arbitraryEVarB vars = EVar . UniVar Bool <$> arbitraryVar vars
 
 arbitraryEVarF :: [Var] -> Gen (Expr f (AField f))
-arbitraryEVarF vars = EVar Field <$> arbitraryVar vars
+arbitraryEVarF vars = EVar . UniVar Field <$> arbitraryVar vars
 
 -- | An arbitrary integer value (for use in comparisons)
 arbitraryValI :: Field f => Gen (UniVal f (AField f))
-arbitraryValI = UniVal Field . fromInteger <$> (arbitrary :: Gen Integer)
+arbitraryValI = UniVal Field . fromInteger <$> arbitrary
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
     arbitrary = AField <$> arbitrary
@@ -102,9 +102,8 @@ instance Arbitrary (UniVal f Bool) where
     arbitrary = UniVal Bool <$> arbitrary
 
 instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
-    arbitrary = UniVal Field  <$> arbitrary
+    arbitrary = UniVal Field <$> arbitrary
 
--- TODO: generate 'ELet's.
 -- | An arbitrary boolean-valued expression
 boundedAbritraryExprB :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f Bool)
 boundedAbritraryExprB vars size =
@@ -134,6 +133,7 @@ boundedAbritraryExprB vars size =
                 -- ones for testing purposes.
              ]
 
+-- TODO: generate 'ELet's.
 -- | An arbitrary field-valued expression
 boundedAbritraryExprF :: (Field f, Arbitrary f) => Vars -> Int -> Gen (Expr f (AField f))
 boundedAbritraryExprF vars size =
@@ -220,25 +220,35 @@ boundedAbritraryExpr vars size = oneof [SomeUniExpr Bool <$> boundedAbritraryExp
 defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> Gen (SomeUniExpr f)
 defaultArbitraryExpr = boundedAbritraryExpr defaultVars
 
-uniOfUnOpArg :: UnOp f a b -> Uni f a
-uniOfUnOpArg Not  = Bool
-uniOfUnOpArg Neq0 = Field
-uniOfUnOpArg Inv  = Field
-uniOfUnOpArg Neg  = Field
+-- We can shrink any expression to just a hardcoded ground value (except we shouldn't shrink other
+-- ground values to hardcoded ground values to prevent looping).
+defaultUniVal :: forall f a. (KnownUni f a, Field f) => UniVal f a
+defaultUniVal = case knownUni @f @a of
+    Bool  -> UniVal Bool True
+    Field -> UniVal Field $ fromInteger 100
 
-unisOfBinOpArg :: BinOp f a b c ->  (Uni f a, Uni f b)
-unisOfBinOpArg Or  = (Bool, Bool)
-unisOfBinOpArg And = (Bool, Bool)
-unisOfBinOpArg Xor = (Bool, Bool)
-unisOfBinOpArg FEq = (Field, Field)
-unisOfBinOpArg FLt = (Field, Field)
-unisOfBinOpArg FLe = (Field, Field)
-unisOfBinOpArg FGe = (Field, Field)
-unisOfBinOpArg FGt = (Field, Field)
-unisOfBinOpArg Add = (Field, Field)
-unisOfBinOpArg Sub = (Field, Field)
-unisOfBinOpArg Mul = (Field, Field)
-unisOfBinOpArg Div = (Field, Field)
+instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
+    arbitrary = case knownUni @f @a of
+        Bool  -> sized $ boundedAbritraryExprB defaultVars
+        Field -> sized $ boundedAbritraryExprF defaultVars
+
+    shrink (EVal uniVal) = EVal <$> shrinkUniVal uniVal
+    shrink expr0         = EVal defaultUniVal : case expr0 of
+        EAppUnOp op e ->
+            withKnownUni (uniOfUnOpArg op) $
+                EAppUnOp op <$> shrink e
+        EAppBinOp op e1 e2 ->
+            withKnownUni uni1 $
+            withKnownUni uni2 $
+                uncurry (EAppBinOp op) <$> shrink (e1, e2)
+          where
+              (uni1, uni2) = uniOfBinOpArg op
+        EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
+        EVal _ -> []
+        EVar _ -> []
+        ELet uniVar def expr ->
+            withKnownUni (_uniVarUni uniVar) $
+                uncurry (ELet uniVar) <$> shrink (def, expr)
 
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
@@ -246,23 +256,23 @@ shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
 
 -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
 -- but do not forget to catch exceptions.
-shrinkExpr :: Arbitrary f => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
-shrinkExpr _ (SomeUniExpr f expr) =
-    case expr of
-      EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
-      EAppBinOp op e1 e2 ->
-          case unisOfBinOpArg op of
-            (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
-      EIf e e1 e2 -> [SomeUniExpr Bool e, SomeUniExpr f e1, SomeUniExpr f e2]
-      EVal uniVal -> SomeUniExpr f . EVal <$> shrinkUniVal uniVal
-      EVar _ _ -> []
-      -- We can also keep the 'ELet', but shrink @def@ or @expr@.
-      ELet uni _ def _ -> [SomeUniExpr uni def]
+shrinkSomeUniExpr
+    :: (Field f, Arbitrary f) => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
+shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
+    map (SomeUniExpr uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
+        EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
+        EAppBinOp op e1 e2 ->
+            case uniOfBinOpArg op of
+              (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
+        EIf e _ _ -> [SomeUniExpr Bool e]
+        EVal _ -> []
+        EVar _ -> []
+        ELet (UniVar uni _) def _ -> [SomeUniExpr uni def]
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
     where arbitrary = sized defaultArbitraryExpr
-          shrink = shrinkExpr mempty
+          shrink = shrinkSomeUniExpr mempty
 
 genUni :: Field f => Uni f a -> Gen a
 genUni Bool  = arbitrary
@@ -290,5 +300,5 @@ instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
         return $ ExprWithEnv expr vals
     shrink (ExprWithEnv expr env@(Env vals)) =
         -- TODO: test me.
-        flip map (shrinkExpr env expr) $ \shrunkExpr@(SomeUniExpr _ se) ->
-            ExprWithEnv shrunkExpr . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigns se
+        flip map (shrinkSomeUniExpr env expr) $ \shrunk@(SomeUniExpr _ se) ->
+            ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigns se

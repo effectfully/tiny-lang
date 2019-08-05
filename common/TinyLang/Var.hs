@@ -79,8 +79,25 @@ instance Show Unique where
 instance Show Var where
     show (Var uniq name) = name ++ "_" ++ show uniq
 
+-- This is deeply inefficient, but we do not really care about efficiency, unlike correctness.
+-- We should consider having a representation like
+--
+-- > newtype UniqueName (n :: Nat) = UniqueName String
+-- > data Var = forall n. KnownNat n => Var (UniqueName n)
+--
+-- although that doesn't look super efficient either.
 instance Eq Var where
-    Var i _ == Var j _ = i == j
+    Var i s == Var j t
+        | i == j && s == t = True
+        | i == j           = error $ concat
+            [ "panic: names of variables with the same unique "
+            , show $ unUnique i
+            , "differ: "
+            , s
+            , " /= "
+            , t
+            ]
+        | otherwise        = False
 
 instance Ord Var where
     Var i _ `compare` Var j _ = i `compare` j

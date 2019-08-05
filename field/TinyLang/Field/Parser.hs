@@ -82,7 +82,7 @@ top :: ParsableField f => Parser (SomeUniExpr f)
 top = between ws eof expr
 
 expr :: ParsableField f => Parser (SomeUniExpr f)
-expr = (try (SomeUniExpr Bool <$> expr_B)) <|> (SomeUniExpr Field <$> expr_F)
+expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
@@ -129,14 +129,14 @@ valExpr_B = trueVal <|> falseVal
 
 -- Literal constants from the field
 valExpr_F :: forall f . ParsableField f => Parser (Expr f (AField f))
-valExpr_F = (\v -> EVal (UniVal Field v)) <$> (parseFieldElement :: Parser (AField f))
+valExpr_F = EVal . UniVal Field <$> parseFieldElement
 
 -- Variables
 varExpr_F :: Parser (Expr f (AField f))
-varExpr_F = EVar Field <$> (identifier_F >>= makeVar)
+varExpr_F = EVar . UniVar Field <$> (identifier_F >>= makeVar)
 
 varExpr_B :: Parser (Expr f Bool)
-varExpr_B = EVar Bool <$> (identifier_B >>= makeVar)
+varExpr_B = EVar . UniVar Bool <$> (identifier_B >>= makeVar)
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
@@ -212,8 +212,14 @@ operators_F = -- The order here determines operator precedence.
 
 -- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
-ifExpr_B = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_B) <*> (keyword "else" *> expr_B)
+ifExpr_B = EIf
+    <$> (keyword "if" *> expr_B)
+    <*> (keyword "then" *> expr_B)
+    <*> (keyword "else" *> expr_B)
 
 -- 'if' with numeric branches
 ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
-ifExpr_F = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_F) <*> (keyword "else" *> expr_F)
+ifExpr_F = EIf
+    <$> (keyword "if" *> expr_B)
+    <*> (keyword "then" *> expr_F)
+    <*> (keyword "else" *> expr_F)
