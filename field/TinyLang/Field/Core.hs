@@ -1,14 +1,16 @@
 module TinyLang.Field.Core
     ( module Field
     , Uni (..)
+    , KnownUni (..)
     , UniVal (..)
+    , UniVar (..)
     , SomeUniVal (..)
     , SomeUniExpr (..)
     , UnOp (..)
     , BinOp (..)
     , Expr (..)
     , withGeqUni
-    , boolToField
+    , withKnownUni
     , VarSign (..)
     , ScopedVarSigns (..)
     , exprVarSigns
@@ -16,6 +18,11 @@ module TinyLang.Field.Core
     , embedBoolUnOp
     , embedBoolBinOp
     , embedBoolExpr
+    , uniOfUnOpArg
+    , uniOfUnOpRes
+    , uniOfBinOpArg
+    , uniOfBinOpRes
+    , uniOfExpr
     ) where
 
 import           Prelude               hiding (div)
@@ -36,11 +43,26 @@ data Uni f a where
     -- "pattern matching is not exhaustive" warnings. Now @a@ uniquely determines the constructor
     -- and we do not have such warnings.
 
+class KnownUni f a where
+    knownUni :: Uni f a
+
+instance KnownUni f Bool where
+    knownUni = Bool
+
+instance f ~ f' => KnownUni f (AField f') where
+    knownUni = Field
+
 -- Needed for the sake of deriving.
 data UniVal f a = UniVal
     { _uniValUni :: Uni f a
     , _uniValVal :: a
     }
+
+-- Needed for the sake of symmetry with 'UniVal'.
+data UniVar f a = UniVar
+    { _uniVarUni :: Uni f a
+    , _uniVarVar :: Var
+    } deriving Show
 
 data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
 
@@ -69,12 +91,11 @@ data BinOp f a b c where
 -- TODO: check that a variable is always of the same type.
 data Expr f a where
     EVal      :: UniVal f a -> Expr f a
-    EVar      :: Uni f a -> Var -> Expr f a
+    EVar      :: UniVar f a -> Expr f a
     EIf       :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
-    -- TODO: define @UniVar@ (in the style of @UniVal@).
-    ELet      :: Uni f b -> Var -> Expr f b -> Expr f a -> Expr f a
+    ELet      :: UniVar f b -> Expr f b -> Expr f a -> Expr f a
 
 mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
 mapUniVal f (UniVal uni x) = UniVal uni $ f x
@@ -179,17 +200,20 @@ instance Eq f => Eq (UniVal f a) where
     UniVal Bool  b1 == UniVal Bool  b2 = b1 == b2
     UniVal Field i1 == UniVal Field i2 = i1 == i2
 
+instance Eq f => Eq (UniVar f a) where
+    UniVar _ v1 == UniVar _ v2 = v1 == v2
+
 instance Eq f => Eq (Expr f a) where
-    EVal uv1           == EVal uv2           = uv1 == uv2
-    EVar _ v1          == EVar _ v2          = v1 == v2
+    EVal uval1         == EVal uval2         = uval1 == uval2
+    EVar uvar1         == EVar uvar2         = uvar1 == uvar2
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 (x1 == x2) False
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
     _                  == _                  = False
 
-boolToField :: Field f => Bool -> f
-boolToField False = zer
-boolToField True  = one
+withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
+withKnownUni Bool  = id
+withKnownUni Field = id
 
 data VarSign f = forall a. VarSign
     { _varSignName :: String
@@ -218,22 +242,23 @@ isTracked uniq x env =
 exprVarSigns :: Expr f a -> ScopedVarSigns f
 exprVarSigns = go $ ScopedVarSigns mempty mempty where
     go :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
-    go signs (EVal _)                            = signs
-    go signs (EVar uni (Var uniq name))
+    go signs (EVal _)               = signs
+    go signs (EVar (UniVar uni (Var uniq name)))
         | tracked   = signs
         | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
         where
             ScopedVarSigns free bound = signs
             sign = VarSign name uni
             tracked = isTracked uniq sign bound || isTracked uniq sign free
-    go signs (EAppUnOp _ x)                      = go signs x
-    go signs (EAppBinOp _ x y)                   = go (go signs x) y
-    go signs (EIf b x y)                         = go (go (go signs b) x) y
-    go signs (ELet uni (Var uniq name) def expr) =
+    go signs (EAppUnOp _ x)         = go signs x
+    go signs (EAppBinOp _ x y)      = go (go signs x) y
+    go signs (EIf b x y)            = go (go (go signs b) x) y
+    go signs (ELet uniVar def expr) =
         go (ScopedVarSigns free $ insertUnique uniq sign bound) expr
       where
-        ScopedVarSigns free bound = go signs def
+        UniVar uni (Var uniq name) = uniVar
         sign = VarSign name uni
+        ScopedVarSigns free bound = go signs def
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
@@ -249,7 +274,56 @@ embedBoolBinOp Boolean.Xor = Xor
 embedBoolExpr :: Boolean.Expr -> Expr f Bool
 embedBoolExpr = go where
     go (Boolean.EVal b)           = EVal $ UniVal Bool b
-    go (Boolean.EVar v)           = EVar Bool v
+    go (Boolean.EVar v)           = EVar $ UniVar Bool v
     go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
     go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)
     go (Boolean.EAppBinOp op x y) = EAppBinOp (embedBoolBinOp op) (go x) (go y)
+
+uniOfUnOpArg :: UnOp f a b -> Uni f a
+uniOfUnOpArg Not  = Bool
+uniOfUnOpArg Neq0 = Field
+uniOfUnOpArg Inv  = Field
+uniOfUnOpArg Neg  = Field
+
+uniOfUnOpRes :: UnOp f a b -> Uni f b
+uniOfUnOpRes Not  = Bool
+uniOfUnOpRes Neq0 = Bool
+uniOfUnOpRes Inv  = Field
+uniOfUnOpRes Neg  = Field
+
+uniOfBinOpArg :: BinOp f a b c ->  (Uni f a, Uni f b)
+uniOfBinOpArg Or  = (Bool, Bool)
+uniOfBinOpArg And = (Bool, Bool)
+uniOfBinOpArg Xor = (Bool, Bool)
+uniOfBinOpArg FEq = (Field, Field)
+uniOfBinOpArg FLt = (Field, Field)
+uniOfBinOpArg FLe = (Field, Field)
+uniOfBinOpArg FGe = (Field, Field)
+uniOfBinOpArg FGt = (Field, Field)
+uniOfBinOpArg Add = (Field, Field)
+uniOfBinOpArg Sub = (Field, Field)
+uniOfBinOpArg Mul = (Field, Field)
+uniOfBinOpArg Div = (Field, Field)
+
+uniOfBinOpRes :: BinOp f a b c ->  Uni f c
+uniOfBinOpRes Or  = Bool
+uniOfBinOpRes And = Bool
+uniOfBinOpRes Xor = Bool
+uniOfBinOpRes FEq = Bool
+uniOfBinOpRes FLt = Bool
+uniOfBinOpRes FLe = Bool
+uniOfBinOpRes FGe = Bool
+uniOfBinOpRes FGt = Bool
+uniOfBinOpRes Add = Field
+uniOfBinOpRes Sub = Field
+uniOfBinOpRes Mul = Field
+uniOfBinOpRes Div = Field
+
+uniOfExpr :: Expr f a -> Uni f a
+uniOfExpr = go where
+    go (EVal (UniVal uni _)) = uni
+    go (EVar (UniVar uni _)) = uni
+    go (EAppUnOp op _)       = uniOfUnOpRes op
+    go (EAppBinOp op _ _)    = uniOfBinOpRes op
+    go (EIf _ x _)           = uniOfExpr x
+    go (ELet _ _ expr)       = uniOfExpr expr

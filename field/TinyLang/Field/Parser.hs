@@ -85,7 +85,7 @@ top :: ParsableField f => Parser (SomeUniExpr f)
 top = between ws eof expr
 
 expr :: ParsableField f => Parser (SomeUniExpr f)
-expr = (try (SomeUniExpr Bool <$> expr_B)) <|> (SomeUniExpr Field <$> expr_F)
+expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
@@ -131,22 +131,21 @@ valExpr_B :: Parser (Expr f Bool)
 valExpr_B = trueVal <|> falseVal
 
 -- Literal constants from the field
-valExpr_F :: forall f . ParsableField f => Parser (Expr f (AField f))
-valExpr_F = (\v -> EVal (UniVal Field v)) <$> (parseFieldElement :: Parser (AField f))
+valExpr_F :: ParsableField f => Parser (Expr f (AField f))
+valExpr_F = EVal . UniVal Field <$> parseFieldElement
 
 -- Variables
 varExpr_F :: Parser (Expr f (AField f))
-varExpr_F = EVar Field <$> var_F
+varExpr_F = EVar <$> var_F
 
 varExpr_B :: Parser (Expr f Bool)
-varExpr_B = EVar Bool <$> var_B
+varExpr_B = EVar <$> var_B
 
-var_F :: Parser Var
-var_F = identifier_F >>= makeVar
+var_F :: Parser (UniVar f (AField f))
+var_F = UniVar Field <$> (identifier_F >>= makeVar)
 
-var_B :: Parser Var
-var_B = identifier_B >>= makeVar
-
+var_B :: Parser (UniVar f Bool)
+var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
@@ -223,21 +222,40 @@ operators_F = -- The order here determines operator precedence.
 
 -- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
-ifExpr_B = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_B) <*> (keyword "else" *> expr_B)
+ifExpr_B = EIf
+    <$> (keyword "if" *> expr_B)
+    <*> (keyword "then" *> expr_B)
+    <*> (keyword "else" *> expr_B)
 
 -- 'if' with numeric branches
 ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
-ifExpr_F = EIf <$> (keyword "if" *> expr_B) <*> (keyword "then" *> expr_F) <*> (keyword "else" *> expr_F)
+ifExpr_F = EIf
+    <$> (keyword "if" *> expr_B)
+    <*> (keyword "then" *> expr_F)
+    <*> (keyword "else" *> expr_F)
 
 
 -- 'let' with boolean type
 letExpr_B :: ParsableField f => Parser (Expr f Bool)
-letExpr_B = try (ELet Bool  <$> (keyword "let" *> var_B) <*> (symbol "=" *> expr_B) <*> (keyword "in" *> expr_B) )
-            <|> (ELet Field <$> (keyword "let" *> var_F) <*> (symbol "=" *> expr_F) <*> (keyword "in" *> expr_B) )
+letExpr_B =
+    try (ELet
+        <$> (keyword "let" *> var_B)
+        <*> (symbol "=" *> expr_B)
+        <*> (keyword "in" *> expr_B))
+    <|> (ELet
+        <$> (keyword "let" *> var_F)
+        <*> (symbol "=" *> expr_F)
+        <*> (keyword "in" *> expr_B))
 
 -- 'let' with numeric type
 letExpr_F :: ParsableField f => Parser (Expr f (AField f))
-letExpr_F = try (ELet Bool  <$> (keyword "let" *> var_B) <*> (symbol "=" *> expr_B) <*> (keyword "in" *> expr_F) )
-            <|> (ELet Field <$> (keyword "let" *> var_F) <*> (symbol "=" *> expr_F) <*> (keyword "in" *> expr_F) )
+letExpr_F =
+    try (ELet
+        <$> (keyword "let" *> var_B)
+        <*> (symbol "=" *> expr_B)
+        <*> (keyword "in" *> expr_F))
+    <|> (ELet
+        <$> (keyword "let" *> var_F)
+        <*> (symbol "=" *> expr_F)
+        <*> (keyword "in" *> expr_F))
                 
-

@@ -4,6 +4,7 @@ module Data.Field
     , AsInteger (..)
     , IsNegative (..)
     , two
+    , boolToField
     ) where
 
 import qualified GHC.Num          (fromInteger)
@@ -117,6 +118,10 @@ instance Field f => Num (AField f) where
 
 instance Show f => Show (AField f) where
     show = show . unAField
+
+boolToField :: Field f => Bool -> f
+boolToField False = zer
+boolToField True  = one
 
 {- | We're dealing with fields in which certain elements can be regarded
  as integers, and we're only supposed to carry out comparisons on such

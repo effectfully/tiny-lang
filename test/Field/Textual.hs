@@ -19,16 +19,16 @@ import           Test.QuickCheck
 import           Test.Tasty
 import           Test.Tasty.QuickCheck
 
-forgetID :: Var -> Var
-forgetID v = Var (Unique 0) (_varName v)
+forgetID :: UniVar f a -> UniVar f a
+forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 
 forgetIDs :: Expr f a -> Expr f a
-forgetIDs (EVal b)             = EVal b
-forgetIDs (EVar u v)           = EVar u (forgetID v)
+forgetIDs (EVal uval)          = EVal uval
+forgetIDs (EVar uvar)          = EVar $ forgetID uvar
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
-forgetIDs (ELet u v d e)       = ELet u (forgetID v) (forgetIDs d) (forgetIDs e)
+forgetIDs (ELet uvar d e)      = ELet (forgetID uvar) (forgetIDs d) (forgetIDs e)
 
 
 {- Call this with eg

@@ -56,13 +56,13 @@ evalBinOp Div = UniVal Field .* div
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
 evalExprUni :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
 evalExprUni _   (EVal uniVal) = uniVal
-evalExprUni env (EVar u var) = case unsafeLookupVar var env of
-    SomeUniVal uniVal@(UniVal u' _) -> withGeqUni u u' uniVal $ error "type mismatch"
+evalExprUni env (EVar (UniVar uni var)) = case unsafeLookupVar var env of
+    SomeUniVal uniVal@(UniVal uni' _) -> withGeqUni uni uni' uniVal $ error "type mismatch"
 evalExprUni env (EIf e e1 e2) = if evalExpr env e then evalExprUni env e1 else evalExprUni env e2
 evalExprUni env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExprUni env (EAppBinOp op e1 e2) =
     evalBinOp op (evalExpr env e1) (evalExpr env e2)
-evalExprUni env (ELet _ var def expr) =
+evalExprUni env (ELet (UniVar _ var) def expr) =
     evalExprUni (insertVar var (SomeUniVal $ evalExprUni env def) env) expr
 
 -- | A recursive evaluator for expressions.
@@ -93,11 +93,11 @@ denoteExpr env = denoteUniVal . evalExprUni env
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
 normExpr _   expr@EVal{} = expr
-normExpr env expr@(EVar u var) =
+normExpr env expr@(EVar (UniVar uni var)) =
     case lookupVar var env of
         Nothing -> expr
-        Just (SomeUniVal (UniVal u' val)) ->
-            withGeqUni u u' (EVal (UniVal u val)) $ error "type mismatch"
+        Just (SomeUniVal (UniVal uni' val)) ->
+            withGeqUni uni uni' (EVal $ UniVal uni val) $ error "type mismatch"
 normExpr env (EIf e e1 e2) =
     case normExpr env e of
         EVal (UniVal Bool b) -> if b then e1N else e2N
@@ -113,7 +113,7 @@ normExpr env (EAppBinOp op e1 e2) =
     case (normExpr env e1, normExpr env e2) of
         (EVal (UniVal _ x1), EVal (UniVal _ x2)) -> EVal $ evalBinOp op x1 x2
         (e1N, e2N)                               -> EAppBinOp op e1N e2N
-normExpr env (ELet uni var def expr) =
+normExpr env (ELet (UniVar uni var) def expr) =
     case normExpr env def of
         EVal uniVal -> normExpr (insertVar var (SomeUniVal uniVal) env) expr
-        def'        -> ELet uni var def' $ normExpr env expr
+        def'        -> ELet (UniVar uni var) def' $ normExpr env expr

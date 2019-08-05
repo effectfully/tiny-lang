@@ -52,11 +52,12 @@ toStringUniVal (UniVal Field i) = show i
 
 -- Main function
 exprToString :: Show f => PrintStyle -> Expr f a -> String
-exprToString _ (EVal uv)            = toStringUniVal uv
-exprToString s (EVar _ v)           = toStringVar s v
-exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
-exprToString s (EAppBinOp op e1 e2) = exprToString1 s e1 ++ toStringBinOp op ++ exprToString1 s e2
-exprToString s (EIf e e1 e2)        = concat
+exprToString _ (EVal uv)                     = toStringUniVal uv
+exprToString s (EVar (UniVar _ v))           = toStringVar s v
+exprToString s (EAppUnOp op e)               = toStringUnOp op ++ exprToString1 s e
+exprToString s (EAppBinOp op e1 e2)          =
+    exprToString1 s e1 ++ toStringBinOp op ++ exprToString1 s e2
+exprToString s (EIf e e1 e2)                 = concat
     [ "if "
     , exprToString1 s e
     , " then "
@@ -64,7 +65,7 @@ exprToString s (EIf e e1 e2)        = concat
     , " else "
     , exprToString1 s e2
     ]
-exprToString s (ELet uni var def e) = concat
+exprToString s (ELet (UniVar uni var) def e) = concat
     [ "let "
     , toStringVar s var
     , " :: "
