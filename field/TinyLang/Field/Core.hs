@@ -8,7 +8,7 @@ module TinyLang.Field.Core
     , SomeUniExpr (..)
     , UnOp (..)
     , BinOp (..)
-    , Constr (..)
+    , EConstr (..)
     , Expr (..)
     , withGeqUni
     , withKnownUni
@@ -93,7 +93,7 @@ data BinOp f a b c where
 -- The evaluation semantics is the following: each constraint becomes a check at runtime
 -- and the if the check fails, we have evaluation failure. So those constraints are essentially
 -- assertions.
-data Constr f
+data EConstr f
     = ConstrFEq (Expr f (AField f)) (Expr f (AField f))
     deriving (Show, Eq)
 
@@ -105,7 +105,7 @@ data Expr f a where
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
     ELet      :: UniVar f b -> Expr f b -> Expr f a -> Expr f a
-    EConstr   :: Constr f -> Expr f a -> Expr f a
+    EConstr   :: EConstr f -> Expr f a -> Expr f a
 
 mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
 mapUniVal f (UniVal uni x) = UniVal uni $ f x

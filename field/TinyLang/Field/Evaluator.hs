@@ -52,7 +52,7 @@ evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
 evalBinOp Div = UniVal Field .* div
 
-checkConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Constr f -> Bool
+checkConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> Bool
 checkConstr env (ConstrFEq lhs rhs) = evalExpr env lhs == evalExpr env rhs
 
 -- Note that we could use dependent maps, but we don't.
@@ -97,7 +97,7 @@ denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
 denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
 
-normConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Constr f -> Constr f
+normConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> EConstr f
 normConstr env (ConstrFEq lhs rhs) = ConstrFEq (normExpr env lhs) (normExpr env rhs)
 
 -- | A recursive normalizer for expressions.

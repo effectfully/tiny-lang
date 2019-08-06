@@ -50,7 +50,7 @@ toStringUniVal :: Show f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
 toStringUniVal (UniVal Field i) = show i
 
-constrToString :: Show f => PrintStyle -> Constr f -> String
+constrToString :: Show f => PrintStyle -> EConstr f -> String
 constrToString style (ConstrFEq lhs rhs) = concat
     [ exprToString style lhs
     , " = "
