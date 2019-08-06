@@ -8,6 +8,7 @@ module TinyLang.Field.Core
     , SomeUniExpr (..)
     , UnOp (..)
     , BinOp (..)
+    , Constr (..)
     , Expr (..)
     , withGeqUni
     , withKnownUni
@@ -88,6 +89,14 @@ data BinOp f a b c where
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
 
+-- | Things that get compiled to constraints down the pipeline.
+-- The evaluation semantics is the following: each constraint becomes a check at runtime
+-- and the if the check fails, we have evaluation failure. So those constraints are essentially
+-- assertions.
+data Constr f
+    = ConstrFEq (Expr f (AField f)) (Expr f (AField f))
+    deriving (Show, Eq)
+
 -- TODO: check that a variable is always of the same type.
 data Expr f a where
     EVal      :: UniVal f a -> Expr f a
@@ -96,6 +105,7 @@ data Expr f a where
     EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
     ELet      :: UniVar f b -> Expr f b -> Expr f a -> Expr f a
+    EConstr   :: Constr f -> Expr f a -> Expr f a
 
 mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
 mapUniVal f (UniVal uni x) = UniVal uni $ f x
@@ -259,6 +269,8 @@ exprVarSigns = go $ ScopedVarSigns mempty mempty where
         UniVar uni (Var uniq name) = uniVar
         sign = VarSign name uni
         ScopedVarSigns free bound = go signs def
+    go signs (EConstr constr expr)  = case constr of
+        ConstrFEq lhs rhs -> go (go (go signs rhs) lhs) expr
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
@@ -327,3 +339,4 @@ uniOfExpr = go where
     go (EAppBinOp op _ _)    = uniOfBinOpRes op
     go (EIf _ x _)           = uniOfExpr x
     go (ELet _ _ expr)       = uniOfExpr expr
+    go (EConstr _ expr)      = uniOfExpr expr
