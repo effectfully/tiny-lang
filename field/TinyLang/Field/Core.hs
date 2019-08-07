@@ -94,7 +94,7 @@ data BinOp f a b c where
 -- and the if the check fails, we have evaluation failure. So those constraints are essentially
 -- assertions.
 data EConstr f
-    = ConstrFEq (Expr f (AField f)) (Expr f (AField f))
+    = EConstrFEq (Expr f (AField f)) (Expr f (AField f))
     deriving (Show, Eq)
 
 -- TODO: check that a variable is always of the same type.
@@ -269,8 +269,8 @@ exprVarSigns = go $ ScopedVarSigns mempty mempty where
         UniVar uni (Var uniq name) = uniVar
         sign = VarSign name uni
         ScopedVarSigns free bound = go signs def
-    go signs (EConstr constr expr)  = case constr of
-        ConstrFEq lhs rhs -> go (go (go signs rhs) lhs) expr
+    go signs (EConstr econstr expr) = case econstr of
+        EConstrFEq lhs rhs -> go (go (go signs rhs) lhs) expr
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
