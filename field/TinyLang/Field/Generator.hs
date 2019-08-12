@@ -163,7 +163,7 @@ arbitraryVarB  u =
    in the global environment.  Maybe this isn't a good idea.
 -}
 
--- DAMN.  It's quite hard to get expressions 'let x=e1 in e2' where x
+-- TODO.  It's quite hard to get expressions 'let x=e1 in e2' where x
 -- is actually used in e2.  We can turn up the frequency of production
 -- of EVar expressions, but if we do that then we tend to get small
 -- terms most of the time.  Maybe try making local variables more
@@ -361,6 +361,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         ELet uniVar def expr ->
             withKnownUni (_uniVarUni uniVar) $
                 uncurry (ELet uniVar) <$> shrink (def, expr)
+        EConstr _ _ -> error "Can't shrink EConstr expressions yet"
 
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
@@ -380,7 +381,8 @@ shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
         EVal _ -> []
         EVar _ -> []
         ELet (UniVar uni _) def _ -> [SomeUniExpr uni def]
-
+        EConstr _ _ -> error "Can't shrink EConstr expressions yet"
+                          
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
     where arbitrary = sized defaultArbitraryExpr

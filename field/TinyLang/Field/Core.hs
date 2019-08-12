@@ -163,8 +163,8 @@ deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
 instance Show f => Show (UniVal f a) where
-    show (UniVal Bool  b) = if b then "1" else "0"
-    show (UniVal Field i) = show i
+    show (UniVal Bool  b) = "B " ++ if b then "1" else "0"
+    show (UniVal Field i) = "F " ++ show i
 
 deriving instance Show f => Show (Expr f a)
 
