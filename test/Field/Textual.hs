@@ -29,7 +29,8 @@ forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 forgetIDs (ELet uvar d e)      = ELet (forgetID uvar) (forgetIDs d) (forgetIDs e)
-
+forgetIDs (EConstr econstr e)  = case econstr of
+    EConstrFEq lhs rhs -> EConstr (EConstrFEq (forgetIDs lhs) (forgetIDs rhs)) (forgetIDs e)
 
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))

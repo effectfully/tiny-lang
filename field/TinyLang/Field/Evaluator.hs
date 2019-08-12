@@ -52,6 +52,9 @@ evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
 evalBinOp Div = UniVal Field .* div
 
+checkEConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> Bool
+checkEConstr env (EConstrFEq lhs rhs) = evalExpr env lhs == evalExpr env rhs
+
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
 evalExprUni :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
@@ -64,6 +67,10 @@ evalExprUni env (EAppBinOp op e1 e2) =
     evalBinOp op (evalExpr env e1) (evalExpr env e2)
 evalExprUni env (ELet (UniVar _ var) def expr) =
     evalExprUni (insertVar var (SomeUniVal $ evalExprUni env def) env) expr
+evalExprUni env (EConstr econstr expr) =
+    if checkEConstr env econstr
+        then evalExprUni env expr
+        else throw Denormal
 
 -- | A recursive evaluator for expressions.
 evalExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> a
@@ -89,6 +96,9 @@ denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
 
 denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
+
+normEConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> EConstr f
+normEConstr env (EConstrFEq lhs rhs) = EConstrFEq (normExpr env lhs) (normExpr env rhs)
 
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
@@ -117,3 +127,4 @@ normExpr env (ELet (UniVar uni var) def expr) =
     case normExpr env def of
         EVal uniVal -> normExpr (insertVar var (SomeUniVal uniVal) env) expr
         def'        -> ELet (UniVar uni var) def' $ normExpr env expr
+normExpr env (EConstr econstr expr) = EConstr (normEConstr env econstr) (normExpr env expr)

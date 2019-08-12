@@ -7,8 +7,9 @@ module TinyLang.Var
     , MonadSupply (..)
     , runSupplyT
     , runSupply
-    , supplyFrom
+    , supplyFromAtLeast
     , freshUnique
+    , freeUniqueIntMap
     , Var (..)
     , freshVar
     ) where
@@ -16,6 +17,7 @@ module TinyLang.Var
 import           TinyLang.Prelude
 
 import           Control.Monad.Morph
+import qualified Data.IntMap.Strict as IntMap
 
 -- TODO: Use a library.
 newtype Unique = Unique
@@ -59,14 +61,19 @@ runSupplyT (SupplyT a) = evalStateT a $ Unique 0
 runSupply :: Supply a -> a
 runSupply = runIdentity . runSupplyT
 
-supplyFrom :: MonadSupply m => Unique -> m ()
-supplyFrom = liftSupply . SupplyT . put
+supplyFromAtLeast :: MonadSupply m => Unique -> m ()
+supplyFromAtLeast uniq' =
+    liftSupply . SupplyT . modify $ \uniq ->
+        if uniq >= uniq' then uniq else uniq'
 
 freshUnique :: MonadSupply m => m Unique
 freshUnique = liftSupply . SupplyT $ do
     Unique i <- get
     put . Unique $ succ i
     return $ Unique i
+
+freeUniqueIntMap :: IntMap a -> Unique
+freeUniqueIntMap = Unique . maybe 0 (succ . fst) . IntMap.lookupMax
 
 data Var = Var
     { _varUniq :: Unique

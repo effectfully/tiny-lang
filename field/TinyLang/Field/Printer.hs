@@ -50,6 +50,13 @@ toStringUniVal :: Show f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
 toStringUniVal (UniVal Field i) = show i
 
+econstrToString :: Show f => PrintStyle -> EConstr f -> String
+econstrToString style (EConstrFEq lhs rhs) = concat
+    [ exprToString style lhs
+    , " = "
+    , exprToString style rhs
+    ]
+
 -- Main function
 exprToString :: Show f => PrintStyle -> Expr f a -> String
 exprToString _ (EVal uv)                     = toStringUniVal uv
@@ -72,6 +79,11 @@ exprToString s (ELet (UniVar _ var) def e) = concat
     , exprToString s def
     , "; "
     , exprToString s e
+    ]
+exprToString s (EConstr econstr expr)        = concat
+    [ econstrToString s econstr
+    , "; "
+    , exprToString s expr
     ]
 
 someExprToString :: (Show f) => PrintStyle -> SomeUniExpr f -> String

@@ -2,7 +2,7 @@
 
 module TinyLang.Prelude
     ( module Export
-    , (.*)
+    , module TinyLang.Prelude
     ) where
 
 -- base
@@ -78,5 +78,15 @@ infixr 9 .*
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.*) = (.) . (.)
 
+newtype PairT b f a = PairT
+    { unPairT :: f (b, a)
+    }
+
+instance Functor f => Functor (PairT b f) where
+    fmap f (PairT p) = PairT $ fmap (fmap f) p
+
 instance Hashable a => Hashable (IntMap a) where
     hashWithSalt salt = hashWithSalt salt . IntMap.toList
+
+visitExtract :: (Functor t, Functor f) => (t a -> a) -> (a -> f b) -> t a -> f (t b)
+visitExtract ext f a = (<$ a) <$> f (ext a)
