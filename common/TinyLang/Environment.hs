@@ -1,13 +1,16 @@
 module TinyLang.Environment
     ( Env (..)
     , mapEnv
-    , fromVarList
     , lookupUnique
     , lookupVar
     , unsafeLookupUnique
     , unsafeLookupVar
     , insertUnique
     , insertVar
+    , toEnvBy
+    , fromUniques
+    , fromVars
+    , toUniques
     ) where
 
 import           TinyLang.Prelude
@@ -24,9 +27,6 @@ newtype Env a = Env
 mapEnv :: (IntMap a -> IntMap b) -> Env a -> Env b
 mapEnv = coerce
 
-fromVarList :: [(Var, a)] -> Env a
-fromVarList = foldl' (\acc (var, x) -> insertVar var x acc) mempty
-
 lookupUnique :: Unique -> Env a -> Maybe a
 lookupUnique (Unique ind) (Env env) = IntMap.lookup ind env
 
@@ -37,7 +37,7 @@ unsafeLookupUnique :: HasCallStack => Unique -> Env a -> a
 unsafeLookupUnique (Unique ind) (Env env) = fromMaybe err $ IntMap.lookup ind env where
     err = error $ "The " ++ show ind ++ " unique is not present"
 
-unsafeLookupVar :: Var -> Env a -> a
+unsafeLookupVar :: HasCallStack => Var -> Env a -> a
 unsafeLookupVar = unsafeLookupUnique . _varUniq
 
 insertUnique :: Unique -> a -> Env a -> Env a
@@ -45,3 +45,15 @@ insertUnique (Unique i) x (Env xs) = Env $ IntMap.insert i x xs
 
 insertVar :: Var -> a -> Env a -> Env a
 insertVar = insertUnique . _varUniq
+
+toEnvBy :: Foldable f => (k -> a -> Env a -> Env a) -> f (k, a) -> Env a
+toEnvBy f = foldl' (\acc (key, x) -> f key x acc) mempty
+
+fromUniques :: Foldable f => f (Unique, a) -> Env a
+fromUniques = toEnvBy insertUnique
+
+fromVars :: Foldable f => f (Var, a) -> Env a
+fromVars = toEnvBy insertVar
+
+toUniques :: Env a -> [(Unique, a)]
+toUniques = map (first Unique) . IntMap.toList . unEnv
