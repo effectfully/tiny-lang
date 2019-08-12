@@ -63,7 +63,7 @@ data UniVal f a = UniVal
 data UniVar f a = UniVar
     { _uniVarUni :: Uni f a
     , _uniVarVar :: Var
-    } deriving Show
+    } deriving (Show)
 
 data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
 
@@ -201,7 +201,7 @@ withGeqBinOp _   _   _ z = z
 
 -- This doesn't type check:
 --
--- > UniVal uni1 x1 == UniVal uni2 x2 = withGeqUni uni1 uni2 (x1 == x2) False
+-- > UniVal _ x1 == UniVal _ x2 = x1 == x2
 --
 -- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
 -- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
@@ -214,12 +214,26 @@ instance Eq f => Eq (UniVar f a) where
     UniVar _ v1 == UniVar _ v2 = v1 == v2
 
 instance Eq f => Eq (Expr f a) where
-    EVal uval1         == EVal uval2         = uval1 == uval2
-    EVar uvar1         == EVar uvar2         = uvar1 == uvar2
-    EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
-    EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 (x1 == x2) False
-    EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
-    _                  == _                  = False
+    EVal uval1                == EVal uval2                  = uval1 == uval2
+    EVar uvar1                == EVar uvar2                  = uvar1 == uvar2
+    EIf b1 x1 y1              == EIf b2 x2 y2                = b1 == b2 && x1 == x2 && y1 == y2
+    EAppUnOp o1 x1            == EAppUnOp o2 x2              = withGeqUnOp o1 o2 (x1 == x2) False
+    EAppBinOp o1 x1 y1        == EAppBinOp o2 x2 y2          =
+        withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
+    ELet (UniVar u1 v1) d1 e1 == ELet (UniVar u2 v2) d2 e2   =
+        withGeqUni u1 u2 (v1 == v2 && d1 == d2 && e1 == e2) False
+    EConstr ec1 e1            == EConstr ec2 e2              = ec1 == ec2 && e1 == e2
+
+    -- Here we explicitly pattern match on the first argument again and always return 'False'.
+    -- This way we'll get a warning when an additional constructor is added to 'Expr',
+    -- instead of erroneously defaulting to 'False'.
+    EVal _          == _ = False
+    EVar _          == _ = False
+    EIf _ _ _       == _ = False
+    EAppUnOp _ _    == _ = False
+    EAppBinOp _ _ _ == _ = False
+    ELet _ _ _      == _ = False
+    EConstr _ _     == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool  = id
