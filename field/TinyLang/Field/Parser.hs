@@ -29,7 +29,7 @@
            expr * expr
            expr / expr
            'if' expr 'then' expr 'else' expr
-           'let' var = expr in expr
+           'let' var = expr; expr
            (expr)
 
   Things like 'and' denote keywords.
@@ -92,7 +92,7 @@ expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
 
 -- Keywords
 keywords :: [String]
-keywords = ["T", "F", "not", "and", "or", "xor", "let", "in", "if", "then", "else", "neq0", "neg", "inv"]
+keywords = ["T", "F", "not", "and", "or", "xor", "let", "if", "then", "else", "neq0", "neg", "inv"]
 
 -- Parse a keyword, checking that it's not a prefix of something else
 keyword :: String -> Parser ()
@@ -240,22 +240,23 @@ letExpr_B :: ParsableField f => Parser (Expr f Bool)
 letExpr_B =
     try (ELet
         <$> (keyword "let" *> var_B)
-        <*> (symbol "=" *> expr_B)
-        <*> (keyword "in" *> expr_B))
+        <*> (symbol  "="   *> expr_B)
+        <*> (symbol  ";"   *> expr_B))
     <|> (ELet
         <$> (keyword "let" *> var_F)
-        <*> (symbol "=" *> expr_F)
-        <*> (keyword "in" *> expr_B))
+        <*> (symbol  "="   *> expr_F)
+        <*> (symbol  ";"   *> expr_B))
 
 -- 'let' with numeric type
 letExpr_F :: ParsableField f => Parser (Expr f (AField f))
 letExpr_F =
     try (ELet
         <$> (keyword "let" *> var_B)
-        <*> (symbol "=" *> expr_B)
-        <*> (keyword "in" *> expr_F))
+        <*> (symbol  "="   *> expr_B)
+        <*> (symbol  ";"   *> expr_F))
     <|> (ELet
         <$> (keyword "let" *> var_F)
-        <*> (symbol "=" *> expr_F)
-        <*> (keyword "in" *> expr_F))
+        <*> (symbol  "="   *> expr_F)
+        <*> (symbol  ";"   *> expr_F))
                 
+

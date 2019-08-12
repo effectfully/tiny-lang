@@ -20,7 +20,7 @@ import           Control.Monad.Morph
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    } deriving (Eq, Ord, Generic)
+    } deriving (Eq, Ord, Enum, Generic)
 
 instance Monad m => Serial m Unique where
     series = Unique . getNonNegative <$> series

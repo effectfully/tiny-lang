@@ -65,11 +65,9 @@ exprToString s (EIf e e1 e2)                 = concat
     , " else "
     , exprToString1 s e2
     ]
-exprToString s (ELet (UniVar uni var) def e) = concat
+exprToString s (ELet (UniVar _ var) def e) = concat
     [ "let "
     , toStringVar s var
-    , " :: "
-    , show uni
     , " = "
     , exprToString s def
     , "; "
