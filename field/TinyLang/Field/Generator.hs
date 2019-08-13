@@ -384,6 +384,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
           where
               (uni1, uni2) = uniOfBinOpArg op
+        -- FIXME: I think we want  shrink e1  and  shrink e2  here as well, and similarly for other constructors
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
         EVal _ -> []
         EVar _ -> []

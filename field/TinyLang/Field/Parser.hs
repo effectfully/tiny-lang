@@ -163,10 +163,15 @@ var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 -- If an ifExpr appears inside an operExpr it has to be parenthesised.
 
 expr1_B :: ParsableField f => Parser (Expr f Bool)
-expr1_B =  valExpr_B <|> varExpr_B <|> neq0Expr <|> try eqExpr <|> parens expr_B
+expr1_B =  parens expr_B <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
+-- Let's put parens at the start because we can commit to that if we
+-- see "(" and don't have to do any backtracking.
 
 expr1_F :: ParsableField f => Parser (Expr f (AField f))
-expr1_F =  varExpr_F <|> valExpr_F <|> parens expr_F
+expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
+-- Missing out 'try' before valExpr_F causes a failure with eg (5 % 1) when the field is Rational.
+-- We can't put parens at the start because (-5) % 2 is valid syntax for Rationals and we have to try that first.
+-- We have to be careful with this because concrete syntax for finite fields might be complicated
 
 -- Special cases for eq and neq0 because the return type isn't the
 -- same as the argument type(s).
@@ -182,7 +187,9 @@ eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 
 -- TODO: try to reduce the number of 'try's. Some parses take a long
 -- time and a lot of memory, possibly because of too much
--- backtracking.
+-- backtracking. For example, if we have 'e1 > e2' then I think we
+-- have to re-parse e1 each time we fail to match > with one of the
+-- other operators.
 comparisonExpr :: ParsableField f => Parser (Expr f Bool)
 comparisonExpr =
     try (EAppBinOp FLt <$> expr_F <*> (symbol "<"  *> expr_F))
@@ -224,6 +231,12 @@ operators_F = -- The order here determines operator precedence.
   , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
+
+
+-- Can we somehow commit to an if-expression when we see "if expr_B" and then
+-- continue with the other cases?  This would reduce the need for backtracking.
+-- Probably not, because we don't know the type of the entire expression until
+-- we see the first branch.
 
 -- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
