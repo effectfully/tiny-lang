@@ -32,6 +32,22 @@ import           TinyLang.Var
 import qualified Data.IntMap.Strict       as IntMap
 import           Test.QuickCheck
 
+
+{- An infinite tree full of Unique values.  This allows us to provide a
+   purely functional supply of Uniques and avoids some difficulties
+   involved in generating fresh variables inside QuickCheck
+   generators.  See
+   https://andreaspk.github.io/posts/2019-06-17-Taking%20a%20look%20at%20GHC%20creates%20unique%20Ids.html
+   and probably "On Generating Unique Names" by Augustsson et al.
+
+   This method has a couple of possible drawbacks: 
+   * We no longer get sequential Uniques: they'lll be apparently (but
+     not actually) random
+   * In an AST n levels deep we'll get Uniques of the order of 2^n.
+     For very deep ASTs Ints might not be big enough, so we might 
+     need Uniques based on Integers.
+-}
+
 -- Careful!  StrictData is turned on in the cabal file, but this type
 -- really does have to be lazy.
 data Uniques = Uniques Unique ~Uniques ~Uniques
@@ -53,9 +69,13 @@ maxUnique l =
     foldl max (Unique 0) (map uniqueOf l) 
     where uniqueOf (Var u _) = u
 
+
 -- Some stuff adapted from Vars.hs;  we need separate var names for
 -- booleans and field elements, and boolean var names have to start with '?'
 -- for the benefit of the parser.
+
+-- TODO: now we have UniVars we can probably get away with a single list
+-- rather than having to have separate ones for boolean and numeric variables.
 
 type VarName = String
 
@@ -183,8 +203,6 @@ instance Arbitrary (UniVal f Bool) where
 instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field <$> arbitrary
 
-let_freq :: Int
-let_freq = 2
 
 -- | An arbitrary boolean-valued expression
 boundedAbritraryExprB :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f Bool)
@@ -195,14 +213,14 @@ boundedAbritraryExprB vars uniques size =
               (2, EIf <$> boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3)
                       <*> boundedAbritraryExprB vars (left $ right uniques)  (size `Prelude.div` 3)
                       <*> boundedAbritraryExprB vars (right $ right uniques) (size `Prelude.div` 3)),
-              (let_freq, do  -- let x::Field = ... in ...
+              (2, do  -- let x::Field = ... in ...
                  v <- arbitraryVarF (first uniques)
                  let vars' = extendVarsF vars v
                  ELet (UniVar Field v) <$>
                       (boundedAbritraryExprF vars  (left uniques)  (size `Prelude.div` 2)) <*>
                       (boundedAbritraryExprB vars' (right uniques) (size `Prelude.div` 2))
               ),
-              (let_freq, do  -- let x::Bool = ... in ...
+              (2, do  -- let x::Bool = ... in ...
                  v <- arbitraryVarB (first uniques)
                  let vars' = extendVarsB vars v
                  ELet (UniVar Bool v) <$>
@@ -228,7 +246,6 @@ boundedAbritraryExprB vars uniques size =
                 -- ones for testing purposes.
              ]
 
--- TODO: generate 'ELet's.
 -- | An arbitrary field-valued expression
 boundedAbritraryExprF :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f (AField f))
 boundedAbritraryExprF vars uniques size =
@@ -240,22 +257,20 @@ boundedAbritraryExprF vars uniques size =
                 boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3) <*>
                 boundedAbritraryExprF vars (left $ right uniques)  (size `Prelude.div` 3) <*>
                 boundedAbritraryExprF vars (right $ right uniques) (size `Prelude.div` 3)),
-              (let_freq, do  -- let x::Field = ... in ...
+              (2, do  -- let x::Field = ... in ...
                  v <- arbitraryVarF (first uniques)
                  let vars' = extendVarsF vars v
                  ELet (UniVar Field v) <$>
                       (boundedAbritraryExprF vars  (left uniques)  (size `Prelude.div` 2)) <*>
                       (boundedAbritraryExprF vars' (right uniques) (size `Prelude.div` 2))
               ),
-
-              (let_freq, do  -- let x::Bool = ... in ...
+              (2, do  -- let x::Bool = ... in ...
                  v <- arbitraryVarB (first uniques)
                  let vars' = extendVarsB vars v
                  ELet (UniVar Bool v) <$>
                       (boundedAbritraryExprB vars  (left uniques)  (size `Prelude.div` 2)) <*>
                       (boundedAbritraryExprF vars' (right uniques) (size `Prelude.div` 2))
               ),
-
               (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExprF vars uniques (size-1)),
               (3, EAppBinOp <$>
                 arbitrary <*>
@@ -304,7 +319,21 @@ boundedAbritraryExprI vars uniques size =
                 boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3) <*>
                 boundedAbritraryExprI vars (left $ right uniques)  (size `Prelude.div` 3) <*>
                 boundedAbritraryExprI vars (right $ right uniques) (size `Prelude.div` 3)),
-              (3, EAppUnOp <$> arbitraryUnOpRing <*>  boundedAbritraryExprI vars uniques (size-1)),
+              (2, do
+                 v <- arbitraryVarF (first uniques)
+                 let vars' = extendVarsF vars v
+                 ELet (UniVar Field v) <$>
+                      (boundedAbritraryExprI vars  (left uniques)  (size `Prelude.div` 2)) <*>
+                      (boundedAbritraryExprI vars' (right uniques) (size `Prelude.div` 2))
+              ),
+              (2, do
+                 v <- arbitraryVarB (first uniques)
+                 let vars' = extendVarsB vars v
+                 ELet (UniVar Bool v) <$>
+                      (boundedAbritraryExprB vars  (left uniques)  (size `Prelude.div` 2)) <*>
+                      (boundedAbritraryExprI vars' (right uniques) (size `Prelude.div` 2))
+              ),
+              (3, EAppUnOp <$> arbitraryUnOpRing <*> boundedAbritraryExprI vars uniques (size-1)),
               (3, EAppBinOp <$>
                 arbitraryBinOpRing <*>
                 boundedAbritraryExprI vars (left uniques)  (size `Prelude.div` 2) <*>
@@ -361,6 +390,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         ELet uniVar def expr ->
             withKnownUni (_uniVarUni uniVar) $
                 uncurry (ELet uniVar) <$> shrink (def, expr)
+        -- ^ def on its own might be a suitable shrinking.
         EConstr _ _ -> error "Can't shrink EConstr expressions yet"
 
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]

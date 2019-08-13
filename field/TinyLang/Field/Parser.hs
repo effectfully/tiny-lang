@@ -174,7 +174,7 @@ neq0Expr :: ParsableField f => Parser (Expr f Bool)
 neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 
 eqExpr :: ParsableField f => Parser (Expr f Bool)
-eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
+eqExpr = EAppBinOp FEq <$> expr1_F <* symbol "==" <*> expr1_F
 
 
 -- Operations for ordering comparisons of "integer" field elements
