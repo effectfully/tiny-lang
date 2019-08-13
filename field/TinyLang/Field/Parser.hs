@@ -174,7 +174,7 @@ neq0Expr :: ParsableField f => Parser (Expr f Bool)
 neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 
 eqExpr :: ParsableField f => Parser (Expr f Bool)
-eqExpr = EAppBinOp FEq <$> expr1_F <* symbol "==" <*> expr1_F
+eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 
 
 -- Operations for ordering comparisons of "integer" field elements
@@ -192,7 +192,7 @@ comparisonExpr =
 
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = ifExpr_B <|> letExpr_B <|> try operExpr_B <|> try comparisonExpr <|> eqExpr
+expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr 
 -- Putting if/let at the end leads to some very slow/large parses.
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
