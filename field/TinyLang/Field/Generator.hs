@@ -262,7 +262,7 @@ boundedArbitraryExprF vars size =
     else frequency [
               (1, EVal <$> liftGen arbitrary),
               (2, arbitraryEVarF (fieldVars vars)),
-              (3, EIf <$>
+              (2, EIf <$>
                 boundedArbitraryExprB vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 3)),
@@ -282,8 +282,8 @@ boundedArbitraryExprF vars size =
                       (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprF vars' (size `Prelude.div` 2))
               ),
-              (3, EAppUnOp <$> liftGen arbitrary <*>  boundedArbitraryExprF vars (size-1)),
-              (3, EAppBinOp <$>
+              (2, EAppUnOp <$> liftGen arbitrary <*>  boundedArbitraryExprF vars (size-1)),
+              (2, EAppBinOp <$>
                 liftGen arbitrary <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 2) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 2))
@@ -325,7 +325,7 @@ boundedArbitraryExprI vars size =
                  variables which we're certain will only contain integer
                  values.
                -}
-              (3, EIf <$>
+              (2, EIf <$>
                 boundedArbitraryExprB vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprI vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprI vars (size `Prelude.div` 3)),
@@ -345,8 +345,8 @@ boundedArbitraryExprI vars size =
                       (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprI vars' (size `Prelude.div` 2))
               ),
-              (3, EAppUnOp <$> arbitraryUnOpRing <*> boundedArbitraryExprI vars (size-1)),
-              (3, EAppBinOp <$>
+              (2, EAppUnOp <$> arbitraryUnOpRing <*> boundedArbitraryExprI vars (size-1)),
+              (2, EAppBinOp <$>
                 arbitraryBinOpRing <*>
                 boundedArbitraryExprI vars (size `Prelude.div` 2) <*>
                 boundedArbitraryExprI vars (size `Prelude.div` 2))
