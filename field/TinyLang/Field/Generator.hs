@@ -39,6 +39,7 @@ import           Test.QuickCheck           hiding (elements, frequency, oneof,
 -- Our generators all run in GenT supply so that we can generate fresh
 -- variables.  The final Arbitrary instances call runGenT to get back
 -- into the Gen monad so that the types are right for QuickCheck.
+
 type GenS = GenT Supply
 
 -- Some stuff adapted from Vars.hs;  we need separate var names for
@@ -67,23 +68,23 @@ data Vars = Vars
     }
 
 {- The next few functions do some horrible hacking to adjust the supply
-   of Uniques.  When we want to generate a new variablle for a let
-   expression, we need to call freshUnique.  Unfortunately the default
-   lists of default variables we have here have Uniques the were
-   generated outside the Supply monad, and if we just start calling
-   freshUnique we'll generate new Uniques that clash with the ones in
-   the default variables.  To avoid this, we supply a function
-   'adjustUniquesForVars' which finds the largest unique in a
-   collection of variables and then repeatedly calls freshUnique
-   (discarding the results) until the Supply monad is in a state where
-   any new calls to freshUnique will generate uniques that we haven't
-   already used.  You then have to call adjustUniquesForVars before
-   running the generator (see boundedArbitraryExpr).  This is
-   dreadful, but I just wanted to get the code working.  Presumably to
-   do this properly we'd need to do all name generation in the Supply
-   monad, but then I don't think we'd be able to get our Arbitrary
-   instances to have the right types (???).  Alternatively, Var could 
-   provide a function to set the state of the Unique supply.
+   of Uniques.  When we want to generate a new variable for a let
+   expression we need to call freshUnique.  Unfortunately the lists of
+   default variables we have here have Uniques the are generated
+   outside the Supply monad, and if we just start calling freshUnique
+   we'll generate new Uniques that clash with the ones in the default
+   variables.  To avoid this there's a function 'adjustUniquesForVars'
+   which finds the largest unique in a collection of variables and
+   then repeatedly calls freshUnique (discarding the results) until
+   the Supply monad is in a state where any new calls to freshUnique
+   will generate uniques that we haven't already used.  You then have
+   to call adjustUniquesForVars before running the generator (see
+   boundedArbitraryExpr).  This is dreadful, but I just wanted to get
+   the code working.  Presumably to do this properly we'd need to do
+   all name generation in the Supply monad, but then I don't think
+   we'd be able to get our Arbitrary instances to have the right 
+   types (???).  Alternatively, Var could provide a function to set the
+   state of the Unique supply.
 
 -}
           
