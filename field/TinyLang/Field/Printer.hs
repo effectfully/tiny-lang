@@ -77,7 +77,7 @@ exprToString s (ELet (UniVar _ var) def e) = concat
     , toStringVar s var
     , " = "
     , exprToString s def
-    , " ; "
+    , "; "
     , exprToString s e
     ]
 exprToString s (EConstr econstr expr)        = concat

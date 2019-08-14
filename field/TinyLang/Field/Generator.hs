@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-imports -Wno-unused-binds -Wno-redundant-constraints -Wno-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- | NOTE: comparisons.
@@ -34,7 +33,7 @@ import           Control.Monad.Trans.Class
 import qualified Data.IntMap.Strict        as IntMap
 import           QuickCheck.GenT
 import           Test.QuickCheck           hiding (elements, frequency, oneof,
-                                            sized)
+                                                   sized)
 
 -- Our generators all run in GenT supply so that we can generate fresh
 -- variables.  The final Arbitrary instances call runGenT to get back
