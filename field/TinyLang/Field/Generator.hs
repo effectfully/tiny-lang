@@ -36,6 +36,9 @@ import           QuickCheck.GenT
 import           Test.QuickCheck           hiding (elements, frequency, oneof,
                                             sized)
 
+-- Our generators all run in GenT supply so that we can generate fresh
+-- variables.  The final Arbitrary instances call runGenT to get back
+-- into the Gen monad so that the types are right for QuickCheck.
 type GenS = GenT Supply
 
 -- Some stuff adapted from Vars.hs;  we need separate var names for
@@ -63,6 +66,49 @@ data Vars = Vars
     , boolVars  :: [Var]
     }
 
+{- The next few functions do some horrible hacking to adjust the supply
+   of Uniques.  When we want to generate a new variablle for a let
+   expression, we need to call freshUnique.  Unfortunately the default
+   lists of default variables we have here have Uniques the were
+   generated outside the Supply monad, and if we just start calling
+   freshUnique we'll generate new Uniques that clash with the ones in
+   the default variables.  To avoid this, we supply a function
+   'adjustUniquesForVars' which finds the largest unique in a
+   collection of variables and then repeatedly calls freshUnique
+   (discarding the results) until the Supply monad is in a state where
+   any new calls to freshUnique will generate uniques that we haven't
+   already used.  You then have to call adjustUniquesForVars before
+   running the generator (see boundedArbitraryExpr).  This is
+   dreadful, but I just wanted to get the code working.  Presumably to
+   do this properly we'd need to do all name generation in the Supply
+   monad, but then I don't think we'd be able to get our Arbitrary
+   instances to have the right types (???).  Alternatively, Var could 
+   provide a function to set the state of the Unique supply.
+
+-}
+          
+maxUnique :: [Var] -> Unique
+maxUnique l =
+    foldl max (Unique 0) (map uniqueOf l) 
+    where uniqueOf (Var u _) = u
+
+intOfTopUnique :: Vars -> Int
+intOfTopUnique vars =
+    unUnique topUnique
+    where topUnique = max (maxUnique $ fieldVars vars) (maxUnique $ boolVars vars)
+
+discardUniques :: Int -> Supply ()
+discardUniques 0 = return ()
+discardUniques n =
+    do
+      _ <- freshUnique
+      discardUniques (n-1)
+
+-- Call this inside the exposed generators!                     
+adjustUniquesForVars :: Vars -> Supply ()
+adjustUniquesForVars vars = discardUniques (intOfTopUnique vars)
+
+-- The variables used by our generators by default.
 defaultVars :: Vars
 defaultVars = Vars defaultVarsF defaultVarsB
 
@@ -318,8 +364,10 @@ usuallyIntValuedArbitraryExpr vars size =
 -- number of nodes (approximately) bounded by 'size'
 boundedArbitraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> GenS (SomeUniExpr f)
 boundedArbitraryExpr vars size =
-    oneof [SomeUniExpr Bool <$> boundedArbitraryExprB vars size,
-           SomeUniExpr Field <$> boundedArbitraryExprF vars size]
+    do
+      lift $ adjustUniquesForVars vars
+      oneof [SomeUniExpr Bool <$> boundedArbitraryExprB vars size,
+             SomeUniExpr Field <$> boundedArbitraryExprF vars size]
 
 -- Generate an expression over the default variables.  Again, this is bounded by 'size'.
 defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> GenS (SomeUniExpr f)
@@ -336,16 +384,10 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = case knownUni @f @a of
         Bool  -> do
           g <- runGenT (sized $ boundedArbitraryExprB defaultVars)
-          return $ runSupply g
+          return $ runSupply  (g :: Supply (Expr f Bool))
         Field -> do
           g <- runGenT (sized $ boundedArbitraryExprF defaultVars)
           return $ runSupply g
-
-{- defaultArbitraryExpr is a Int -> GenS (SomeUniExpr f) = Int -> GenT  Supply (SomeUniExpr f),
-   so sized defaultArbitraryExpr is GenT Supply (SomeUniExpr f),
-   so runGenT (sized defaultArbitraryExpr) is a Gen (Supply (SomeUniExpr f))
- -}
-
 
     shrink (EVal uniVal) = EVal <$> shrinkUniVal uniVal
     shrink expr0         = EVal defaultUniVal : case expr0 of
@@ -391,8 +433,9 @@ shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
     arbitrary = do
-      g {- :: Supply (SomeUniExpr f) -} <- runGenT (sized defaultArbitraryExpr)
-      return $ runSupply g  -- How do we get the initial supply in here?  supplyFromAtLeast?
+      g <- runGenT (sized defaultArbitraryExpr)
+      -- g :: Supply (SomeUniExpr f) 
+      return $ runSupply g
     shrink = shrinkSomeUniExpr mempty
 
 genUni :: Field f => Uni f a -> Gen a
