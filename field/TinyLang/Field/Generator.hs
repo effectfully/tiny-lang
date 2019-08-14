@@ -82,15 +82,15 @@ data Vars = Vars
    boundedArbitraryExpr).  This is dreadful, but I just wanted to get
    the code working.  Presumably to do this properly we'd need to do
    all name generation in the Supply monad, but then I don't think
-   we'd be able to get our Arbitrary instances to have the right 
+   we'd be able to get our Arbitrary instances to have the right
    types (???).  Alternatively, Var could provide a function to set the
    state of the Unique supply.
 
 -}
-          
+
 maxUnique :: [Var] -> Unique
 maxUnique l =
-    foldl max (Unique 0) (map uniqueOf l) 
+    foldl max (Unique 0) (map uniqueOf l)
     where uniqueOf (Var u _) = u
 
 intOfTopUnique :: Vars -> Int
@@ -105,7 +105,7 @@ discardUniques n =
       _ <- freshUnique
       discardUniques (n-1)
 
--- Call this inside the exposed generators!                     
+-- Call this inside the exposed generators!
 adjustUniquesForVars :: Vars -> Supply ()
 adjustUniquesForVars vars = discardUniques (intOfTopUnique vars)
 
@@ -147,19 +147,19 @@ instance Arbitrary (BinOp f (AField f) (AField f) (AField f)) where
 
 -- We can compare any two elements of a field for equality.
 arbitraryFFcomparison :: Gen (BinOp f (AField f) (AField f) Bool)
-arbitraryFFcomparison =  elements [FEq]
+arbitraryFFcomparison = elements [FEq]
 
 -- ... but we're only supposed to perform order comparisons on integer
 -- values, so we need a separate generator for caomprison operations.
 arbitraryIIcomparison :: Gen (BinOp f (AField f) (AField f) Bool)
-arbitraryIIcomparison =  elements [FLt, FLe, FGe, FGt]
+arbitraryIIcomparison = elements [FLt, FLe, FGe, FGt]
 
 -- The next few functions are concerned with generating fresh variables
 -- for use in let-expressions.  We generate names with a prefix from a-z
 -- and with a fresh drawn from a supply provided as a parameter.
 
 arbitraryNameF :: Gen String
-arbitraryNameF =  elements atoz
+arbitraryNameF = elements atoz
     where atoz = map (:[]) ['a'..'z']
 
 arbitraryVarF :: Unique -> Gen Var
@@ -169,7 +169,7 @@ arbitraryVarF u =
       return $ Var u v
 
 arbitraryNameB :: Gen String
-arbitraryNameB =  elements qatoz
+arbitraryNameB = elements qatoz
     where qatoz = map (\c -> '?':[c]) ['a'..'z']
 
 arbitraryVarB :: Unique -> Gen Var
@@ -289,11 +289,12 @@ boundedArbitraryExprF vars size =
                 boundedArbitraryExprF vars (size `Prelude.div` 2) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 2))
              ]
+
 -- | Arbitrary unary operation for generating integer-valued
 -- expressions.  We're disallowing Inv, so we only have negation.  Inv
 -- would be OK in a finite field.
 arbitraryUnOpRing :: GenS (UnOp f (AField f) (AField f))
-arbitraryUnOpRing =  elements [Neg]
+arbitraryUnOpRing = elements [Neg]
 
 -- | Arbitrary ring operation for generating integer-valued
 -- expressions.  If we're in the rationals then division would usually
@@ -303,7 +304,7 @@ arbitraryUnOpRing =  elements [Neg]
 -- in that case, and that's closed under division (except for division
 -- by zero).
 arbitraryBinOpRing :: GenS (BinOp f (AField f) (AField f) (AField f))
-arbitraryBinOpRing =  elements [Add, Sub, Mul]
+arbitraryBinOpRing = elements [Add, Sub, Mul]
 
 -- | This produces an arbitrary integer-valued expression.
 -- Comparisons are only supposed to involve integers, so this
@@ -435,7 +436,7 @@ shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
     arbitrary = do
       g <- runGenT (sized defaultArbitraryExpr)
-      -- g :: Supply (SomeUniExpr f) 
+      -- g :: Supply (SomeUniExpr f)
       return $ runSupply g
     shrink = shrinkSomeUniExpr mempty
 

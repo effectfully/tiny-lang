@@ -199,12 +199,12 @@ comparisonExpr =
 
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr 
+expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr
 -- Putting if/let at the end leads to some very slow/large parses.
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
 expr_F = ifExpr_F <|> letExpr_F <|> operExpr_F
-         
+
 -- operExpr: expressions involving unary and binary operators.
 -- We have to deal with eq and neq0 separately, and also the order
 -- comaprisons.
@@ -276,5 +276,3 @@ letExpr_F =
         <$> (keyword "let" *> var_F)
         <*> (symbol  "="   *> expr_F)
         <*> (symbol  ";"   *> expr_F))
-                
-

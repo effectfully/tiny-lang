@@ -152,7 +152,7 @@ instance (Field f, f ~ f') => Field (Expr f (AField f')) where
     inv = EAppUnOp Inv
     mul = EAppBinOp Mul
     div = EAppBinOp Div
-                                              
+
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
 
