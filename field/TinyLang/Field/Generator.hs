@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-imports -Wno-unused-binds -Wno-redundant-constraints -Wno-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- | NOTE: comparisons.
@@ -23,52 +24,19 @@
 module TinyLang.Field.Generator
 where
 
-import           TinyLang.Environment     (Env (..))
+import           TinyLang.Environment      (Env (..))
 import           TinyLang.Field.Core
 import           TinyLang.Field.Evaluator
-import           TinyLang.Generator       ()
+import           TinyLang.Generator        ()
 import           TinyLang.Var
 
-import qualified Data.IntMap.Strict       as IntMap
-import           Test.QuickCheck
+import           Control.Monad.Trans.Class
+import qualified Data.IntMap.Strict        as IntMap
+import           QuickCheck.GenT
+import           Test.QuickCheck           hiding (elements, frequency, oneof,
+                                            sized)
 
-
-{- An infinite tree full of Unique values.  This allows us to provide a
-   purely functional supply of Uniques and avoids some difficulties
-   involved in generating fresh variables inside QuickCheck
-   generators.  See
-   https://andreaspk.github.io/posts/2019-06-17-Taking%20a%20look%20at%20GHC%20creates%20unique%20Ids.html
-   and probably "On Generating Unique Names" by Augustsson et al.
-
-   This method has a couple of possible drawbacks: 
-   * We no longer get sequential Uniques: they'lll be apparently (but
-     not actually) random
-   * In an AST n levels deep we'll get Uniques of the order of 2^n.
-     For very deep ASTs Ints might not be big enough, so we might 
-     need Uniques based on Integers.
--}
-
--- Careful!  StrictData is turned on in the cabal file, but this type
--- really does have to be lazy.
-data Uniques = Uniques Unique ~Uniques ~Uniques
-
-mkUniques :: Int -> Uniques
-mkUniques n = Uniques (Unique n) (mkUniques $ 2*n+1) (mkUniques $ 2*n+2)
-
-first :: Uniques -> Unique
-first (Uniques u _ _) = u
-
-left :: Uniques -> Uniques
-left (Uniques _ l _) = l
-
-right :: Uniques -> Uniques
-right (Uniques _ _ r) = r
-
-maxUnique :: [Var] -> Unique
-maxUnique l =
-    foldl max (Unique 0) (map uniqueOf l) 
-    where uniqueOf (Var u _) = u
-
+type GenS = GenT Supply
 
 -- Some stuff adapted from Vars.hs;  we need separate var names for
 -- booleans and field elements, and boolean var names have to start with '?'
@@ -95,32 +63,22 @@ data Vars = Vars
     , boolVars  :: [Var]
     }
 
--- A tree full of Uniques carrying on after the ones in a Vars object
-mkUniquesAfterVars :: Vars -> Uniques
-mkUniquesAfterVars vars =
-    mkUniques (1 + unUnique topUnique)
-        where topUnique = max (maxUnique $ fieldVars vars) (maxUnique $ boolVars vars)
-
 defaultVars :: Vars
 defaultVars = Vars defaultVarsF defaultVarsB
 
--- A tree full of Uniques carrying on after the ones in defaultVars
-defaultUniques :: Uniques
-defaultUniques = mkUniquesAfterVars defaultVars
-              
 --  Generator for variables, choosing from the given list.
-arbitraryVar :: [Var] -> Gen Var
+arbitraryVar :: [Var] -> GenS Var
 arbitraryVar = elements
 
-arbitraryEVarB :: [Var] -> Gen (Expr f Bool)
+arbitraryEVarB :: [Var] -> GenS (Expr f Bool)
 arbitraryEVarB vars = EVar . UniVar Bool <$> arbitraryVar vars
 
-arbitraryEVarF :: [Var] -> Gen (Expr f (AField f))
+arbitraryEVarF :: [Var] -> GenS (Expr f (AField f))
 arbitraryEVarF vars = EVar . UniVar Field <$> arbitraryVar vars
 
 -- | An arbitrary integer value (for use in comparisons)
-arbitraryValI :: Field f => Gen (UniVal f (AField f))
-arbitraryValI = UniVal Field . fromInteger <$> arbitrary
+arbitraryValI :: Field f => GenS (UniVal f (AField f))
+arbitraryValI = UniVal Field . fromInteger <$> liftGen arbitrary
 
 instance (Arbitrary f, Field f) => Arbitrary (AField f) where
     arbitrary = AField <$> arbitrary
@@ -151,8 +109,8 @@ arbitraryIIcomparison =  elements [FLt, FLe, FGe, FGt]
 
 -- The next few functions are concerned with generating fresh variables
 -- for use in let-expressions.  We generate names with a prefix from a-z
--- and with a fresh Uniques drawn from a supply provided as a parameter.
-                         
+-- and with a fresh drawn from a supply provided as a parameter.
+
 arbitraryNameF :: Gen String
 arbitraryNameF =  elements atoz
     where atoz = map (:[]) ['a'..'z']
@@ -203,85 +161,91 @@ instance Arbitrary (UniVal f Bool) where
 instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field <$> arbitrary
 
-
 -- | An arbitrary boolean-valued expression
-boundedAbritraryExprB :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f Bool)
-boundedAbritraryExprB vars uniques size =
-    frequency [
-              (1, EVal <$> arbitrary),
-              (5, arbitraryEVarB (boolVars vars)),
-              (2, EIf <$> boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3)
-                      <*> boundedAbritraryExprB vars (left $ right uniques)  (size `Prelude.div` 3)
-                      <*> boundedAbritraryExprB vars (right $ right uniques) (size `Prelude.div` 3)),
+boundedArbitraryExprB :: (Field f, Arbitrary f) => Vars -> Int -> GenS (Expr f Bool)
+boundedArbitraryExprB vars size =
+    if size <= 1 then EVal <$> liftGen arbitrary  -- FIXME: What about boundedArbitraryExprB??
+    else frequency [
+              (1, EVal <$> liftGen arbitrary),
+              (2, arbitraryEVarB (boolVars vars)),
+              (2, EIf <$> boundedArbitraryExprB vars (size `Prelude.div` 3)
+                      <*> boundedArbitraryExprB vars (size `Prelude.div` 3)
+                      <*> boundedArbitraryExprB vars (size `Prelude.div` 3)),
+
               (2, do  -- let x::Field = ... in ...
-                 v <- arbitraryVarF (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarF u)
                  let vars' = extendVarsF vars v
                  ELet (UniVar Field v) <$>
-                      (boundedAbritraryExprF vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprB vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprF vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprB vars' (size `Prelude.div` 2))
               ),
+
               (2, do  -- let x::Bool = ... in ...
-                 v <- arbitraryVarB (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarB u)
                  let vars' = extendVarsB vars v
                  ELet (UniVar Bool v) <$>
-                      (boundedAbritraryExprB vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprB vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprB vars' (size `Prelude.div` 2))
               ),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExprB vars uniques (size-1)),
-              (2, EAppUnOp <$> arbitrary <*> boundedAbritraryExprF vars uniques (size-1)),
+
+              (2, EAppUnOp <$> liftGen arbitrary <*> boundedArbitraryExprB vars (size-1)),
+              (2, EAppUnOp <$> liftGen arbitrary <*> boundedArbitraryExprF vars (size-1)),
               (2, EAppBinOp <$>
-                arbitrary <*>
-                boundedAbritraryExprB vars (left uniques)  (size `Prelude.div` 2) <*>
-                boundedAbritraryExprB vars (right uniques) (size `Prelude.div` 2)),
+                liftGen arbitrary <*>
+                boundedArbitraryExprB vars (size `Prelude.div` 2) <*>
+                boundedArbitraryExprB vars (size `Prelude.div` 2)),
               (2, EAppBinOp <$>
-                arbitraryFFcomparison <*>
-                boundedAbritraryExprF vars (left uniques)  (size `Prelude.div` 2) <*>
-                boundedAbritraryExprF vars (right uniques) (size `Prelude.div` 2)),
+                liftGen arbitraryFFcomparison <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 2) <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 2)),
               (2, EAppBinOp <$>
-                arbitraryIIcomparison <*>
-                usuallyIntValuedArbitraryExpr vars (left uniques)  (size `Prelude.div` 2) <*>
-                usuallyIntValuedArbitraryExpr vars (right uniques) (size `Prelude.div` 2))
+                liftGen arbitraryIIcomparison <*>
+                usuallyIntValuedArbitraryExpr vars (size `Prelude.div` 2) <*>
+                usuallyIntValuedArbitraryExpr vars (size `Prelude.div` 2))
                 -- ^ We're only supposed to compare integer-valued
                 -- expressions, but we generate occasional non-integer
                 -- ones for testing purposes.
              ]
 
 -- | An arbitrary field-valued expression
-boundedAbritraryExprF :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f (AField f))
-boundedAbritraryExprF vars uniques size =
-    if size <= 1 then EVal <$> arbitrary
+boundedArbitraryExprF :: (Field f, Arbitrary f) => Vars -> Int -> GenS (Expr f (AField f))
+boundedArbitraryExprF vars size =
+    if size <= 1 then EVal <$> liftGen arbitrary  -- FIXME: What about boundedArbitraryExprB??
     else frequency [
-              (1, EVal <$> arbitrary),
-              (5, arbitraryEVarF (fieldVars vars)),
+              (1, EVal <$> liftGen arbitrary),
+              (2, arbitraryEVarF (fieldVars vars)),
               (3, EIf <$>
-                boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3) <*>
-                boundedAbritraryExprF vars (left $ right uniques)  (size `Prelude.div` 3) <*>
-                boundedAbritraryExprF vars (right $ right uniques) (size `Prelude.div` 3)),
+                boundedArbitraryExprB vars (size `Prelude.div` 3) <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 3) <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 3)),
               (2, do  -- let x::Field = ... in ...
-                 v <- arbitraryVarF (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarF u)
                  let vars' = extendVarsF vars v
                  ELet (UniVar Field v) <$>
-                      (boundedAbritraryExprF vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprF vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprF vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprF vars' (size `Prelude.div` 2))
               ),
               (2, do  -- let x::Bool = ... in ...
-                 v <- arbitraryVarB (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarB u)
                  let vars' = extendVarsB vars v
                  ELet (UniVar Bool v) <$>
-                      (boundedAbritraryExprB vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprF vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprF vars' (size `Prelude.div` 2))
               ),
-              (3, EAppUnOp <$> arbitrary <*>  boundedAbritraryExprF vars uniques (size-1)),
+              (3, EAppUnOp <$> liftGen arbitrary <*>  boundedArbitraryExprF vars (size-1)),
               (3, EAppBinOp <$>
-                arbitrary <*>
-                boundedAbritraryExprF vars (left uniques)  (size `Prelude.div` 2) <*>
-                boundedAbritraryExprF vars (right uniques) (size `Prelude.div` 2))
+                liftGen arbitrary <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 2) <*>
+                boundedArbitraryExprF vars (size `Prelude.div` 2))
              ]
-
 -- | Arbitrary unary operation for generating integer-valued
 -- expressions.  We're disallowing Inv, so we only have negation.  Inv
 -- would be OK in a finite field.
-arbitraryUnOpRing :: Gen (UnOp f (AField f) (AField f))
+arbitraryUnOpRing :: GenS (UnOp f (AField f) (AField f))
 arbitraryUnOpRing =  elements [Neg]
 
 -- | Arbitrary ring operation for generating integer-valued
@@ -291,7 +255,7 @@ arbitraryUnOpRing =  elements [Neg]
 -- since we think that "integer" means something in the prime subfield
 -- in that case, and that's closed under division (except for division
 -- by zero).
-arbitraryBinOpRing :: Gen (BinOp f (AField f) (AField f) (AField f))
+arbitraryBinOpRing :: GenS (BinOp f (AField f) (AField f) (AField f))
 arbitraryBinOpRing =  elements [Add, Sub, Mul]
 
 -- | This produces an arbitrary integer-valued expression.
@@ -300,8 +264,8 @@ arbitraryBinOpRing =  elements [Add, Sub, Mul]
 -- Div, so we'll never get division by zero errors here.  The
 -- expressions generated by this function don't include variables: see
 -- the note below.
-boundedAbritraryExprI :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f (AField f))
-boundedAbritraryExprI vars uniques size =
+boundedArbitraryExprI :: (Field f, Arbitrary f) => Vars -> Int -> GenS (Expr f (AField f))
+boundedArbitraryExprI vars size =
     if size <= 1 then EVal <$> arbitraryValI
     else frequency [
               (1, EVal <$> arbitraryValI),
@@ -316,50 +280,50 @@ boundedAbritraryExprI vars uniques size =
                  values.
                -}
               (3, EIf <$>
-                boundedAbritraryExprB vars (left uniques)          (size `Prelude.div` 3) <*>
-                boundedAbritraryExprI vars (left $ right uniques)  (size `Prelude.div` 3) <*>
-                boundedAbritraryExprI vars (right $ right uniques) (size `Prelude.div` 3)),
+                boundedArbitraryExprB vars (size `Prelude.div` 3) <*>
+                boundedArbitraryExprI vars (size `Prelude.div` 3) <*>
+                boundedArbitraryExprI vars (size `Prelude.div` 3)),
               (2, do
-                 v <- arbitraryVarF (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarF u)
                  let vars' = extendVarsF vars v
                  ELet (UniVar Field v) <$>
-                      (boundedAbritraryExprI vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprI vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprI vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprI vars' (size `Prelude.div` 2))
               ),
               (2, do
-                 v <- arbitraryVarB (first uniques)
+                 u <- lift freshUnique
+                 v <- liftGen (arbitraryVarB u)
                  let vars' = extendVarsB vars v
                  ELet (UniVar Bool v) <$>
-                      (boundedAbritraryExprB vars  (left uniques)  (size `Prelude.div` 2)) <*>
-                      (boundedAbritraryExprI vars' (right uniques) (size `Prelude.div` 2))
+                      (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
+                      (boundedArbitraryExprI vars' (size `Prelude.div` 2))
               ),
-              (3, EAppUnOp <$> arbitraryUnOpRing <*> boundedAbritraryExprI vars uniques (size-1)),
+              (3, EAppUnOp <$> arbitraryUnOpRing <*> boundedArbitraryExprI vars (size-1)),
               (3, EAppBinOp <$>
                 arbitraryBinOpRing <*>
-                boundedAbritraryExprI vars (left uniques)  (size `Prelude.div` 2) <*>
-                boundedAbritraryExprI vars (right uniques) (size `Prelude.div` 2))
+                boundedArbitraryExprI vars (size `Prelude.div` 2) <*>
+                boundedArbitraryExprI vars (size `Prelude.div` 2))
              ]
-
 -- | Either a general field expression or one which is guaranteed to
 -- be integer-valued.  We want the latter most of the time, but not
 -- always.
-usuallyIntValuedArbitraryExpr :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (Expr f (AField f))
-usuallyIntValuedArbitraryExpr vars uniques size =
-    frequency [(1, boundedAbritraryExprF vars uniques size),
-               (9, boundedAbritraryExprI vars uniques size)
+usuallyIntValuedArbitraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> GenS (Expr f (AField f))
+usuallyIntValuedArbitraryExpr vars size =
+    frequency [(1, boundedArbitraryExprF vars size),
+               (9, boundedArbitraryExprI vars size)
          ]
 
-    
 -- Generate an expression from a collection of variables with the
 -- number of nodes (approximately) bounded by 'size'
-boundedAbritraryExpr :: (Field f, Arbitrary f) => Vars -> Uniques -> Int -> Gen (SomeUniExpr f)
-boundedAbritraryExpr vars uniques size =
-    oneof [SomeUniExpr Bool <$> boundedAbritraryExprB vars uniques size,
-           SomeUniExpr Field <$> boundedAbritraryExprF vars uniques size]
+boundedArbitraryExpr :: (Field f, Arbitrary f) => Vars -> Int -> GenS (SomeUniExpr f)
+boundedArbitraryExpr vars size =
+    oneof [SomeUniExpr Bool <$> boundedArbitraryExprB vars size,
+           SomeUniExpr Field <$> boundedArbitraryExprF vars size]
 
 -- Generate an expression over the default variables.  Again, this is bounded by 'size'.
-defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> Gen (SomeUniExpr f)
-defaultArbitraryExpr = boundedAbritraryExpr defaultVars defaultUniques
+defaultArbitraryExpr :: (Field f, Arbitrary f) => Int -> GenS (SomeUniExpr f)
+defaultArbitraryExpr = boundedArbitraryExpr defaultVars
 
 -- We can shrink any expression to just a hardcoded ground value (except we shouldn't shrink other
 -- ground values to hardcoded ground values to prevent looping).
@@ -370,8 +334,18 @@ defaultUniVal = case knownUni @f @a of
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = case knownUni @f @a of
-        Bool  -> sized $ boundedAbritraryExprB defaultVars defaultUniques
-        Field -> sized $ boundedAbritraryExprF defaultVars defaultUniques 
+        Bool  -> do
+          g <- runGenT (sized $ boundedArbitraryExprB defaultVars)
+          return $ runSupply g
+        Field -> do
+          g <- runGenT (sized $ boundedArbitraryExprF defaultVars)
+          return $ runSupply g
+
+{- defaultArbitraryExpr is a Int -> GenS (SomeUniExpr f) = Int -> GenT  Supply (SomeUniExpr f),
+   so sized defaultArbitraryExpr is GenT Supply (SomeUniExpr f),
+   so runGenT (sized defaultArbitraryExpr) is a Gen (Supply (SomeUniExpr f))
+ -}
+
 
     shrink (EVal uniVal) = EVal <$> shrinkUniVal uniVal
     shrink expr0         = EVal defaultUniVal : case expr0 of
@@ -384,7 +358,6 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
           where
               (uni1, uni2) = uniOfBinOpArg op
-        -- FIXME: I think we want  shrink e1  and  shrink e2  here as well, and similarly for other constructors
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
         EVal _ -> []
         EVar _ -> []
@@ -393,6 +366,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
                 uncurry (ELet uniVar) <$> shrink (def, expr)
         -- ^ def on its own might be a suitable shrinking.
         EConstr _ _ -> error "Can't shrink EConstr expressions yet"
+
 
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
@@ -413,15 +387,17 @@ shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
         EVar _ -> []
         ELet (UniVar uni _) def _ -> [SomeUniExpr uni def]
         EConstr _ _ -> error "Can't shrink EConstr expressions yet"
-                          
+
 -- An instance that QuickCheck can use for tests.
-instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f)
-    where arbitrary = sized defaultArbitraryExpr
-          shrink = shrinkSomeUniExpr mempty
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
+    arbitrary = do
+      g {- :: Supply (SomeUniExpr f) -} <- runGenT (sized defaultArbitraryExpr)
+      return $ runSupply g  -- How do we get the initial supply in here?  supplyFromAtLeast?
+    shrink = shrinkSomeUniExpr mempty
 
 genUni :: Field f => Uni f a -> Gen a
-genUni Bool  = arbitrary
-genUni Field = fromInteger <$> arbitrary
+genUni Bool  = liftGen arbitrary
+genUni Field = fromInteger <$> liftGen arbitrary
 
 genSomeUniVal :: Field f => Uni f a -> Gen (SomeUniVal f)
 genSomeUniVal uni = SomeUniVal . UniVal uni <$> genUni uni
@@ -429,12 +405,13 @@ genSomeUniVal uni = SomeUniVal . UniVal uni <$> genUni uni
 genEnvFromVarSigns :: Field f => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns = traverse $ \(VarSign _ uni) -> genSomeUniVal uni
 
+
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
     where arbitrary = oneof [SomeUniVal <$> (arbitrary :: Gen (UniVal f (AField f))),
                              SomeUniVal <$> (arbitrary :: Gen (UniVal f Bool))]
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
--- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
+-- "generate (resize 1000 arbitrary :: GenS (ExprWithEnv F17))" to get
 -- bigger expressions.  There's no means provided to generate things
 -- over non-default sets of variables, but this would be easy to do.
 instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where

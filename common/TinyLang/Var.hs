@@ -22,7 +22,7 @@ import qualified Data.IntMap.Strict as IntMap
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    } deriving (Eq, Ord, Enum, Generic)
+    } deriving (Eq, Ord, Generic)
 
 instance Monad m => Serial m Unique where
     series = Unique . getNonNegative <$> series
