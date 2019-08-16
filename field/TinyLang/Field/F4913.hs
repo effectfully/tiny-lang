@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module TinyLang.Field.F4913 where
 
 import           TinyLang.Field.Core
@@ -11,7 +9,7 @@ import           Test.QuickCheck
 import qualified Text.Megaparsec.Char.Lexer   as L
 
 {- | A crude implementation of the field of 4193 = 17^3 elements, ie
-     GF(17,3).  We construct F_4193 as F_17[x]/(p), where p is the
+     GF(17^3).  We construct F_4193 as F_17[x]/(p), where p is the
      irreducible polynomial x^3 + x + 3.  More concretely, we define
      an equivalence relation on the polynomial ring F_17[x] by saying
      that two polynomials are equivalent if they differ by a multiple
@@ -29,9 +27,7 @@ import qualified Text.Megaparsec.Char.Lexer   as L
      We represent a canonical polynomial a+bx+cx^2 using the
      constructor F a b c with a,b, and c Ints.  Strictly We should use
      elements of F17, but that would complicate things for little
-     gain.  The concrete syntax for F a b c is [a,b,c].  'Integral'
-     elements of F4913 (ie, elements in the prime subfield) are those
-     of the form F a 0 0.
+     gain.  The concrete syntax for F a b c is [a,b,c].
 -}
 
 
@@ -57,18 +53,18 @@ instance Field F4913 where
 
 -- Exponentiation by repeated squaring
 pow :: F4913 -> Int -> F4913
-pow x n =
+pow x0 n0 =
     let  pow' x n  -- use only for 0 <= n <= 4911
              | n == 0    = one
              | n == 1    = x
              | even n    = pow' (square x) (half n)
              | odd n     = mul x (pow' (square x) (half(n-1)))
              | otherwise = error "Impossible power"
-             where square x = mul x x
-                   half n = Prelude.div n 2
-    in if x==zer && n<0
+             where square x' = mul x' x'
+                   half n' = Prelude.div n' 2
+    in if x0==zer && n0<0
        then throw DivideByZero
-       else pow' x (n `mod` 4912)
+       else pow' x0 (n0 `mod` 4912)
        -- ... using x^4192 = 1 for x /= 0, so x^(4192k +l) = x^l; also works for n<0 unless x=0.
 
 instance ParsableField F4913
