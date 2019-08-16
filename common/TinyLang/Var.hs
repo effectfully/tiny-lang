@@ -10,6 +10,7 @@ module TinyLang.Var
     , supplyFromAtLeast
     , freshUnique
     , freeUniqueIntMap
+    , freeUniqueFoldable
     , Var (..)
     , freshVar
     ) where
@@ -22,7 +23,7 @@ import qualified Data.IntMap.Strict as IntMap
 -- TODO: Use a library.
 newtype Unique = Unique
     { unUnique :: Int
-    } deriving (Eq, Ord, Generic)
+    } deriving (Eq, Ord, Enum, Generic)
 
 instance Monad m => Serial m Unique where
     series = Unique . getNonNegative <$> series
@@ -74,6 +75,9 @@ freshUnique = liftSupply . SupplyT $ do
 
 freeUniqueIntMap :: IntMap a -> Unique
 freeUniqueIntMap = Unique . maybe 0 (succ . fst) . IntMap.lookupMax
+
+freeUniqueFoldable :: Foldable f => f Unique -> Unique
+freeUniqueFoldable = succ . foldl' max (Unique (-1))
 
 data Var = Var
     { _varUniq :: Unique

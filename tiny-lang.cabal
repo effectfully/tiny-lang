@@ -34,7 +34,7 @@ library
         TinyLang.Field.ParserUtils
         TinyLang.Field.Printer
         TinyLang.Field.F17
-        TinyLang.Field.F4913
+--         TinyLang.Field.F4913
     build-depends:
         base >= 4.7 && < 5,
         transformers,
@@ -78,7 +78,7 @@ test-suite tiny-lang-test
         mtl,
         containers,
         QuickCheck,
-        QuickCheck-GenT >= 2.0,
+        QuickCheck-GenT,
         tasty,
         tasty-quickcheck
     default-extensions:
