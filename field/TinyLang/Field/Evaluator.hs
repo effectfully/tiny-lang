@@ -1,6 +1,5 @@
 module TinyLang.Field.Evaluator
-    ( SomeUniVal (..)
-    , ExprWithEnv (..)
+    ( ExprWithEnv (..)
     , evalUnOp
     , evalBinOp
     , evalExprUni
@@ -17,7 +16,6 @@ import           Prelude              hiding (div)
 import           TinyLang.Environment
 import           TinyLang.Field.Core
 import           TinyLang.Prelude
-
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
@@ -60,13 +58,13 @@ checkEConstr env (EConstrFEq lhs rhs) = evalExpr env lhs == evalExpr env rhs
 evalExprUni :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
 evalExprUni _   (EVal uniVal) = uniVal
 evalExprUni env (EVar (UniVar uni var)) = case unsafeLookupVar var env of
-    SomeUniVal uniVal@(UniVal uni' _) -> withGeqUni uni uni' uniVal $ error "type mismatch"
+    Some uniVal@(UniVal uni' _) -> withGeqUni uni uni' uniVal $ error "type mismatch"
 evalExprUni env (EIf e e1 e2) = if evalExpr env e then evalExprUni env e1 else evalExprUni env e2
 evalExprUni env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExprUni env (EAppBinOp op e1 e2) =
     evalBinOp op (evalExpr env e1) (evalExpr env e2)
 evalExprUni env (ELet (UniVar _ var) def expr) =
-    evalExprUni (insertVar var (SomeUniVal $ evalExprUni env def) env) expr
+    evalExprUni (insertVar var (Some $ evalExprUni env def) env) expr
 evalExprUni env (EConstr econstr expr) =
     if checkEConstr env econstr
         then evalExprUni env expr
@@ -84,15 +82,14 @@ data ExprWithEnv f
 -- | Evaluate an expression in a given environment
 evalExprWithEnv :: (Eq f, Field f, AsInteger f) => ExprWithEnv f -> SomeUniVal f
 evalExprWithEnv (ExprWithEnv (SomeUniExpr t e) env) =
-          SomeUniVal (UniVal t (TinyLang.Field.Evaluator.evalExpr env e))
-
+          Some (UniVal t (TinyLang.Field.Evaluator.evalExpr env e))
 
 denoteUniVal :: Field f => UniVal f a -> f
 denoteUniVal (UniVal Bool  b) = boolToField b
 denoteUniVal (UniVal Field i) = unAField i
 
 denoteSomeUniVal :: Field f => SomeUniVal f -> f
-denoteSomeUniVal (SomeUniVal uniVal) = denoteUniVal uniVal
+denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal
 
 denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
@@ -106,7 +103,7 @@ normExpr _   expr@EVal{} = expr
 normExpr env expr@(EVar (UniVar uni var)) =
     case lookupVar var env of
         Nothing -> expr
-        Just (SomeUniVal (UniVal uni' val)) ->
+        Just (Some (UniVal uni' val)) ->
             withGeqUni uni uni' (EVal $ UniVal uni val) $ error "type mismatch"
 normExpr env (EIf e e1 e2) =
     case normExpr env e of
@@ -125,6 +122,6 @@ normExpr env (EAppBinOp op e1 e2) =
         (e1N, e2N)                               -> EAppBinOp op e1N e2N
 normExpr env (ELet (UniVar uni var) def expr) =
     case normExpr env def of
-        EVal uniVal -> normExpr (insertVar var (SomeUniVal uniVal) env) expr
+        EVal uniVal -> normExpr (insertVar var (Some uniVal) env) expr
         def'        -> ELet (UniVar uni var) def' $ normExpr env expr
 normExpr env (EConstr econstr expr) = EConstr (normEConstr env econstr) (normExpr env expr)

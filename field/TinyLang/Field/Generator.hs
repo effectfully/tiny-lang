@@ -23,6 +23,8 @@
 module TinyLang.Field.Generator
 where
 
+import           TinyLang.Prelude
+
 import           TinyLang.Environment      (Env (..))
 import           TinyLang.Field.Core
 import           TinyLang.Field.Evaluator
@@ -42,9 +44,6 @@ import           Test.QuickCheck           hiding (elements, frequency, oneof,
 -- booleans and field elements, and boolean var names have to start with '?'
 -- for the benefit of the parser.
 
--- TODO: now we have UniVars we can probably get away with a single list
--- rather than having to have separate ones for boolean and numeric variables.
-
 -- TODO: move me somewhere else.
 instance MonadSupply m => MonadSupply (GenT m)
 
@@ -54,27 +53,16 @@ arbitraryM = liftGen arbitrary
 runSupplyGenT :: GenT Supply a -> Gen a
 runSupplyGenT = fmap runSupply . runGenT
 
-type VarName = String
+type Vars f = [SomeUniVar f]
 
-makeVars :: Int -> [VarName] -> [Var]
-makeVars base = zipWith (\index name -> Var (Unique index) name) [base..]
+-- | Extract variables that live in a particular universe.
+uniVars :: forall f a. KnownUni f a => [SomeUniVar f] -> [UniVar f a]
+uniVars =
+    mapMaybe $ forget $ \uniVar@(UniVar uni _) ->
+        withGeqUni uni (knownUni @f @a) (Just uniVar) Nothing
 
-defaultVarsF :: [Var]
-defaultVarsF = makeVars 0 ["x", "y", "z", "p", "q", "r", "s", "t"]
-
--- Not terribly elegant
-defaultVarsB :: [Var]
-defaultVarsB = makeVars (length defaultVarsF)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
-
--- | A pair of lists of vars for use by expression generators.
--- We use a type parameter instead of just hardcoding it to @Var@, because this way we can
--- derive 'Functor' and 'Foldable', which is convenient.
-data VarsOf var = Vars
-    { fieldVars :: [var]
-    , boolVars  :: [var]
-    } deriving (Functor, Foldable)
-
-type Vars = VarsOf Var
+chooseUniVar :: (KnownUni f a, MonadGen m) => [SomeUniVar f] -> m (UniVar f a)
+chooseUniVar = elements . uniVars
 
 {- The next function does some hacking to adjust the supply of
    Uniques.  When we want to generate a new variable for a let
@@ -99,22 +87,22 @@ type Vars = VarsOf Var
 -}
 
 -- Call this inside the exposed generators!
-adjustUniquesForVars :: MonadSupply m => Vars -> m ()
-adjustUniquesForVars = supplyFromAtLeast . freeUniqueFoldable . fmap _varUniq
+adjustUniquesForVars :: MonadSupply m => Vars f -> m ()
+adjustUniquesForVars =
+    supplyFromAtLeast . freeUniqueFoldable . map (forget $ _varUniq . _uniVarVar)
 
 -- The variables used by our generators by default.
-defaultVars :: Vars
-defaultVars = Vars defaultVarsF defaultVarsB
+defaultVars :: Vars f
+defaultVars = runSupply $ do
+    let make uni name = Some . UniVar uni <$> freshVar name
+    fieldVars <- traverse (make Field) ["x", "y", "z", "p", "q", "r", "s", "t"]
+    boolVars  <- traverse (make Bool)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
+    return $ fieldVars ++ boolVars
 
---  Generator for variables, choosing from the given list.
-arbitraryVar :: MonadGen m => [Var] -> m Var
-arbitraryVar = elements
-
-arbitraryEVarB :: MonadGen m => [Var] -> m (Expr f Bool)
-arbitraryEVarB vars = EVar . UniVar Bool <$> arbitraryVar vars
-
-arbitraryEVarF :: MonadGen m => [Var] -> m (Expr f (AField f))
-arbitraryEVarF vars = EVar . UniVar Field <$> arbitraryVar vars
+-- instance KnownUni f a => Arbitrary (UniVar f a) where
+--     arbitrary = case knownUni @f @a of
+--         Bool  -> UniVar Bool  <$> elements defaultVarsF
+--         Field -> UniVar Field <$> elements defaultVarsB
 
 -- | An arbitrary integer value (for use in comparisons)
 arbitraryValI :: (Field f, MonadGen m) => m (UniVal f (AField f))
@@ -151,25 +139,13 @@ arbitraryIIcomparison = elements [FLt, FLe, FGe, FGt]
 -- for use in let-expressions.  We generate names with a prefix from a-z
 -- and with a fresh drawn from a supply provided as a parameter.
 
-arbitraryNameF :: MonadGen m => m String
-arbitraryNameF = elements atoz
-    where atoz = map (:[]) ['a'..'z']
-
-arbitraryVarF :: MonadGen m => Unique -> m Var
-arbitraryVarF u =
-    do
-      v <- arbitraryNameF
-      return $ Var u v
-
-arbitraryNameB :: MonadGen m => m String
-arbitraryNameB = elements qatoz
-    where qatoz = map (\c -> '?':[c]) ['a'..'z']
-
-arbitraryVarB :: MonadGen m => Unique -> m Var
-arbitraryVarB  u =
-    do
-      v <- arbitraryNameB
-      return $ Var u v
+genFreshUniVar :: forall f a m. (KnownUni f a, MonadGen m, MonadSupply m) => m (UniVar f a)
+genFreshUniVar = do
+    let uni = knownUni @f @a
+    name <- elements $ case uni of
+        Bool  -> map (\c -> '?':[c]) ['a'..'z']
+        Field -> map (:[]) ['a'..'z']
+    UniVar uni <$> freshVar name
 
 {- When we've generated a fresh variable v for an expression let v =
    e1 in e2, we want it to hide any existing variable with the same
@@ -187,47 +163,39 @@ arbitraryVarB  u =
 -- terms most of the time.  Maybe try making local variables more
 -- popular?
 
-extendVarsF :: Vars -> Var -> Vars
-extendVarsF (Vars fv bv) v@(Var _ newname) = Vars (v:fv') bv
-    where fv' = filter (\(Var _ name) -> name /= newname) fv
-
-extendVarsB :: Vars -> Var -> Vars
-extendVarsB (Vars fv bv) v@(Var _ newname) = Vars fv (v:bv')
-    where bv' = filter (\(Var _ name) ->  name /= newname) bv
-
 instance Arbitrary (UniVal f Bool) where
     arbitrary = UniVal Bool <$> arbitrary
 
 instance (Arbitrary f, Field f) => Arbitrary (UniVal f (AField f)) where
     arbitrary = UniVal Field <$> arbitrary
 
+-- forAllUnis
+
 -- | An arbitrary boolean-valued expression
 boundedArbitraryExprB
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars -> Int -> m (Expr f Bool)
+    => Vars f -> Int -> m (Expr f Bool)
 boundedArbitraryExprB vars size =
     if size <= 1 then EVal <$> arbitraryM
     else frequency [
               (1, EVal <$> arbitraryM),
-              (2, arbitraryEVarB (boolVars vars)),
+              (2, EVar <$> chooseUniVar vars),
               (2, EIf <$> boundedArbitraryExprB vars (size `Prelude.div` 3)
                       <*> boundedArbitraryExprB vars (size `Prelude.div` 3)
                       <*> boundedArbitraryExprB vars (size `Prelude.div` 3)),
 
               (2, do  -- let x::Field = ... in ...
-                 u <- freshUnique
-                 v <- arbitraryVarF u
-                 let vars' = extendVarsF vars v
-                 ELet (UniVar Field v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprF vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprB vars' (size `Prelude.div` 2))
               ),
 
               (2, do  -- let x::Bool = ... in ...
-                 u <- freshUnique
-                 v <- arbitraryVarB u
-                 let vars' = extendVarsB vars v
-                 ELet (UniVar Bool v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprB vars' (size `Prelude.div` 2))
               ),
@@ -254,29 +222,27 @@ boundedArbitraryExprB vars size =
 -- | An arbitrary field-valued expression
 boundedArbitraryExprF
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars -> Int -> m (Expr f (AField f))
+    => Vars f -> Int -> m (Expr f (AField f))
 boundedArbitraryExprF vars size =
     if size <= 1 then EVal <$> arbitraryM
     else frequency [
               (1, EVal <$> arbitraryM),
-              (2, arbitraryEVarF (fieldVars vars)),
+              (2, EVar <$> chooseUniVar vars),
               (2, EIf <$>
                 boundedArbitraryExprB vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprF vars (size `Prelude.div` 3)),
               (2, do  -- let x::Field = ... in ...
-                 u <- freshUnique
-                 v <- arbitraryVarF u
-                 let vars' = extendVarsF vars v
-                 ELet (UniVar Field v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprF vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprF vars' (size `Prelude.div` 2))
               ),
               (2, do  -- let x::Bool = ... in ...
-                 u <- freshUnique
-                 v <- arbitraryVarB u
-                 let vars' = extendVarsB vars v
-                 ELet (UniVar Bool v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprF vars' (size `Prelude.div` 2))
               ),
@@ -311,12 +277,12 @@ arbitraryBinOpRing = elements [Add, Sub, Mul]
 -- the note below.
 boundedArbitraryExprI
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars -> Int -> m (Expr f (AField f))
+    => Vars f -> Int -> m (Expr f (AField f))
 boundedArbitraryExprI vars size =
     if size <= 1 then EVal <$> arbitraryValI
     else frequency [
               (1, EVal <$> arbitraryValI),
-              (0, arbitraryEVarF (fieldVars vars)),
+              (0, EVar <$> chooseUniVar vars),
               {- ^ NOTE.  If we allow variables here we won't generally know in
                  advance that they'll have integer values, so there
                  would be a danger that our comparisons will have a
@@ -331,18 +297,16 @@ boundedArbitraryExprI vars size =
                 boundedArbitraryExprI vars (size `Prelude.div` 3) <*>
                 boundedArbitraryExprI vars (size `Prelude.div` 3)),
               (2, do
-                 u <- freshUnique
-                 v <- arbitraryVarF u
-                 let vars' = extendVarsF vars v
-                 ELet (UniVar Field v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprI vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprI vars' (size `Prelude.div` 2))
               ),
               (2, do
-                 u <- freshUnique
-                 v <- arbitraryVarB u
-                 let vars' = extendVarsB vars v
-                 ELet (UniVar Bool v) <$>
+                 uniVar <- genFreshUniVar
+                 let vars' = Some uniVar : vars
+                 ELet uniVar <$>
                       (boundedArbitraryExprB vars  (size `Prelude.div` 2)) <*>
                       (boundedArbitraryExprI vars' (size `Prelude.div` 2))
               ),
@@ -358,7 +322,7 @@ boundedArbitraryExprI vars size =
 -- always.
 usuallyIntValuedArbitraryExpr ::
     (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars -> Int -> m (Expr f (AField f))
+    => Vars f -> Int -> m (Expr f (AField f))
 usuallyIntValuedArbitraryExpr vars size =
     frequency [(1, boundedArbitraryExprF vars size),
                (9, boundedArbitraryExprI vars size)
@@ -368,7 +332,7 @@ usuallyIntValuedArbitraryExpr vars size =
 -- number of nodes (approximately) bounded by 'size'
 boundedArbitraryExpr
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars -> Int -> m (SomeUniExpr f)
+    => Vars f -> Int -> m (SomeUniExpr f)
 boundedArbitraryExpr vars size =
     do
       adjustUniquesForVars vars
@@ -436,7 +400,6 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         EConstr econstr expr ->
             uncurry EConstr <$> shrink (econstr, expr)
 
-
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
 shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
@@ -466,14 +429,14 @@ genUni Bool  = arbitraryM
 genUni Field = arbitraryM
 
 genSomeUniVal :: (Field f, Arbitrary f) => Uni f a -> Gen (SomeUniVal f)
-genSomeUniVal uni = SomeUniVal . UniVal uni <$> genUni uni
+genSomeUniVal uni = Some . UniVal uni <$> genUni uni
 
 genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns = traverse $ \(VarSign _ uni) -> genSomeUniVal uni
 
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f)
-    where arbitrary = oneof [SomeUniVal <$> (arbitrary :: Gen (UniVal f (AField f))),
-                             SomeUniVal <$> (arbitrary :: Gen (UniVal f Bool))]
+    where arbitrary = oneof [Some <$> (arbitrary :: Gen (UniVal f (AField f))),
+                             Some <$> (arbitrary :: Gen (UniVal f Bool))]
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
 -- "generate (resize 1000 arbitrary :: GenT Supply (ExprWithEnv F17))" to get

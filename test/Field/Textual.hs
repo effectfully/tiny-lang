@@ -39,24 +39,11 @@ forgetIDs (EConstr econstr e)  = case econstr of
 -}
 
 prop_Ftest :: forall f . (Eq f, Show f, ParsableField f) => SomeUniExpr f -> Bool
-prop_Ftest expr =
-    case expr of
-      SomeUniExpr Field e ->
-          case parseExpr (exprToString NoIDs e) of
-            Left _   -> False
-            Right (expr'::SomeUniExpr f) ->
-                case expr' of
-                  SomeUniExpr Field e' -> forgetIDs e' == forgetIDs e
-                  _ -> False
-          -- Without the type ascription on expr' you get errors about untouchable types.
-
-      SomeUniExpr Bool e ->
-          case parseExpr (exprToString NoIDs e) of
-            Left _   -> False
-            Right (expr'::SomeUniExpr f) ->
-                case expr' of
-                  SomeUniExpr Bool e' -> forgetIDs e' == forgetIDs e
-                  _ -> False
+prop_Ftest (SomeUniExpr uni expr) =
+    case parseExpr (exprToString NoIDs expr) of
+        Left _                         -> False
+        Right (SomeUniExpr uni' expr') ->
+            withGeqUni uni uni' (forgetIDs expr' == forgetIDs expr) False
 
 test_checkparse :: TestTree
 test_checkparse =

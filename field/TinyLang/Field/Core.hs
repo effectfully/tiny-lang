@@ -1,10 +1,14 @@
 module TinyLang.Field.Core
     ( module Field
+    , Some (..)
+    , SomeOf (..)
+    , forget
     , Uni (..)
     , KnownUni (..)
     , UniVal (..)
     , UniVar (..)
-    , SomeUniVal (..)
+    , SomeUniVal
+    , SomeUniVar
     , SomeUniExpr (..)
     , UnOp (..)
     , BinOp (..)
@@ -32,6 +36,12 @@ import           Data.Field            as Field
 import           TinyLang.Var
 import           TinyLang.Environment
 import qualified TinyLang.Boolean.Core as Boolean
+
+data Some f = forall a. Some (f a)
+data SomeOf uni f = forall a. SomeOf (uni a) (f a)
+
+forget :: (forall a. f a -> b) -> Some f -> b
+forget f (Some a) = f a
 
 data Uni f a where
     Bool  :: Uni f Bool
@@ -65,8 +75,14 @@ data UniVar f a = UniVar
     , _uniVarVar :: Var
     } deriving (Show)
 
-data SomeUniVal f = forall a. SomeUniVal (UniVal f a)
+-- -- TODO: We can can unify the two above by the following data type. Should we do that?
+-- data Inhabits f a b = Inhabits
+--     { _inhabitsUni :: Uni f a
+--     , _inhabitsVal :: b
+--     }
 
+type SomeUniVal f = Some (UniVal f)
+type SomeUniVar f = Some (UniVar f)
 data SomeUniExpr f = forall a. SomeUniExpr (Uni f a) (Expr f a)
 
 data UnOp f a b where
@@ -168,7 +184,7 @@ instance Show f => Show (UniVal f a) where
 
 deriving instance Show f => Show (Expr f a)
 
-deriving instance Show f => Show (SomeUniVal f)
+deriving instance Show f => Show (Some (UniVal f))
 
 deriving instance Show f => Show (SomeUniExpr f)
 
