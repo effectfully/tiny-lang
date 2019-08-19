@@ -404,11 +404,18 @@ even though shrinking to the body of the let-expression would also be correct, b
 shrinking is type-preserving, we let the type-preserving shrinker do it.
 -}
 
+instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
+    arbitrary = EConstrFEq <$> arbitrary <*> arbitrary
+
+    shrink (EConstrFEq lhs rhs) = uncurry EConstrFEq <$> shrink (lhs, rhs)
+
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = case knownUni @f @a of
         Bool  -> runSupplyGenT . sized $ boundedArbitraryExprB defaultVars
         Field -> runSupplyGenT . sized $ boundedArbitraryExprF defaultVars
 
+    -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
+    -- but do not forget to catch exceptions.
     shrink (EVal uniVal) = EVal <$> shrinkUniVal uniVal
     shrink expr0         = EVal defaultUniVal : case expr0 of
         EAppUnOp op e ->
@@ -426,15 +433,14 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         ELet uniVar def expr ->
             withKnownUni (_uniVarUni uniVar) $
                 uncurry (ELet uniVar) <$> shrink (def, expr)
-        EConstr _ _ -> error "Can't shrink EConstr expressions yet"
+        EConstr econstr expr ->
+            uncurry EConstr <$> shrink (econstr, expr)
 
 
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
 shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
 shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
 
--- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
--- but do not forget to catch exceptions.
 shrinkSomeUniExpr
     :: (Field f, Arbitrary f) => Env (SomeUniVal f) -> SomeUniExpr f -> [SomeUniExpr f]
 shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
@@ -447,7 +453,8 @@ shrinkSomeUniExpr _ (SomeUniExpr uni0 expr) =
         EVal _ -> []
         EVar _ -> []
         ELet (UniVar uni _) def _ -> [SomeUniExpr uni def]
-        EConstr _ _ -> error "Can't shrink EConstr expressions yet"
+        EConstr econstr _ -> case econstr of
+            EConstrFEq lhs rhs -> map (SomeUniExpr Field) [lhs, rhs]
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
