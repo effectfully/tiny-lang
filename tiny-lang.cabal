@@ -34,6 +34,7 @@ library
         TinyLang.Field.ParserUtils
         TinyLang.Field.Printer
         TinyLang.Field.F17
+--         TinyLang.Field.F4913
     build-depends:
         base >= 4.7 && < 5,
         transformers,
@@ -45,6 +46,7 @@ library
         mmorph,
         parser-combinators,
         QuickCheck,
+        QuickCheck-GenT,
         smallcheck
     default-language: Haskell2010
     default-extensions:
@@ -76,6 +78,7 @@ test-suite tiny-lang-test
         mtl,
         containers,
         QuickCheck,
+        QuickCheck-GenT,
         tasty,
         tasty-quickcheck
     default-extensions:

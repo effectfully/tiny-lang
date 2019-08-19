@@ -29,6 +29,7 @@
            expr * expr
            expr / expr
            'if' expr 'then' expr 'else' expr
+           'let' var = expr; expr
            (expr)
 
   Things like 'and' denote keywords.
@@ -44,6 +45,8 @@
 
   See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
+
+-- FIXME: do we want to allow == on booleans?  Eg, T==F or (1==2)==(3==4)
 
 module TinyLang.Field.Parser
     ( parseExpr
@@ -89,7 +92,7 @@ expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
 
 -- Keywords
 keywords :: [String]
-keywords = ["T", "F", "not", "and", "or", "xor", "if", "then", "else", "neq0", "neg", "inv"]
+keywords = ["T", "F", "not", "and", "or", "xor", "let", "if", "then", "else", "neq0", "neg", "inv"]
 
 -- Parse a keyword, checking that it's not a prefix of something else
 keyword :: String -> Parser ()
@@ -110,7 +113,7 @@ identifier_F = (lexeme . try) (p >>= check)
                 else return x
 
 identifier_B :: Parser String
-identifier_B =  (lexeme . try) (p >>= check)
+identifier_B = (lexeme . try) (p >>= check)
     where
       p       = (:) <$> char '?' <*> many (lowerChar <|> digitChar <|> char '_')
       check x = if x `elem` keywords
@@ -128,15 +131,22 @@ valExpr_B :: Parser (Expr f Bool)
 valExpr_B = trueVal <|> falseVal
 
 -- Literal constants from the field
-valExpr_F :: forall f . ParsableField f => Parser (Expr f (AField f))
+valExpr_F :: ParsableField f => Parser (Expr f (AField f))
 valExpr_F = EVal . UniVal Field <$> parseFieldElement
 
 -- Variables
 varExpr_F :: Parser (Expr f (AField f))
-varExpr_F = EVar . UniVar Field <$> (identifier_F >>= makeVar)
+varExpr_F = EVar <$> var_F
 
 varExpr_B :: Parser (Expr f Bool)
-varExpr_B = EVar . UniVar Bool <$> (identifier_B >>= makeVar)
+varExpr_B = EVar <$> var_B
+
+var_F :: Parser (UniVar f (AField f))
+var_F = UniVar Field <$> (identifier_F >>= makeVar)
+
+var_B :: Parser (UniVar f Bool)
+var_B = UniVar Bool <$> (identifier_B >>= makeVar)
+
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
@@ -153,10 +163,15 @@ varExpr_B = EVar . UniVar Bool <$> (identifier_B >>= makeVar)
 -- If an ifExpr appears inside an operExpr it has to be parenthesised.
 
 expr1_B :: ParsableField f => Parser (Expr f Bool)
-expr1_B =  try eqExpr <|> try valExpr_B <|> try varExpr_B <|> try neq0Expr <|> parens expr_B
+expr1_B =  parens expr_B <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
+-- Let's put parens at the start because we can commit to that if we
+-- see "(" and don't have to do any backtracking.
 
 expr1_F :: ParsableField f => Parser (Expr f (AField f))
-expr1_F =  try varExpr_F <|> try valExpr_F <|> parens expr_F
+expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
+-- Missing out 'try' before valExpr_F causes a failure with eg (5 % 1) when the field is Rational.
+-- We can't put parens at the start because (-5) % 2 is valid syntax for Rationals and we have to try that first.
+-- We have to be careful with this because concrete syntax for finite fields might be complicated
 
 -- Special cases for eq and neq0 because the return type isn't the
 -- same as the argument type(s).
@@ -164,24 +179,31 @@ neq0Expr :: ParsableField f => Parser (Expr f Bool)
 neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 
 eqExpr :: ParsableField f => Parser (Expr f Bool)
-eqExpr = EAppBinOp FEq <$>  expr_F <* symbol "==" <*> expr_F
+eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
+
 
 -- Operations for ordering comparisons of "integer" field elements
 -- GADTs stop us using makeExprParsr here: it expects the input and output type to be the same.
+
+-- TODO: try to reduce the number of 'try's. Some parses take a long
+-- time and a lot of memory, possibly because of too much
+-- backtracking. For example, if we have 'e1 > e2' then I think we
+-- have to re-parse e1 each time we fail to match > with one of the
+-- other operators.
 comparisonExpr :: ParsableField f => Parser (Expr f Bool)
 comparisonExpr =
-    try (EAppBinOp FLt <$> expr_F <*> (keyword "<"  *> expr_F))
-            <|> try (EAppBinOp FLe <$> expr_F <*> (keyword "<=" *> expr_F))
-            <|> try (EAppBinOp FGe <$> expr_F <*> (keyword ">=" *> expr_F))
-            <|> EAppBinOp FGt <$> expr_F <*> (keyword ">"  *> expr_F)
+    try (EAppBinOp FLt <$> expr_F <*> (symbol "<"  *> expr_F))
+            <|> try (EAppBinOp FLe <$> expr_F <*> (symbol "<=" *> expr_F))
+            <|> try (EAppBinOp FGe <$> expr_F <*> (symbol ">=" *> expr_F))
+            <|> EAppBinOp FGt <$> expr_F <*> (symbol ">"  *> expr_F)
 
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = try eqExpr <|> try operExpr_B <|> try comparisonExpr <|> ifExpr_B
--- I _think_ the precedence is correct here...
+expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr
+-- Putting if/let at the end leads to some very slow/large parses.
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
-expr_F = (try operExpr_F) <|> ifExpr_F
+expr_F = ifExpr_F <|> letExpr_F <|> operExpr_F
 
 -- operExpr: expressions involving unary and binary operators.
 -- We have to deal with eq and neq0 separately, and also the order
@@ -210,6 +232,12 @@ operators_F = -- The order here determines operator precedence.
   , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
   ]
 
+
+-- Can we somehow commit to an if-expression when we see "if expr_B" and then
+-- continue with the other cases?  This would reduce the need for backtracking.
+-- Probably not, because we don't know the type of the entire expression until
+-- we see the first branch.
+
 -- 'if' with boolean branches
 ifExpr_B :: ParsableField f => Parser (Expr f Bool)
 ifExpr_B = EIf
@@ -223,3 +251,28 @@ ifExpr_F = EIf
     <$> (keyword "if" *> expr_B)
     <*> (keyword "then" *> expr_F)
     <*> (keyword "else" *> expr_F)
+
+
+-- 'let' with boolean type
+letExpr_B :: ParsableField f => Parser (Expr f Bool)
+letExpr_B =
+    try (ELet
+        <$> (keyword "let" *> var_B)
+        <*> (symbol  "="   *> expr_B)
+        <*> (symbol  ";"   *> expr_B))
+    <|> (ELet
+        <$> (keyword "let" *> var_F)
+        <*> (symbol  "="   *> expr_F)
+        <*> (symbol  ";"   *> expr_B))
+
+-- 'let' with numeric type
+letExpr_F :: ParsableField f => Parser (Expr f (AField f))
+letExpr_F =
+    try (ELet
+        <$> (keyword "let" *> var_B)
+        <*> (symbol  "="   *> expr_B)
+        <*> (symbol  ";"   *> expr_F))
+     <|> (ELet
+        <$> (keyword "let" *> var_F)
+        <*> (symbol  "="   *> expr_F)
+        <*> (symbol  ";"   *> expr_F))
