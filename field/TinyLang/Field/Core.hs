@@ -243,13 +243,13 @@ instance Eq f => Eq (Expr f a) where
     -- Here we explicitly pattern match on the first argument again and always return 'False'.
     -- This way we'll get a warning when an additional constructor is added to 'Expr',
     -- instead of erroneously defaulting to 'False'.
-    EVal _          == _ = False
-    EVar _          == _ = False
-    EIf _ _ _       == _ = False
-    EAppUnOp _ _    == _ = False
-    EAppBinOp _ _ _ == _ = False
-    ELet _ _ _      == _ = False
-    EConstr _ _     == _ = False
+    EVal      {} == _ = False
+    EVar      {} == _ = False
+    EIf       {} == _ = False
+    EAppUnOp  {} == _ = False
+    EAppBinOp {} == _ = False
+    ELet      {} == _ = False
+    EConstr   {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool  = id
