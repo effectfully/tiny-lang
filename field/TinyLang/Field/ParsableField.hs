@@ -6,13 +6,13 @@ where
 import           TinyLang.Field.Core
 import           TinyLang.Field.F17
 import           TinyLang.Field.ParserUtils
-import           TinyLang.Prelude           hiding (many, try)
+import           TinyLang.Prelude           hiding (try)
 
 import           Text.Megaparsec
 import qualified Text.Megaparsec.Char.Lexer as L
 
 
-class Field f => ParsableField f
+class (Field f, Show f) => ParsableField f
     where parseFieldElement :: Parser f
 
 instance ParsableField f => ParsableField (AField f)
@@ -26,5 +26,5 @@ instance ParsableField Rational where
     parseFieldElement =
         try ((%) <$>  signedDecimal <* symbol "%" <*> lexeme L.decimal)
                 <|> (%1) <$> signedDecimal
-        where signedDecimal = L.signed ws (lexeme L.decimal) <|> parens (signedDecimal)
+        where signedDecimal = L.signed ws (lexeme L.decimal) <|> parens signedDecimal
               -- We have to be a liitle careful here: you can get things like (-123) % 456

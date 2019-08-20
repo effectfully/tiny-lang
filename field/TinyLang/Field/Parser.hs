@@ -53,10 +53,11 @@ module TinyLang.Field.Parser
     ) where
 
 import           TinyLang.Field.Core
-import           TinyLang.Prelude               hiding (many, try)
-import           TinyLang.Var
+import           TinyLang.Field.Printer
 import           TinyLang.Field.ParsableField
 import           TinyLang.Field.ParserUtils
+import           TinyLang.Prelude               hiding (many, try)
+import           TinyLang.Var
 
 import           Control.Monad.Combinators.Expr as E
 import qualified Data.Map                       as M
@@ -82,13 +83,32 @@ parseExpr s = first errorBundlePretty . fst $ runState (runParserT top "" s) emp
 
 -- Parse the whole of an input stream
 top :: ParsableField f => Parser (SomeUniExpr f)
-top = between ws eof expr
+top = between ws eof exprSome
 
-expr :: ParsableField f => Parser (SomeUniExpr f)
-expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
+-- mapExpr :: (forall a. Expr f a -> Expr f a) -> SomeUniExpr f -> SomeUniExpr f
+-- mapExpr f (SomeUniExpr uni e) = SomeUniExpr uni $ f e
+
+exprSome :: ParsableField f => Parser (SomeUniExpr f)
+exprSome = asum
+    [ ifExprSome
+    , letExprSome
+    , (\(Some uniVar@(UniVar uni _)) -> SomeUniExpr uni $ EVar uniVar) <$> varSome
+    , try $ SomeUniExpr Bool <$> expr_OnlyB
+    , SomeUniExpr Field <$> expr_OnlyF
+    ]
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
+
+exprPoly :: forall f a. (ParsableField f, KnownUni f a) => Parser (Expr f a)
+exprPoly = asum
+    [ ifExprPoly
+    , letExprPoly
+    , EVar <$> varPoly
+    , case knownUni @f @a of
+        Bool  -> expr_OnlyB
+        Field -> expr_OnlyF
+    ]
 
 -- Keywords
 keywords :: [String]
@@ -134,19 +154,19 @@ valExpr_B = trueVal <|> falseVal
 valExpr_F :: ParsableField f => Parser (Expr f (AField f))
 valExpr_F = EVal . UniVal Field <$> parseFieldElement
 
--- Variables
-varExpr_F :: Parser (Expr f (AField f))
-varExpr_F = EVar <$> var_F
-
-varExpr_B :: Parser (Expr f Bool)
-varExpr_B = EVar <$> var_B
-
 var_F :: Parser (UniVar f (AField f))
 var_F = UniVar Field <$> (identifier_F >>= makeVar)
 
 var_B :: Parser (UniVar f Bool)
 var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 
+varSome :: Parser (SomeUniVar f)
+varSome = Some <$> var_B <|> Some <$> var_F
+
+varPoly :: forall f a. KnownUni f a => Parser (UniVar f a)
+varPoly = case knownUni @f @a of
+    Bool  -> var_B
+    Field -> var_F
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
@@ -163,12 +183,12 @@ var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 -- If an ifExpr appears inside an operExpr it has to be parenthesised.
 
 expr1_B :: ParsableField f => Parser (Expr f Bool)
-expr1_B =  parens expr_B <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
+expr1_B = parens exprPoly <|> valExpr_B <|> neq0Expr <|> eqExpr
 -- Let's put parens at the start because we can commit to that if we
 -- see "(" and don't have to do any backtracking.
 
 expr1_F :: ParsableField f => Parser (Expr f (AField f))
-expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
+expr1_F = try valExpr_F <|> parens exprPoly
 -- Missing out 'try' before valExpr_F causes a failure with eg (5 % 1) when the field is Rational.
 -- We can't put parens at the start because (-5) % 2 is valid syntax for Rationals and we have to try that first.
 -- We have to be careful with this because concrete syntax for finite fields might be complicated
@@ -176,10 +196,10 @@ expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
 -- Special cases for eq and neq0 because the return type isn't the
 -- same as the argument type(s).
 neq0Expr :: ParsableField f => Parser (Expr f Bool)
-neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
+neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> exprPoly
 
 eqExpr :: ParsableField f => Parser (Expr f Bool)
-eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
+eqExpr = EAppBinOp FEq <$> exprPoly <* symbol "==" <*> exprPoly
 
 
 -- Operations for ordering comparisons of "integer" field elements
@@ -192,18 +212,31 @@ eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 -- other operators.
 comparisonExpr :: ParsableField f => Parser (Expr f Bool)
 comparisonExpr =
-    try (EAppBinOp FLt <$> expr_F <*> (symbol "<"  *> expr_F))
-            <|> try (EAppBinOp FLe <$> expr_F <*> (symbol "<=" *> expr_F))
-            <|> try (EAppBinOp FGe <$> expr_F <*> (symbol ">=" *> expr_F))
-            <|> EAppBinOp FGt <$> expr_F <*> (symbol ">"  *> expr_F)
+    try (EAppBinOp FLt <$> exprPoly <*> (symbol "<"  *> exprPoly))
+            <|> try (EAppBinOp FLe <$> exprPoly <*> (symbol "<=" *> exprPoly))
+            <|> try (EAppBinOp FGe <$> exprPoly <*> (symbol ">=" *> exprPoly))
+            <|> EAppBinOp FGt <$> exprPoly <*> (symbol ">"  *> exprPoly)
 
--- expr: full expressions
-expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr
--- Putting if/let at the end leads to some very slow/large parses.
+expr_OnlyB :: ParsableField f => Parser (Expr f Bool)
+expr_OnlyB = try eqExpr <|> try operExpr_B <|> comparisonExpr
 
-expr_F :: ParsableField f => Parser (Expr f (AField f))
-expr_F = ifExpr_F <|> letExpr_F <|> operExpr_F
+expr_OnlyF :: ParsableField f => Parser (Expr f (AField f))
+expr_OnlyF = operExpr_F
+
+-- convert :: forall f a. (KnownUni f a, Show f) => SomeUniExpr f -> Expr f a
+-- convert (SomeUniExpr uni e) = withGeqUni uni (knownUni @f @a) e err where
+--     err = error $ "type error while parsing: " ++ exprToString NoIDs e
+
+-- exprSome :: ParsableField f => Parser (SomeUniExpr f)
+-- exprSome = ifExpr <|> letExprSome
+
+-- -- expr: full expressions
+-- expr_B :: ParsableField f => Parser (Expr f Bool)
+-- expr_B = exprPoly <|> expr_OnlyB
+-- -- Putting if/let at the end leads to some very slow/large parses.
+--
+-- expr_F :: ParsableField f => Parser (Expr f (AField f))
+-- expr_F = exprPoly <|> expr_OnlyF
 
 -- operExpr: expressions involving unary and binary operators.
 -- We have to deal with eq and neq0 separately, and also the order
@@ -238,41 +271,99 @@ operators_F = -- The order here determines operator precedence.
 -- Probably not, because we don't know the type of the entire expression until
 -- we see the first branch.
 
--- 'if' with boolean branches
-ifExpr_B :: ParsableField f => Parser (Expr f Bool)
-ifExpr_B = EIf
-    <$> (keyword "if" *> expr_B)
-    <*> (keyword "then" *> expr_B)
-    <*> (keyword "else" *> expr_B)
+-- -- 'if' with boolean branches
+-- ifExpr_B :: ParsableField f => Parser (Expr f Bool)
+-- ifExpr_B = EIf
+--     <$> (keyword "if" *> expr_B)
+--     <*> (keyword "then" *> expr_B)
+--     <*> (keyword "else" *> expr_B)
 
--- 'if' with numeric branches
-ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
-ifExpr_F = EIf
-    <$> (keyword "if" *> expr_B)
-    <*> (keyword "then" *> expr_F)
-    <*> (keyword "else" *> expr_F)
+-- -- 'if' with numeric branches
+-- ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
+-- ifExpr_F = EIf
+--     <$> (keyword "if" *> expr_B)
+--     <*> (keyword "then" *> expr_F)
+--     <*> (keyword "else" *> expr_F)
+
+bind :: UniVar f a -> Expr f a -> SomeUniExpr f -> SomeUniExpr f
+bind uniVar body (SomeUniExpr uni e) =
+    SomeUniExpr uni $ ELet uniVar body e
+
+-- mapExpr :: (forall a. Expr f a -> Expr f a) -> SomeUniExpr f -> SomeUniExpr f
+-- mapExpr f (SomeUniExpr uni expr) = SomeUniExpr uni $ f expr
+
+ifExprSome :: forall f. ParsableField f => Parser (SomeUniExpr f)
+ifExprSome =
+    (\(cond :: Expr f Bool) (SomeUniExpr uni1 br1) (SomeUniExpr uni2 br2) ->
+                SomeUniExpr uni1 . withGeqUni uni1 uni2 (EIf cond br1 br2) $ error "type error")
+        <$> (keyword "if" *> exprPoly)
+        <*> (keyword "then" *> exprSome)
+        <*> (keyword "else" *> exprSome)
+
+ifExprPoly :: (ParsableField f, KnownUni f a) => Parser (Expr f a)
+ifExprPoly =
+    EIf
+        <$> (keyword "if" *> exprPoly)
+        <*> (keyword "then" *> exprPoly)
+        <*> (keyword "else" *> exprPoly)
+
+letExprSome :: ParsableField f => Parser (SomeUniExpr f)
+letExprSome = do
+    Some (var@(UniVar varUni _)) <- keyword "let" *> varSome
+    withKnownUni varUni $
+        (\def (SomeUniExpr bodyUni body) -> SomeUniExpr bodyUni $ ELet var def body)
+            <$> (symbol "=" *> exprPoly)
+            <*> (symbol ";" *> exprSome)
+
+letExprPoly :: forall f a. (ParsableField f, KnownUni f a) => Parser (Expr f a)
+letExprPoly = do
+    Some (var@(UniVar varUni _)) <- keyword "let" *> varSome
+    withKnownUni varUni $
+        ELet var
+            <$> (symbol "=" *> exprPoly)
+            <*> (symbol ";" *> exprPoly)
 
 
--- 'let' with boolean type
-letExpr_B :: ParsableField f => Parser (Expr f Bool)
-letExpr_B =
-    try (ELet
-        <$> (keyword "let" *> var_B)
-        <*> (symbol  "="   *> expr_B)
-        <*> (symbol  ";"   *> expr_B))
-    <|> (ELet
-        <$> (keyword "let" *> var_F)
-        <*> (symbol  "="   *> expr_F)
-        <*> (symbol  ";"   *> expr_B))
 
--- 'let' with numeric type
-letExpr_F :: ParsableField f => Parser (Expr f (AField f))
-letExpr_F =
-    try (ELet
-        <$> (keyword "let" *> var_B)
-        <*> (symbol  "="   *> expr_B)
-        <*> (symbol  ";"   *> expr_F))
-     <|> (ELet
-        <$> (keyword "let" *> var_F)
-        <*> (symbol  "="   *> expr_F)
-        <*> (symbol  ";"   *> expr_F))
+-- letExprSome :: forall f. ParsableField f => Parser (SomeUniExpr f)
+-- letExprSome =
+--     (\(Some v@(UniVar uni1 _)) (SomeUniExpr uni2 def) (SomeUniExpr uni body) ->
+--                 SomeUniExpr uni . withGeqUni uni1 uni2 (ELet v def body) $ error "type error")
+--         <$> (keyword "let" *> varSome)
+--         <*> (symbol  "="   *> exprSome @f)
+--         <*> (symbol  ";"   *> exprSome)
+
+-- letExprPoly :: forall f a. (ParsableField f, KnownUni f a) => Parser (Expr f a)
+-- letExprPoly =
+--     (\(Some v@(UniVar uni1 _)) (SomeUniExpr uni2 def) (body :: Expr f a) ->
+--                 withGeqUni uni1 uni2 (ELet v def body) $ error "type error")
+--         <$> (keyword "let" *> varSome)
+--         <*> (symbol  "="   *> exprSome @f)
+--         <*> (symbol  ";"   *> exprPoly)
+
+
+
+
+-- -- 'let' with boolean type
+-- letExpr_B :: ParsableField f => Parser (Expr f Bool)
+-- letExpr_B =
+--     try (ELet
+--         <$> (keyword "let" *> var_B)
+--         <*> (symbol  "="   *> expr_B)
+--         <*> (symbol  ";"   *> expr_B))
+--     <|> (ELet
+--         <$> (keyword "let" *> var_F)
+--         <*> (symbol  "="   *> expr_F)
+--         <*> (symbol  ";"   *> expr_B))
+
+-- -- 'let' with numeric type
+-- letExpr_F :: ParsableField f => Parser (Expr f (AField f))
+-- letExpr_F =
+--     try (ELet
+--         <$> (keyword "let" *> var_B)
+--         <*> (symbol  "="   *> expr_B)
+--         <*> (symbol  ";"   *> expr_F))
+--      <|> (ELet
+--         <$> (keyword "let" *> var_F)
+--         <*> (symbol  "="   *> expr_F)
+--         <*> (symbol  ";"   *> expr_F))
