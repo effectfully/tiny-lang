@@ -1,15 +1,15 @@
 module Main where
 
-import qualified Boolean.Textual as Boolean (test_checkparse)
-import qualified Field.Textual   as Field (test_checkparse)
+import qualified Boolean.Textual as Boolean (test_printerParserRoundtrip)
+import qualified Field.Textual   as Field (test_printerParserRoundtrip)
 
 import           Test.Tasty
 
 test_all :: TestTree
 test_all =
     testGroup "all"
-        [ Boolean.test_checkparse
-        , Field.test_checkparse
+        [ Boolean.test_printerParserRoundtrip
+        , Field.test_printerParserRoundtrip
         ]
 
 main :: IO ()
