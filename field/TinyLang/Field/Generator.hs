@@ -57,13 +57,13 @@ runSupplyGenT = fmap runSupply . runGenT
 type Vars f = [SomeUniVar f]
 
 -- | Extract variables that live in a particular universe.
-uniVars :: forall f a. KnownUni f a => [SomeUniVar f] -> [UniVar f a]
+uniVars :: forall f a. KnownUni f a => Vars f -> [UniVar f a]
 uniVars =
     mapMaybe $ forget $ \uniVar@(UniVar uni _) ->
         withGeqUni uni (knownUni @f @a) (Just uniVar) Nothing
 
 -- | Choose a variable of a particular type.
-chooseUniVar :: (KnownUni f a, MonadGen m) => [SomeUniVar f] -> m (UniVar f a)
+chooseUniVar :: (KnownUni f a, MonadGen m) => Vars f -> m (UniVar f a)
 chooseUniVar = elements . uniVars
 
 -- The next function is concerned with generating fresh variables
@@ -110,8 +110,14 @@ defaultVars = runSupply $ do
     boolVars  <- traverse (make Bool)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
     return $ fieldVars ++ boolVars
 
-instance KnownUni f a => Arbitrary (UniVar f a) where
-    arbitrary = chooseUniVar defaultVars
+-- | A wrapper around @UniVar f a@ provided for its @Arbitrary@ instance that allows to generate
+-- variables from the default set of them.
+newtype DefaultUniVar f a = DefaultUniVar
+    { unDefaultUniVar :: UniVar f a
+    }
+
+instance KnownUni f a => Arbitrary (DefaultUniVar f a) where
+    arbitrary = DefaultUniVar <$> chooseUniVar defaultVars
 
 -- | Generate a universe and feed it to the continuation.
 withOneofUnis :: MonadGen m => (forall a. KnownUni f a => Uni f a -> m b) -> m b
@@ -275,6 +281,7 @@ boundedArbitraryExprI vars size             = frequency
          reduce the risk of this, or supply a separate list of
          variables which we're certain will only contain integer
          values.
+         This Note also applies to the @size <= 1@ case above.
        -}
     , (2, do
             let size' = size `Prelude.div` 3
@@ -323,7 +330,7 @@ shrinking is type-preserving, we let the type-preserving shrinker do it.
 defaultUniVal :: forall f a. (KnownUni f a, Field f) => UniVal f a
 defaultUniVal = case knownUni @f @a of
     Bool  -> UniVal Bool True
-    Field -> UniVal Field $ fromInteger 100
+    Field -> UniVal Field $ fromInteger 101
 
 instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
     arbitrary = EConstrFEq <$> arbitrary <*> arbitrary

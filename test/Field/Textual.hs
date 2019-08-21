@@ -52,7 +52,7 @@ deriving instance Show f => Show (Binding f)
 instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
     arbitrary =
         withOneofUnis $ \(_ :: Uni f a) ->
-            Binding <$> arbitrary @(UniVar f a) <*> arbitrary
+            Binding @f @a . unDefaultUniVar <$> arbitrary <*> arbitrary
 
 prop_nestedELet
     :: forall f. (Eq f, Show f, ParsableField f)
