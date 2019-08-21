@@ -144,13 +144,11 @@ instance Arbitrary f => Arbitrary (SomeUniVal f) where
     shrink (Some uniVal) = Some <$> shrinkUniVal uniVal
 
 {- When we've generated a fresh variable v for an expression let v =
-   e1 in e2, we want it to hide any existing variable with the same
-   name when we're inside e2.  The extendVars* functions do this by
-   adding the variable v to the 'vars' argument to the generator for
-   e2, having first filtered out any existing variables with
-   the same name.  Out choice of prefixes for fresh variables overlaps
-   with the ones for the default variables, so we may hide some variables
-   in the global environment.  Maybe this isn't a good idea.
+   e1 in e2, we allow the textual name of v to be equal to the textual name of
+   some other variable, but the unique of v must be different from the uniques of
+   other variables. This means that we occasionally generate terms that is impossible
+   to get by parsing, but we might get such terms after compiling from a high-level
+   language, so it's good to test this scenario.
 -}
 
 -- TODO.  It's quite hard to get expressions 'let x=e1 in e2' where x

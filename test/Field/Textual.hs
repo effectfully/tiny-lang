@@ -19,6 +19,10 @@ import           Test.QuickCheck
 import           Test.Tasty
 import           Test.Tasty.QuickCheck
 
+-- TODO: we shouldn't forget uniques, because we ignore name shadowing problems in
+-- generators. I.e. we should implement alpha-equality (but it is kind of weird to change
+-- uniques of free variables and so we probably want a newtype wrapper around @Expr@ with
+-- that very specific @Eq@ instance).
 forgetID :: UniVar f a -> UniVar f a
 forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 
