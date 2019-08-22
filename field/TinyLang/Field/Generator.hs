@@ -245,15 +245,13 @@ boundedArbitraryExpr vars size             = frequency everything where
                 EAppBinOp binOp
                     <$> boundedArbitraryExpr vars size'
                     <*> boundedArbitraryExpr vars size')
-        -- This is a stub rather than an actual generator. It generates constraints that most of
-        -- the time do not hold. We use it just to test parsing (for which it's not important
-        -- whether constraints hold or not).
+        -- This is a stub rather than an actual generator. It generates trivial constraints of the
+        -- @x = x@ form.
         , (4, do
                 let size' = size `Prelude.div` 3
-                EConstr <$> (EConstrFEq
-                    <$> boundedArbitraryExpr vars size'
-                    <*> boundedArbitraryExpr vars size')
-                    <*> boundedArbitraryExpr vars size')
+                x <- boundedArbitraryExpr vars size'
+                EConstr (EConstrFEq x x)
+                    <$> boundedArbitraryExpr vars size')
         ]
 
     -- A generator of comparisons.
