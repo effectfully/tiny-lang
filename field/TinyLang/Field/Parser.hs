@@ -30,6 +30,7 @@
            expr / expr
            'if' expr 'then' expr 'else' expr
            'let' var = expr; expr
+           'assert' expr == expr; expr
            (expr)
 
   Things like 'and' denote keywords.
@@ -50,6 +51,7 @@
 
 module TinyLang.Field.Parser
     ( parseExpr
+    , parseEConstr
     ) where
 
 import           TinyLang.Field.Core
@@ -78,11 +80,19 @@ makeVar name = do
 
 -- | The main entry point: parse a string and return Either an error message or an Expr.
 parseExpr :: ParsableField f => String -> Either String (SomeUniExpr f)
-parseExpr s = first errorBundlePretty . fst $ runState (runParserT top "" s) emptyIdentifierState
+parseExpr = parseBy expr
+
+-- | The main entry point: parse a string and return Either an error message or an EConstr.
+parseEConstr :: ParsableField f => String -> Either String (EConstr f)
+parseEConstr = parseBy econstr
+
+parseBy :: Parser a -> String -> Either String a
+parseBy parser str =
+    first errorBundlePretty . fst $ runState (runParserT (top parser) "" str) emptyIdentifierState
 
 -- Parse the whole of an input stream
-top :: ParsableField f => Parser (SomeUniExpr f)
-top = between ws eof expr
+top :: Parser a -> Parser a
+top = between ws eof
 
 expr :: ParsableField f => Parser (SomeUniExpr f)
 expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
@@ -199,11 +209,23 @@ comparisonExpr =
 
 -- expr: full expressions
 expr_B :: ParsableField f => Parser (Expr f Bool)
-expr_B = ifExpr_B <|> letExpr_B <|> try eqExpr <|> try operExpr_B <|> comparisonExpr
+expr_B = asum
+    [ ifExpr_B
+    , letExpr_B
+    , eqConstr_B
+    , try eqExpr
+    , try operExpr_B
+    , comparisonExpr
+    ]
 -- Putting if/let at the end leads to some very slow/large parses.
 
 expr_F :: ParsableField f => Parser (Expr f (AField f))
-expr_F = ifExpr_F <|> letExpr_F <|> operExpr_F
+expr_F = asum
+    [ ifExpr_F
+    , letExpr_F
+    , eqConstr_F
+    , operExpr_F
+    ]
 
 -- operExpr: expressions involving unary and binary operators.
 -- We have to deal with eq and neq0 separately, and also the order
@@ -276,3 +298,21 @@ letExpr_F =
         <$> (keyword "let" *> var_F)
         <*> (symbol  "="   *> expr_F)
         <*> (symbol  ";"   *> expr_F))
+
+econstr :: ParsableField f => Parser (EConstr f)
+econstr =
+    EConstrFEq
+        <$> (keyword "assert" *> expr_F)
+        <*> (symbol  "=="     *> expr_F)
+
+eqConstr_B :: ParsableField f => Parser (Expr f Bool)
+eqConstr_B =
+    EConstr
+        <$> econstr
+        <*> (symbol ";" *> expr_B)
+
+eqConstr_F :: ParsableField f => Parser (Expr f (AField f))
+eqConstr_F =
+    EConstr
+        <$> econstr
+        <*> (symbol ";" *> expr_F)

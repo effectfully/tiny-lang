@@ -52,8 +52,9 @@ toStringUniVal (UniVal Field i) = show i
 
 econstrToString :: Show f => PrintStyle -> EConstr f -> String
 econstrToString style (EConstrFEq lhs rhs) = concat
-    [ exprToString style lhs
-    , " = "
+    [ "assert "
+    , exprToString style lhs
+    , " == "
     , exprToString style rhs
     ]
 
