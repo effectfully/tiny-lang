@@ -245,13 +245,19 @@ boundedArbitraryExpr vars size             = frequency everything where
                 EAppBinOp binOp
                     <$> boundedArbitraryExpr vars size'
                     <*> boundedArbitraryExpr vars size')
-        -- This is a stub rather than an actual generator. It generates trivial constraints of the
-        -- @x = x@ form.
-        , (4, do
-                let size' = size `Prelude.div` 3
-                x <- boundedArbitraryExpr vars size'
-                EConstr (EConstrFEq x x)
-                    <$> boundedArbitraryExpr vars size')
+        , (4, oneof
+              [ do
+                    -- This generates trivial constraints of the @x = x@ form.
+                    x <- boundedArbitraryExpr vars (size `Prelude.div` 8)
+                    EConstr (EConstrFEq x x)
+                        <$> boundedArbitraryExpr vars (size `Prelude.div` 2)
+              , do
+                    -- This generates constraints that are unlikely to hold.
+                    EConstr <$> (EConstrFEq
+                        <$> boundedArbitraryExpr vars (size `Prelude.div` 8)
+                        <*> boundedArbitraryExpr vars (size `Prelude.div` 8))
+                        <*> boundedArbitraryExpr vars (size `Prelude.div` 2)
+              ])
         ]
 
     -- A generator of comparisons.
@@ -340,12 +346,15 @@ defaultUniVal = case knownUni @f @a of
 instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
     arbitrary = EConstrFEq <$> arbitrary <*> arbitrary
 
-    -- We shrink @lhs == rhs@ to @lhs' == lhs'@ or @rhs' == rhs'@ where
-    -- @lhs'@ and @rhs'@ are shrunk version of @lhs@ and @rhs@ respectively.
-    -- This is weak, but at least does not turn a constraint that holds into one
-    -- that does not.
-    shrink (EConstrFEq lhs rhs) =
-        map (join EConstrFEq) (shrink lhs) ++ map (join EConstrFEq) (shrink rhs)
+    -- In addition to normal shrinking (which most of the time will break the assertion)
+    -- we shrink @lhs == rhs@ to @lhs' == lhs'@ or @rhs' == rhs'@ where
+    -- @lhs'@ and @rhs'@ are shrunk version of @lhs@ and @rhs@ respectively
+    -- (this is just to have some shrinking that does not break the assertion).
+    shrink (EConstrFEq lhs rhs) = concat
+        [ map (join EConstrFEq) $ shrink lhs
+        , map (join EConstrFEq) $ shrink rhs
+        , uncurry EConstrFEq <$> shrink (lhs, rhs)
+        ]
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
