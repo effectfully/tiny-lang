@@ -175,9 +175,11 @@ withOneofUnOps k = oneof $ case knownUni @f @b of
 withOneofBinOps
     :: forall f c m r. (KnownUni f c, MonadGen m)
     => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m r) -> m r
-withOneofBinOps k = oneof $ case knownUni @f @c of
-    Bool  -> [k Or, k And, k Xor, k FEq, k FLt, k FLe, k FGe, k FGt]
-    Field -> [k Add, k Sub, k Mul, k Div]
+withOneofBinOps k = case knownUni @f @c of
+    Bool  -> frequency $
+        map ((,) 16) [k Or, k And, k Xor, k FEq] ++
+        map ((,) 1)  [k FLt, k FLe, k FGe, k FGt]
+    Field -> oneof [k Add, k Sub, k Mul, k Div]
 
 -- | Generate a comparison operator and feed it to the continuation.
 withOneofComparisons
@@ -216,60 +218,65 @@ groundArbitraryFreqs vars =
 -- | Generate an expression of a particular type from a collection of variables
 -- with the number of nodes (approximately) bounded by 'size'.
 boundedArbitraryExpr
-    :: forall f a m. (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
+    :: (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f a)
-boundedArbitraryExpr vars size | size <= 1 = frequency $ groundArbitraryFreqs vars
-boundedArbitraryExpr vars size             = frequency everything where
-    everything = groundArbitraryFreqs vars ++ recursive ++ comparisons
+boundedArbitraryExpr vars0 size0 = go vars0 size0 where
+    go :: forall f a m. (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
+       => Vars f -> Int -> m (Expr f a)
+    go vars size | size <= 1 = frequency $ groundArbitraryFreqs vars
+    go vars size             = frequency everything where
+        everything = groundArbitraryFreqs vars ++ recursive ++ comparisons
 
-    -- The most general generator.
-    recursive =
-        [ (2, do
-                let size' = size `Prelude.div` 3
-                EIf
-                    <$> boundedArbitraryExpr vars size'
-                    <*> boundedArbitraryExpr vars size'
-                    <*> boundedArbitraryExpr vars size')
-        , (4, withOneofUnis $ \(_ :: Uni f a') -> do
-                uniVar <- genFreshUniVar @f @a'
-                let vars' = Some uniVar : vars
-                    size' = size `Prelude.div` 2
-                ELet uniVar
-                    <$> boundedArbitraryExpr vars  size'
-                    <*> boundedArbitraryExpr vars' size')
-        , (4, withOneofUnOps  $ \unOp  -> do
-                let size' = size - 1
-                EAppUnOp unOp <$> boundedArbitraryExpr vars size')
-        , (4, withOneofBinOps $ \binOp -> do
-                let size' = size `Prelude.div` 2
-                EAppBinOp binOp
-                    <$> boundedArbitraryExpr vars size'
-                    <*> boundedArbitraryExpr vars size')
-        , (4, oneof
-              [ do
-                    -- This generates trivial constraints of the @x = x@ form.
-                    x <- boundedArbitraryExpr vars (size `Prelude.div` 8)
-                    EConstr (EConstrFEq x x)
-                        <$> boundedArbitraryExpr vars (size `Prelude.div` 2)
-              , do
-                    -- This generates constraints that are unlikely to hold.
-                    EConstr <$> (EConstrFEq
-                        <$> boundedArbitraryExpr vars (size `Prelude.div` 8)
-                        <*> boundedArbitraryExpr vars (size `Prelude.div` 8))
-                        <*> boundedArbitraryExpr vars (size `Prelude.div` 2)
-              ])
-        ]
-
-    -- A generator of comparisons.
-    comparisons = case knownUni @f @a of
-        Field -> []
-        Bool  ->
-            [ (4, withOneofComparisons $ \comp -> do
-                let size' = size `Prelude.div` 2
-                EAppBinOp comp
-                    <$> boundedArbitraryExprI vars size'
-                    <*> boundedArbitraryExprI vars size')
+        -- The most general generator.
+        recursive =
+            [ (2, do
+                    let size' = size `Prelude.div` 3
+                    EIf
+                        <$> go vars size'
+                        <*> go vars size'
+                        <*> go vars size')
+            , (4, withOneofUnis $ \(_ :: Uni f a') -> do
+                    uniVar <- genFreshUniVar @f @a'
+                    let vars' = Some uniVar : vars
+                        size' = size `Prelude.div` 2
+                    ELet uniVar
+                        <$> go vars  size'
+                        <*> go vars' size')
+            , (2, withOneofUnOps  $ \unOp  -> do
+                    let size' = size - 1
+                    EAppUnOp unOp <$> go vars size')
+            , (4, withOneofBinOps $ \binOp -> do
+                    let size' = size `Prelude.div` 2
+                    EAppBinOp binOp
+                        <$> go vars size'
+                        <*> go vars size')
+            , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), oneof
+                  [ do
+                        -- This generates trivial constraints of the @x = x@ form.
+                        let size' = size `Prelude.div` 3
+                        x <- go vars size'
+                        EConstr (EConstrFEq x x)
+                            <$> go vars size'
+                  , do
+                        let size' = size `Prelude.div` 3
+                        -- This generates constraints that are unlikely to hold.
+                        EConstr <$> (EConstrFEq
+                            <$> go vars size'
+                            <*> go vars size')
+                            <*> go vars size'
+                  ])
             ]
+
+        -- A generator of comparisons.
+        comparisons = case knownUni @f @a of
+            Field -> []
+            Bool  ->
+                [ (2, withOneofComparisons $ \comp -> do
+                    let size' = size `Prelude.div` 2
+                    EAppBinOp comp
+                        <$> boundedArbitraryExprI vars size'
+                        <*> boundedArbitraryExprI vars size')
+                ]
 
 -- | This produces an arbitrary integer-valued expression.
 -- Comparisons are only supposed to involve integers, so this
