@@ -390,7 +390,9 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 EConstrFEq lhs rhs -> map (SomeUniExpr Field) [lhs, rhs]
 
 genEnvFromVarSigns :: Arbitrary f => Env (VarSign f) -> Gen (Env (SomeUniVal f))
-genEnvFromVarSigns = traverse $ \(VarSign _ uni) -> withKnownUni uni arbitrary
+genEnvFromVarSigns =
+    traverse $ \(VarSign _ (uni :: Uni f a)) ->
+        Some <$> withKnownUni uni (arbitrary :: Gen (UniVal f a))
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
 -- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
