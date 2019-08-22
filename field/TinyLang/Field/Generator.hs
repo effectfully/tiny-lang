@@ -340,7 +340,12 @@ defaultUniVal = case knownUni @f @a of
 instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
     arbitrary = EConstrFEq <$> arbitrary <*> arbitrary
 
-    shrink (EConstrFEq lhs rhs) = uncurry EConstrFEq <$> shrink (lhs, rhs)
+    -- We shrink @lhs == rhs@ to @lhs' == lhs'@ or @rhs' == rhs'@ where
+    -- @lhs'@ and @rhs'@ are shrunk version of @lhs@ and @rhs@ respectively.
+    -- This is weak, but at least does not turn a constraint that holds into one
+    -- that does not.
+    shrink (EConstrFEq lhs rhs) =
+        map (join EConstrFEq) (shrink lhs) ++ map (join EConstrFEq) (shrink rhs)
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
