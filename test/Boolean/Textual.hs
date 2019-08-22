@@ -1,5 +1,5 @@
 module Boolean.Textual
-    ( test_checkparse
+    ( test_printerParserRoundtrip
     ) where
 
 import           TinyLang.Boolean.Core
@@ -37,7 +37,7 @@ checkparse e =
         Left _  -> False
         Right f -> forgetIDs f == forgetIDs e
 
-test_checkparse :: TestTree
-test_checkparse =
-    testProperty "printer-parser roundtrip" $
+test_printerParserRoundtrip :: TestTree
+test_printerParserRoundtrip =
+    testProperty "printerParserRoundtrip" $
         withMaxSuccess 1000 $ property checkparse
