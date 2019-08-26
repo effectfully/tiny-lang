@@ -46,14 +46,14 @@ insertUnique (Unique i) x (Env xs) = Env $ IntMap.insert i x xs
 insertVar :: Var -> a -> Env a -> Env a
 insertVar = insertUnique . _varUniq
 
-toEnvBy :: Foldable f => (k -> a -> Env a -> Env a) -> f (k, a) -> Env a
-toEnvBy f = foldl' (\acc (key, x) -> f key x acc) mempty
+toEnvBy :: Foldable f => (a -> Env b -> Env b) -> f a -> Env b
+toEnvBy f = foldl' (\acc x -> f x acc) mempty
 
 fromUniques :: Foldable f => f (Unique, a) -> Env a
-fromUniques = toEnvBy insertUnique
+fromUniques = toEnvBy $ uncurry insertUnique
 
 fromVars :: Foldable f => f (Var, a) -> Env a
-fromVars = toEnvBy insertVar
+fromVars = toEnvBy $ uncurry insertVar
 
 toUniques :: Env a -> [(Unique, a)]
 toUniques = map (first Unique) . IntMap.toList . unEnv
