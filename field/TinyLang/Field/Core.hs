@@ -1,5 +1,7 @@
 module TinyLang.Field.Core
     ( module Field
+    , module Var
+    , module Env
     , Some (..)
     , SomeOf (..)
     , forget
@@ -33,8 +35,8 @@ module TinyLang.Field.Core
 import           Prelude               hiding (div)
 
 import           Data.Field            as Field
-import           TinyLang.Var
-import           TinyLang.Environment
+import           TinyLang.Var          as Var
+import           TinyLang.Environment  as Env
 import qualified TinyLang.Boolean.Core as Boolean
 
 data Some f = forall a. Some (f a)
@@ -178,15 +180,15 @@ deriving instance Eq   (UnOp f a b)
 deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
-instance Show f => Show (UniVal f a) where
+instance TextField f => Show (UniVal f a) where
     show (UniVal Bool  b) = if b then "1" else "0"
-    show (UniVal Field i) = show i
+    show (UniVal Field i) = showField i
 
-deriving instance Show f => Show (Expr f a)
+deriving instance TextField f => Show (Expr f a)
 
-deriving instance Show f => Show (Some (UniVal f))
+deriving instance TextField f => Show (Some (UniVal f))
 
-deriving instance Show f => Show (SomeUniExpr f)
+deriving instance TextField f => Show (SomeUniExpr f)
 
 withGeqUni :: Uni f a1 -> Uni f a2 -> (a1 ~ a2 => b) -> b -> b
 withGeqUni Bool  Bool  y _ = y

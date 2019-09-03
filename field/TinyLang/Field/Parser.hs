@@ -54,11 +54,10 @@ module TinyLang.Field.Parser
     , parseEConstr
     ) where
 
-import           TinyLang.Field.Core
 import           TinyLang.Prelude               hiding (many, try)
-import           TinyLang.Var
-import           TinyLang.Field.ParsableField
-import           TinyLang.Field.ParserUtils
+
+import           TinyLang.Field.Core
+import           TinyLang.ParseUtils
 
 import           Control.Monad.Combinators.Expr as E
 import qualified Data.Map                       as M
@@ -79,11 +78,11 @@ makeVar name = do
             pure v
 
 -- | The main entry point: parse a string and return Either an error message or an Expr.
-parseExpr :: ParsableField f => String -> Either String (SomeUniExpr f)
+parseExpr :: TextField f => String -> Either String (SomeUniExpr f)
 parseExpr = parseBy expr
 
 -- | The main entry point: parse a string and return Either an error message or an EConstr.
-parseEConstr :: ParsableField f => String -> Either String (EConstr f)
+parseEConstr :: TextField f => String -> Either String (EConstr f)
 parseEConstr = parseBy econstr
 
 parseBy :: Parser a -> String -> Either String a
@@ -94,7 +93,7 @@ parseBy parser str =
 top :: Parser a -> Parser a
 top = between ws eof
 
-expr :: ParsableField f => Parser (SomeUniExpr f)
+expr :: TextField f => Parser (SomeUniExpr f)
 expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
@@ -141,8 +140,8 @@ valExpr_B :: Parser (Expr f Bool)
 valExpr_B = trueVal <|> falseVal
 
 -- Literal constants from the field
-valExpr_F :: ParsableField f => Parser (Expr f (AField f))
-valExpr_F = EVal . UniVal Field <$> parseFieldElement
+valExpr_F :: TextField f => Parser (Expr f (AField f))
+valExpr_F = EVal . UniVal Field <$> parseField
 
 -- Variables
 varExpr_F :: Parser (Expr f (AField f))
@@ -172,12 +171,12 @@ var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 -- can just be a single expr1.
 -- If an ifExpr appears inside an operExpr it has to be parenthesised.
 
-expr1_B :: ParsableField f => Parser (Expr f Bool)
+expr1_B :: TextField f => Parser (Expr f Bool)
 expr1_B =  parens expr_B <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
 -- Let's put parens at the start because we can commit to that if we
 -- see "(" and don't have to do any backtracking.
 
-expr1_F :: ParsableField f => Parser (Expr f (AField f))
+expr1_F :: TextField f => Parser (Expr f (AField f))
 expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
 -- Missing out 'try' before valExpr_F causes a failure with eg (5 % 1) when the field is Rational.
 -- We can't put parens at the start because (-5) % 2 is valid syntax for Rationals and we have to try that first.
@@ -185,10 +184,10 @@ expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
 
 -- Special cases for eq and neq0 because the return type isn't the
 -- same as the argument type(s).
-neq0Expr :: ParsableField f => Parser (Expr f Bool)
+neq0Expr :: TextField f => Parser (Expr f Bool)
 neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
 
-eqExpr :: ParsableField f => Parser (Expr f Bool)
+eqExpr :: TextField f => Parser (Expr f Bool)
 eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 
 
@@ -200,7 +199,7 @@ eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 -- backtracking. For example, if we have 'e1 > e2' then I think we
 -- have to re-parse e1 each time we fail to match > with one of the
 -- other operators.
-comparisonExpr :: ParsableField f => Parser (Expr f Bool)
+comparisonExpr :: TextField f => Parser (Expr f Bool)
 comparisonExpr =
     try (EAppBinOp FLt <$> expr_F <*> (symbol "<"  *> expr_F))
             <|> try (EAppBinOp FLe <$> expr_F <*> (symbol "<=" *> expr_F))
@@ -208,7 +207,7 @@ comparisonExpr =
             <|> EAppBinOp FGt <$> expr_F <*> (symbol ">"  *> expr_F)
 
 -- expr: full expressions
-expr_B :: ParsableField f => Parser (Expr f Bool)
+expr_B :: TextField f => Parser (Expr f Bool)
 expr_B = asum
     [ ifExpr_B
     , letExpr_B
@@ -219,7 +218,7 @@ expr_B = asum
     ]
 -- Putting if/let at the end leads to some very slow/large parses.
 
-expr_F :: ParsableField f => Parser (Expr f (AField f))
+expr_F :: TextField f => Parser (Expr f (AField f))
 expr_F = asum
     [ ifExpr_F
     , letExpr_F
@@ -232,7 +231,7 @@ expr_F = asum
 -- comaprisons.
 
 -- Boolean epxressions
-operExpr_B :: ParsableField f => Parser (Expr f Bool)
+operExpr_B :: TextField f => Parser (Expr f Bool)
 operExpr_B = makeExprParser expr1_B operators_B
 
 operators_B :: [[E.Operator Parser (Expr f Bool)]]
@@ -244,7 +243,7 @@ operators_B = -- The order here determines operator precedence.
   ]
 
 -- Numeric expressions
-operExpr_F :: ParsableField f => Parser (Expr f (AField f))
+operExpr_F :: TextField f => Parser (Expr f (AField f))
 operExpr_F = makeExprParser expr1_F operators_F
 
 operators_F :: [[E.Operator Parser (Expr f (AField f))]]
@@ -261,14 +260,14 @@ operators_F = -- The order here determines operator precedence.
 -- we see the first branch.
 
 -- 'if' with boolean branches
-ifExpr_B :: ParsableField f => Parser (Expr f Bool)
+ifExpr_B :: TextField f => Parser (Expr f Bool)
 ifExpr_B = EIf
     <$> (keyword "if" *> expr_B)
     <*> (keyword "then" *> expr_B)
     <*> (keyword "else" *> expr_B)
 
 -- 'if' with numeric branches
-ifExpr_F :: ParsableField f => Parser (Expr f (AField f))
+ifExpr_F :: TextField f => Parser (Expr f (AField f))
 ifExpr_F = EIf
     <$> (keyword "if" *> expr_B)
     <*> (keyword "then" *> expr_F)
@@ -276,7 +275,7 @@ ifExpr_F = EIf
 
 
 -- 'let' with boolean type
-letExpr_B :: ParsableField f => Parser (Expr f Bool)
+letExpr_B :: TextField f => Parser (Expr f Bool)
 letExpr_B =
     try (ELet
         <$> (keyword "let" *> var_B)
@@ -288,7 +287,7 @@ letExpr_B =
         <*> (symbol  ";"   *> expr_B))
 
 -- 'let' with numeric type
-letExpr_F :: ParsableField f => Parser (Expr f (AField f))
+letExpr_F :: TextField f => Parser (Expr f (AField f))
 letExpr_F =
     try (ELet
         <$> (keyword "let" *> var_B)
@@ -299,19 +298,19 @@ letExpr_F =
         <*> (symbol  "="   *> expr_F)
         <*> (symbol  ";"   *> expr_F))
 
-econstr :: ParsableField f => Parser (EConstr f)
+econstr :: TextField f => Parser (EConstr f)
 econstr =
     EConstrFEq
         <$> (keyword "assert" *> expr_F)
         <*> (symbol  "=="     *> expr_F)
 
-eqConstr_B :: ParsableField f => Parser (Expr f Bool)
+eqConstr_B :: TextField f => Parser (Expr f Bool)
 eqConstr_B =
     EConstr
         <$> econstr
         <*> (symbol ";" *> expr_B)
 
-eqConstr_F :: ParsableField f => Parser (Expr f (AField f))
+eqConstr_F :: TextField f => Parser (Expr f (AField f))
 eqConstr_F =
     EConstr
         <$> econstr

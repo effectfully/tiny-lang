@@ -1,18 +1,22 @@
 module Data.Field
     ( Field (..)
     , AField (..)
+    , TextField (..)
     , AsInteger (..)
     , IsNegative (..)
     , two
     , boolToField
     ) where
 
-import qualified GHC.Num          (fromInteger)
 import           Prelude          hiding (div)
 import qualified Prelude          (div)
 
+import           TinyLang.ParseUtils
+
 import           Data.Coerce
 import           Data.Ratio
+import           Data.Foldable (asum)
+import           Text.Megaparsec
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
@@ -72,6 +76,21 @@ class Field f where
 
     {-# MINIMAL zer, add, one, mul, (neg | sub), (inv | div) #-}
 
+parseFieldDefault :: Field f => Parser f
+parseFieldDefault = unAField . fromInteger <$> signedDecimal
+
+-- Note that any value produced by 'showField' must be parsable by 'parseField' even if it appears
+-- in a large expression. This is why we always pretty-print rationals in parens currently.
+class Field f => TextField f where
+    parseField :: Parser f
+    default parseField :: Parser f
+    parseField = parseFieldDefault
+
+    -- TODO: use proper precedence-sensitive pretty-printing.
+    showField :: f -> String
+    default showField :: Show f => f -> String
+    showField = show
+
 newtype AField f = AField
     { unAField :: f
     } deriving (Eq)
@@ -116,8 +135,25 @@ instance Field f => Num (AField f) where
             go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
             go n          = one `add` fromInteger (n - 1)
 
-instance Show f => Show (AField f) where
-    show = show . unAField
+instance TextField f => TextField (AField f) where
+    parseField = AField <$> parseField
+    showField = showField . unAField
+
+instance TextField f => Show (AField f) where
+    show = showField . unAField
+
+-- Note that the parser for @Rational@ accepts ONLY plain integers. This is because we pretty-print
+-- rationals as @a / b@ and so @/@ is parsed elsewhere as regular division.
+instance TextField Rational where
+    parseField = asum
+        [ try (div <$> parseFieldDefault <* symbol "/" <*> parseFieldDefault)
+        , parseFieldDefault
+        , parens parseField
+        ]
+
+    showField r
+        | denominator r == 1 = show $ numerator r
+        | otherwise          = "(" ++ show (numerator r) ++ " / " ++ show (denominator r) ++ ")"
 
 boolToField :: Field f => Bool -> f
 boolToField False = zer
