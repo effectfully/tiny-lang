@@ -1,14 +1,15 @@
 -- | Some functions/types lifted out of the Parser module so that we can use them in ParsableField
 -- TODO: clean up the imports/exports
 
-module TinyLang.Field.ParserUtils
-    ( lexeme
+module TinyLang.ParseUtils
+    ( Parser
+    , IdentifierState
+    , emptyIdentifierState
     , ws
+    , lexeme
     , symbol
     , parens
-    , emptyIdentifierState
-    , Parser
-    , IdentifierState
+    , signedDecimal
     ) where
 
 import           TinyLang.Prelude           hiding (many, try)
@@ -26,7 +27,8 @@ type IdentifierState = (M.Map String Var, Int)
 emptyIdentifierState :: IdentifierState
 emptyIdentifierState = (mempty, 0)
 
-type Parser = ParsecT Void String (TinyLang.Prelude.State IdentifierState) -- Void -> No custom error messages
+ -- Void -> No custom error messages
+type Parser = ParsecT Void String (TinyLang.Prelude.State IdentifierState)
 
 -- Consume whitespace
 ws :: Parser ()
@@ -44,3 +46,6 @@ symbol = L.symbol ws
 -- 'parens' parses something between parenthesis.
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
+
+signedDecimal :: Integral a => Parser a
+signedDecimal = L.signed ws (lexeme L.decimal) <|> parens signedDecimal

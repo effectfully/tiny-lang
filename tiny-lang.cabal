@@ -19,6 +19,7 @@ library
         Data.Field
         TinyLang.Environment
         TinyLang.Generator
+        TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var
         TinyLang.Boolean.Core
@@ -29,9 +30,7 @@ library
         TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Generator
-        TinyLang.Field.ParsableField
         TinyLang.Field.Parser
-        TinyLang.Field.ParserUtils
         TinyLang.Field.Printer
         TinyLang.Field.F17
         TinyLang.Field.F4913

@@ -20,15 +20,12 @@
    we can actually perform comparisons of integers.
 -}
 
-module TinyLang.Field.Generator
-where
+module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Environment      (Env (..))
 import           TinyLang.Field.Core
 import           TinyLang.Field.Evaluator
-import           TinyLang.Var
 
 import qualified Data.IntMap.Strict        as IntMap
 import           QuickCheck.GenT

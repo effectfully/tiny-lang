@@ -5,7 +5,6 @@ module TinyLang.Field.Printer
     ) where
 
 import           TinyLang.Field.Core
-import           TinyLang.Var
 
 -- | Variable names are equipped with Unique identifiers.  The
 -- PrintStyle type determines whether printed variable names include
@@ -39,18 +38,18 @@ toStringBinOp Div = " / "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
--- isSimple (EVal _) = True  -- No!  Rationals cause problems: for example, neq0 (-1) % 2 is hard to parse
+isSimple (EVal _) = True
 isSimple _        = False
 
 -- Convert to string (with enclosing () if necessary)
-exprToString1 :: Show f => PrintStyle -> Expr f a -> String
+exprToString1 :: TextField f => PrintStyle -> Expr f a -> String
 exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString s e ++ ")"
 
-toStringUniVal :: Show f => UniVal f a -> String
+toStringUniVal :: TextField f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
-toStringUniVal (UniVal Field i) = show i
+toStringUniVal (UniVal Field i) = showField i
 
-econstrToString :: Show f => PrintStyle -> EConstr f -> String
+econstrToString :: TextField f => PrintStyle -> EConstr f -> String
 econstrToString style (EConstrFEq lhs rhs) = concat
     [ "assert "
     , exprToString style lhs
@@ -59,7 +58,7 @@ econstrToString style (EConstrFEq lhs rhs) = concat
     ]
 
 -- Main function
-exprToString :: Show f => PrintStyle -> Expr f a -> String
+exprToString :: TextField f => PrintStyle -> Expr f a -> String
 exprToString _ (EVal uv)                     = toStringUniVal uv
 exprToString s (EVar (UniVar _ v))           = toStringVar s v
 exprToString s (EAppUnOp op e)               = toStringUnOp op ++ exprToString1 s e
@@ -87,5 +86,5 @@ exprToString s (EConstr econstr expr)        = concat
     , exprToString s expr
     ]
 
-someExprToString :: (Show f) => PrintStyle -> SomeUniExpr f -> String
+someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String
 someExprToString s (SomeUniExpr _ e) = exprToString s e

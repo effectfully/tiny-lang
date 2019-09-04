@@ -12,15 +12,17 @@ import           Test.QuickCheck
   testing.  We just wrap integers in a newtype and perform operations
   modulo 17, with inverses hard-coded in a table. |-}
 
-newtype F17 = F17 { unF17 :: Int }
-    deriving (Eq)
-    deriving newtype (Hashable)
+newtype F17 = F17
+    { unF17 :: Int
+    } deriving (Eq)
+      deriving newtype (Hashable)
+      deriving anyclass (TextField)
 
 -- Always use mod, not rem! Rem gives the wrong result for negative values.
 toF17 :: Int -> F17
 toF17 i = F17 $ i `mod` 17
 
-instance (Show) F17 where
+instance Show F17 where
     show (F17 n) = show n
 
 instance Field F17 where

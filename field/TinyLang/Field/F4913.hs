@@ -4,13 +4,12 @@ module TinyLang.Field.F4913
     , unF4913
     ) where
 
-import           TinyLang.Field.Core
-import           TinyLang.Field.ParsableField
-import           TinyLang.Field.ParserUtils
+import           Data.Field
+import           TinyLang.ParseUtils
 import           TinyLang.Prelude
 
 import           Test.QuickCheck
-import qualified Text.Megaparsec.Char.Lexer   as L
+import qualified Text.Megaparsec.Char.Lexer as L
 
 {- | A crude implementation of the field of 4193 = 17^3 elements, ie
      GF(17^3).  We construct F_4193 as F_17[x]/(p), where p is the
@@ -74,8 +73,8 @@ pow x0 n0 =
        else pow' x0 (n0 `mod` 4912)
        -- ... using x^4192 = 1 for x /= 0, so x^(4192k +l) = x^l; also works for n<0 unless x=0.
 
-instance ParsableField F4913 where
-    parseFieldElement = toF4913
+instance TextField F4913 where
+    parseField = toF4913
         <$> (symbol "{" *> lexeme L.decimal)
         <*> (symbol "," *> lexeme L.decimal)
         <*> (symbol "," *> lexeme L.decimal <* symbol "}")
