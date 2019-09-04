@@ -1,5 +1,7 @@
 module TinyLang.Field.F4913
     ( F4913
+    , toF4913
+    , unF4913
     ) where
 
 import           TinyLang.Field.Core
@@ -36,22 +38,25 @@ data F4913
     = F Int Int Int  -- F a b c ~ a+bx+cx^2
     deriving (Eq, Generic)
 
+toF4913 :: Int -> Int -> Int -> F4913
+toF4913 a b c = F (a `mod` 17) (b `mod` 17) (c `mod` 17)
+
+unF4913 :: F4913 -> (Int, Int, Int)
+unF4913 (F a b c) = (a, b, c)
+
 instance Show F4913 where
     show (F a b c) = "{" ++ show a ++ "," ++ show b ++ "," ++ show c ++ "}"
 
-reduce :: F4913 -> F4913
-reduce (F a b c) = F (a `mod` 17) (b `mod` 17) (c `mod` 17)
-
 instance Field F4913 where
-    zer = F 0 0 0
-    one = F 1 0 0
-    add (F a b c) (F d e f) = reduce $ F (a+d) (b+e) (c+f)
-    sub (F a b c) (F d e f) = reduce $ F (a-d) (b-e) (c-f)
-    mul (F a b c) (F d e f) = reduce $ F (a*d - 3*c*e - 3*b*f)
-                                         (b*d + (a-c)*e +(-b -3*c)*f)
-                                         (c*d + b*e + (a-c)*f)
+    zer = toF4913 0 0 0
+    one = toF4913 1 0 0
+    add (F a b c) (F d e f) = toF4913 (a+d) (b+e) (c+f)
+    sub (F a b c) (F d e f) = toF4913 (a-d) (b-e) (c-f)
+    mul (F a b c) (F d e f) = toF4913 (a*d - 3*c*e - 3*b*f)
+                                      (b*d + (a-c)*e +(-b -3*c)*f)
+                                      (c*d + b*e + (a-c)*f)
     inv (F 0 0 0) = throw DivideByZero
-    inv (F a b c) = pow (F a b c) 4911
+    inv f         = pow f 4911
 
 -- Exponentiation by repeated squaring
 pow :: F4913 -> Int -> F4913
@@ -70,22 +75,19 @@ pow x0 n0 =
        -- ... using x^4192 = 1 for x /= 0, so x^(4192k +l) = x^l; also works for n<0 unless x=0.
 
 instance ParsableField F4913 where
-    parseFieldElement = F
-        <$> (symbol "[" *> lexeme L.decimal)
+    parseFieldElement = toF4913
+        <$> (symbol "{" *> lexeme L.decimal)
         <*> (symbol "," *> lexeme L.decimal)
-        <*> (symbol "," *> lexeme L.decimal <* symbol "]")
+        <*> (symbol "," *> lexeme L.decimal <* symbol "}")
 
 instance AsInteger F4913 where
-    asInteger (F a b c) =
-        if b==0 && c==0 then Just $ fromIntegral a
-        else Nothing
+    asInteger (F a b c)
+        | b == 0 && c == 0 = Just $ fromIntegral a
+        | otherwise        = Nothing
 
 instance IsNegative F4913 where
     isNegative _ = False
 
-arbitraryConst :: Gen Int
-arbitraryConst = elements [0..16]
-
 instance Arbitrary F4913 where
-    arbitrary = F <$> arbitraryConst <*> arbitraryConst <*> arbitraryConst
+    arbitrary = toF4913 <$> arbitrary <*> arbitrary <*> arbitrary
     shrink = genericShrink
