@@ -73,6 +73,8 @@ import           Data.HashSet              as Export (HashSet)
 
 import qualified Data.IntMap.Strict        as IntMap
 
+import           Test.QuickCheck.Property
+
 infixr 9 .*
 
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
@@ -87,6 +89,12 @@ instance Functor f => Functor (PairT b f) where
 
 instance Hashable a => Hashable (IntMap a) where
     hashWithSalt salt = hashWithSalt salt . IntMap.toList
+
+-- Feels so weird not to have it by default.
+instance Testable (Either String ()) where
+    property = property . \case
+        Left err -> failed { reason = err }
+        Right () -> succeeded
 
 visitExtract :: (Functor t, Functor f) => (t a -> a) -> (a -> f b) -> t a -> f (t b)
 visitExtract ext f a = (<$ a) <$> f (ext a)

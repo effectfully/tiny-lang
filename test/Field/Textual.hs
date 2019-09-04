@@ -9,9 +9,11 @@ module Field.Textual
 
 import           TinyLang.Field.Core
 import           TinyLang.Field.F17
+import           TinyLang.Field.F4913
 import           TinyLang.Field.Parser
 import           TinyLang.Field.Printer
 import           TinyLang.Field.Generator
+import           TinyLang.Prelude
 
 import           Test.QuickCheck
 import           Test.Tasty
@@ -40,12 +42,22 @@ forgetIDs (EConstr econstr e)  = case econstr of
        quickCheck (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
 -}
 
-prop_Ftest :: forall f . (Eq f, TextField f) => SomeUniExpr f -> Bool
-prop_Ftest (SomeUniExpr uni expr) =
-    case parseExpr (exprToString NoIDs expr) of
-        Left _                         -> False
-        Right (SomeUniExpr uni' expr') ->
-            withGeqUni uni uni' (forgetIDs expr' == forgetIDs expr) False
+prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
+prop_Ftest (SomeUniExpr uni expr) = do
+    SomeUniExpr uni' expr' <- parseExpr (exprToString NoIDs expr)
+    let checkResult expr'' =
+            when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
+                [ exprToString NoIDs expr
+                , " is not equal to "
+                , exprToString NoIDs expr'
+                ]
+        uniMismatch =
+            Left $ concat
+                [ show uni
+                , " is not equal to "
+                , show uni'
+                ]
+    withGeqUni uni uni' (checkResult expr') uniMismatch
 
 data Binding f = forall a. Binding (UniVar f a) (Expr f a)
 
@@ -58,7 +70,7 @@ instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
 
 prop_nestedELet
     :: forall f. (Eq f, TextField f)
-    => [Binding f] -> SomeUniExpr f -> Bool
+    => [Binding f] -> SomeUniExpr f -> Either String ()
 prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
     bind (Binding uniVar body) (SomeUniExpr uni expr) =
@@ -67,7 +79,7 @@ prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
     testProperty "checkParseGeneric" $
-        withMaxSuccess 1000 . property $ prop_Ftest @F17
+        withMaxSuccess 1000 . property $ prop_Ftest @F4913
 
 test_checkParseNestedLets :: TestTree
 test_checkParseNestedLets =
