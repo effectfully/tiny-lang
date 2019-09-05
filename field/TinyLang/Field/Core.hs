@@ -153,8 +153,10 @@ instance (Field f, af ~ AField f) => Field (Expr f af) where
     mul = EAppBinOp Mul
     div = EAppBinOp Div
 
-deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Num (UniVal f af)
-deriving via AField (Expr   f af) instance (Field f, af ~ AField f) => Num (Expr   f af)
+deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Num        (UniVal f af)
+deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Fractional (UniVal f af)
+deriving via AField (Expr   f af) instance (Field f, af ~ AField f) => Num        (Expr   f af)
+deriving via AField (Expr   f af) instance (Field f, af ~ AField f) => Fractional (Expr   f af)
 
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)

@@ -146,6 +146,11 @@ instance Field f => Num (AField f) where
             go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
             go n          = one `add` fromInteger (n - 1)
 
+instance Field f => Fractional (AField f) where
+    (/) = div
+    recip = inv
+    fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
+
 instance TextField f => TextField (AField f) where
     parseField = AField <$> parseField
     showField = showField . unAField
