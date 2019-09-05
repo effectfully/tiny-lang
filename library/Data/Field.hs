@@ -13,9 +13,10 @@ import qualified Prelude          (div)
 
 import           TinyLang.ParseUtils
 
+import           Control.Exception (throw, ArithException (..))
 import           Data.Coerce
 import           Data.Ratio
-import           Data.Foldable (asum)
+import           Data.Foldable     (asum)
 import           Text.Megaparsec
 
 infixl 6 `add`, `sub`
@@ -116,6 +117,16 @@ instance Field Rational where
     one = 1
     inv = \x -> denominator x % numerator x
     mul = (*)
+
+instance Field Bool where
+    zer = False
+    neg = id
+    add = (/=)
+    one = True
+    mul = (&&)
+
+    inv False = throw DivideByZero
+    inv True  = True
 
 instance Field f => Num (AField f) where
     negate = neg

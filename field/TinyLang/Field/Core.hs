@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingVia #-}
+
 module TinyLang.Field.Core
     ( module Field
     , module Var
@@ -131,7 +133,7 @@ mapUniVal f (UniVal uni x) = UniVal uni $ f x
 zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
 zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
 
-instance (Field f, f ~ f') => Field (UniVal f (AField f')) where
+instance (Field f, af ~ AField f) => Field (UniVal f af) where
     zer = UniVal Field zer
     neg = mapUniVal neg
     add = zipUniVal add
@@ -141,27 +143,7 @@ instance (Field f, f ~ f') => Field (UniVal f (AField f')) where
     mul = zipUniVal mul
     div = zipUniVal div
 
-instance Num (UniVal f Bool) where
-    negate = error "no 'negate'"
-    (+)    = error "no '(+)'"
-    (-)    = error "no '(-)'"
-    (*)    = error "no '(*)'"
-    abs    = error "no 'abs'"
-    signum = error "no 'signum'"
-    fromInteger 0 = UniVal Bool False
-    fromInteger 1 = UniVal Bool True
-    fromInteger n = error $ show n ++ " is not a boolean"
-
-instance (Field f, f ~ f') => Num (UniVal f (AField f')) where
-    negate = neg
-    (+)    = add
-    (-)    = sub
-    (*)    = mul
-    abs    = error "no 'abs'"
-    signum = error "no 'signum'"
-    fromInteger = UniVal Field . fromInteger
-
-instance (Field f, f ~ f') => Field (Expr f (AField f')) where
+instance (Field f, af ~ AField f) => Field (Expr f af) where
     zer = EVal zer
     neg = EAppUnOp Neg
     add = EAppBinOp Add
@@ -170,6 +152,9 @@ instance (Field f, f ~ f') => Field (Expr f (AField f')) where
     inv = EAppUnOp Inv
     mul = EAppBinOp Mul
     div = EAppBinOp Div
+
+deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Num (UniVal f af)
+deriving via AField (Expr   f af) instance (Field f, af ~ AField f) => Num (Expr   f af)
 
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
@@ -181,7 +166,7 @@ deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
 instance TextField f => Show (UniVal f a) where
-    show (UniVal Bool  b) = if b then "1" else "0"
+    show (UniVal Bool  b) = "(" ++ "UniVal Bool " ++ show b ++ ")"
     show (UniVal Field i) = showField i
 
 deriving instance TextField f => Show (Expr f a)
