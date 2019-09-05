@@ -1,10 +1,12 @@
 -- | Some functions/types lifted out of the Parser module so that we can use them in ParsableField
 -- TODO: clean up the imports/exports
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module TinyLang.ParseUtils
     ( Parser
-    , IdentifierState
-    , emptyIdentifierState
+    , Scope
+    , emptyScope
     , ws
     , lexeme
     , symbol
@@ -20,15 +22,16 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
--- Stuff for generating new Unique names during parsing.  Based on Name.hs in PlutusCore.
--- IdentifierState maps names onto Vars and remembers a counter for Unique IDs.
-type IdentifierState = (M.Map String Var, Int)
+-- | 'Scope' maps names onto 'Var's.
+type Scope = M.Map String Var
 
-emptyIdentifierState :: IdentifierState
-emptyIdentifierState = (mempty, 0)
+emptyScope :: Scope
+emptyScope = mempty
 
  -- Void -> No custom error messages
-type Parser = ParsecT Void String (TinyLang.Prelude.State IdentifierState)
+type Parser = ParsecT Void String (StateT Scope Supply)
+
+instance (MonadSupply m, Stream s) => MonadSupply (ParsecT e s m)
 
 -- Consume whitespace
 ws :: Parser ()

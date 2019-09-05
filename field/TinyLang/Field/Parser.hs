@@ -66,28 +66,38 @@ import           Text.Megaparsec.Char
 
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
-makeVar :: (MonadState IdentifierState m) => String -> m Var
+makeVar :: (MonadSupply m, MonadState Scope m) => String -> m Var
 makeVar name = do
-    (ss, counter) <- get
-    case M.lookup name ss of
-        Just v -> pure v
-        Nothing -> do
-            let v = Var (Unique counter) name
-                counter' = counter + 1
-            put (M.insert name v ss, counter')
-            pure v
+    vars <- get
+    case M.lookup name vars of
+        Just var -> pure var
+        Nothing  -> do
+            var <- freshVar name
+            put $ M.insert name var vars
+            pure var
 
--- | The main entry point: parse a string and return Either an error message or an Expr.
-parseExpr :: TextField f => String -> Either String (SomeUniExpr f)
-parseExpr = parseBy expr
+-- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
+-- Regardless of whether the result is an error or not, also returns the latest 'Scope'.
+parseExprScope :: (MonadSupply m, TextField f) => String -> m (Either String (SomeUniExpr f), Scope)
+parseExprScope = parseBy expr
 
--- | The main entry point: parse a string and return Either an error message or an EConstr.
-parseEConstr :: TextField f => String -> Either String (EConstr f)
-parseEConstr = parseBy econstr
+-- | Parse a @String@ and return @Either@ an error message or an @EConstr@.
+-- Regardless of whether the result is an error or not, also returns the latest 'Scope'.
+parseEConstrScope :: (MonadSupply m, TextField f) => String -> m (Either String (EConstr f), Scope)
+parseEConstrScope = parseBy econstr
 
-parseBy :: Parser a -> String -> Either String a
+-- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
+parseExpr :: (MonadSupply m, TextField f) => String -> m (Either String (SomeUniExpr f))
+parseExpr = fmap fst . parseExprScope
+
+-- | Parse a @String@ and return @Either@ an error message or an @EConstr@.
+parseEConstr :: (MonadSupply m, TextField f) => String -> m (Either String (EConstr f))
+parseEConstr = fmap fst . parseEConstrScope
+
+parseBy :: MonadSupply m => Parser a -> String -> m (Either String a, Scope)
 parseBy parser str =
-    first errorBundlePretty . fst $ runState (runParserT (top parser) "" str) emptyIdentifierState
+    liftSupply $ first (first errorBundlePretty) <$>
+        runStateT (runParserT (top parser) "" str) emptyScope
 
 -- Parse the whole of an input stream
 top :: Parser a -> Parser a

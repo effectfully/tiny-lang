@@ -44,7 +44,7 @@ forgetIDs (EConstr econstr e)  = case econstr of
 
 prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
 prop_Ftest (SomeUniExpr uni expr) = do
-    SomeUniExpr uni' expr' <- parseExpr (exprToString NoIDs expr)
+    SomeUniExpr uni' expr' <- runSupply $ parseExpr (exprToString NoIDs expr)
     let checkResult expr'' =
             when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
                 [ exprToString NoIDs expr
