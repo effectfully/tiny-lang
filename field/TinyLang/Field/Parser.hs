@@ -50,7 +50,8 @@
 -- FIXME: do we want to allow == on booleans?  Eg, T==F or (1==2)==(3==4)
 
 module TinyLang.Field.Parser
-    ( parseExprScope
+    ( parseBy
+    , parseExprScope
     , parseEConstrScope
     , parseExpr
     , parseEConstr
