@@ -1,5 +1,6 @@
 module TinyLang.Field.Printer
-    ( PrintStyle(..)
+    ( PrintStyle (..)
+    , econstrToString
     , exprToString
     , someExprToString
     ) where
