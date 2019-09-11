@@ -115,7 +115,7 @@ top :: Parser a -> Parser a
 top = between ws eof
 
 expr :: TextField f => Parser (SomeUniExpr f)
-expr = try (SomeUniExpr Bool <$> expr_B) <|> (SomeUniExpr Field <$> expr_F)
+expr = try (SomeUniExpr Bool <$> exprPoly) <|> (SomeUniExpr Field <$> exprPoly)
 -- ^ Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,
 -- but it should backtrack when it fails.  Maybe makeExprParser doesn't backtrack enough?
@@ -127,10 +127,6 @@ keywords = ["T", "F", "not", "and", "or", "xor", "let", "if", "then", "else", "n
 -- Parse a keyword, checking that it's not a prefix of something else
 keyword :: String -> Parser ()
 keyword w = (lexeme . try) (string w *> notFollowedBy alphaNumChar)
-
-
--- Most of the remaining parsers have a B or F suffix depending on
--- whether they're returning something of type Bool or type Field.
 
 -- For type disambiguation purposes variables of type Field have
 -- normal ids and ones of type Bool have ids beginning with '?'
@@ -177,6 +173,13 @@ var_F = UniVar Field <$> (identifier_F >>= makeVar)
 var_B :: Parser (UniVar f Bool)
 var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 
+varSome :: Parser (SomeUniVar f)
+varSome = Some <$> var_B <|> Some <$> var_F
+
+varPoly :: forall f a. KnownUni f a => Parser (UniVar f a)
+varPoly = case knownUni @f @a of
+    Bool  -> var_B
+    Field -> var_F
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
@@ -193,12 +196,12 @@ var_B = UniVar Bool <$> (identifier_B >>= makeVar)
 -- If an ifExpr appears inside an operExpr it has to be parenthesised.
 
 expr1_B :: TextField f => Parser (Expr f Bool)
-expr1_B =  parens expr_B <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
+expr1_B =  parens exprPoly <|> valExpr_B <|> varExpr_B <|> neq0Expr <|> eqExpr
 -- Let's put parens at the start because we can commit to that if we
 -- see "(" and don't have to do any backtracking.
 
 expr1_F :: TextField f => Parser (Expr f (AField f))
-expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
+expr1_F =  try valExpr_F <|> parens exprPoly <|> varExpr_F
 -- Missing out 'try' before valExpr_F causes a failure with eg (5 % 1) when the field is Rational.
 -- We can't put parens at the start because (-5) % 2 is valid syntax for Rationals and we have to try that first.
 -- We have to be careful with this because concrete syntax for finite fields might be complicated
@@ -206,11 +209,10 @@ expr1_F =  try valExpr_F <|> parens expr_F <|> varExpr_F
 -- Special cases for eq and neq0 because the return type isn't the
 -- same as the argument type(s).
 neq0Expr :: TextField f => Parser (Expr f Bool)
-neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> expr_F
+neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> exprPoly
 
 eqExpr :: TextField f => Parser (Expr f Bool)
-eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
-
+eqExpr = EAppBinOp FEq <$> exprPoly <* symbol "==" <*> exprPoly
 
 -- Operations for ordering comparisons of "integer" field elements
 -- GADTs stop us using makeExprParsr here: it expects the input and output type to be the same.
@@ -221,30 +223,26 @@ eqExpr = EAppBinOp FEq <$> expr_F <* symbol "==" <*> expr_F
 -- have to re-parse e1 each time we fail to match > with one of the
 -- other operators.
 comparisonExpr :: TextField f => Parser (Expr f Bool)
-comparisonExpr =
-    try (EAppBinOp FLt <$> expr_F <*> (symbol "<"  *> expr_F))
-            <|> try (EAppBinOp FLe <$> expr_F <*> (symbol "<=" *> expr_F))
-            <|> try (EAppBinOp FGe <$> expr_F <*> (symbol ">=" *> expr_F))
-            <|> EAppBinOp FGt <$> expr_F <*> (symbol ">"  *> expr_F)
-
--- expr: full expressions
-expr_B :: TextField f => Parser (Expr f Bool)
-expr_B = asum
-    [ ifExpr_B
-    , letExpr_B
-    , eqConstr_B
-    , try eqExpr
-    , try operExpr_B
-    , comparisonExpr
+comparisonExpr = asum
+    [ try $ EAppBinOp FLt <$> exprPoly <*> (symbol "<"  *> exprPoly)
+    , try $ EAppBinOp FLe <$> exprPoly <*> (symbol "<=" *> exprPoly)
+    , try $ EAppBinOp FGe <$> exprPoly <*> (symbol ">=" *> exprPoly)
+    , EAppBinOp FGt <$> exprPoly <*> (symbol ">"  *> exprPoly)
     ]
--- Putting if/let at the end leads to some very slow/large parses.
 
-expr_F :: TextField f => Parser (Expr f (AField f))
-expr_F = asum
-    [ ifExpr_F
-    , letExpr_F
-    , eqConstr_F
-    , operExpr_F
+exprPoly :: forall f a. (TextField f, KnownUni f a) => Parser (Expr f a)
+exprPoly = asum
+    [ ifExprPoly
+    , letExprPoly
+    , eqConstrPoly
+    , EVar <$> varPoly
+    , case knownUni @f @a of
+        Bool  -> asum
+            [ try eqExpr
+            , try operExpr_B
+            , comparisonExpr
+            ]
+        Field -> operExpr_F
     ]
 
 -- operExpr: expressions involving unary and binary operators.
@@ -257,11 +255,11 @@ operExpr_B = makeExprParser expr1_B operators_B
 
 operators_B :: [[E.Operator Parser (Expr f Bool)]]
 operators_B = -- The order here determines operator precedence.
-  [ [Prefix (EAppUnOp  Not <$ keyword "not")]
-  , [InfixL (EAppBinOp Xor <$ keyword "xor")]
-  , [InfixL (EAppBinOp And <$ keyword "and")]
-  , [InfixL (EAppBinOp Or  <$ keyword "or")]
-  ]
+    [ [Prefix (EAppUnOp  Not <$ keyword "not")]
+    , [InfixL (EAppBinOp Xor <$ keyword "xor")]
+    , [InfixL (EAppBinOp And <$ keyword "and")]
+    , [InfixL (EAppBinOp Or  <$ keyword "or")]
+    ]
 
 -- Numeric expressions
 operExpr_F :: TextField f => Parser (Expr f (AField f))
@@ -269,70 +267,37 @@ operExpr_F = makeExprParser expr1_F operators_F
 
 operators_F :: [[E.Operator Parser (Expr f (AField f))]]
 operators_F = -- The order here determines operator precedence.
-  [ [Prefix (EAppUnOp  Neg <$ keyword "neg"), Prefix (EAppUnOp Inv <$ keyword "inv")]
-  , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
-  , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
-  ]
-
+    [ [Prefix (EAppUnOp  Neg <$ keyword "neg"), Prefix (EAppUnOp Inv <$ keyword "inv")]
+    , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
+    , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
+    ]
 
 -- Can we somehow commit to an if-expression when we see "if expr_B" and then
 -- continue with the other cases?  This would reduce the need for backtracking.
 -- Probably not, because we don't know the type of the entire expression until
 -- we see the first branch.
 
--- 'if' with boolean branches
-ifExpr_B :: TextField f => Parser (Expr f Bool)
-ifExpr_B = EIf
-    <$> (keyword "if" *> expr_B)
-    <*> (keyword "then" *> expr_B)
-    <*> (keyword "else" *> expr_B)
+ifExprPoly :: (TextField f, KnownUni f a) => Parser (Expr f a)
+ifExprPoly = EIf
+    <$> (keyword "if" *> exprPoly)
+    <*> (keyword "then" *> exprPoly)
+    <*> (keyword "else" *> exprPoly)
 
--- 'if' with numeric branches
-ifExpr_F :: TextField f => Parser (Expr f (AField f))
-ifExpr_F = EIf
-    <$> (keyword "if" *> expr_B)
-    <*> (keyword "then" *> expr_F)
-    <*> (keyword "else" *> expr_F)
-
-
--- 'let' with boolean type
-letExpr_B :: TextField f => Parser (Expr f Bool)
-letExpr_B =
-    try (ELet
-        <$> (keyword "let" *> var_B)
-        <*> (symbol  "="   *> expr_B)
-        <*> (symbol  ";"   *> expr_B))
-    <|> (ELet
-        <$> (keyword "let" *> var_F)
-        <*> (symbol  "="   *> expr_F)
-        <*> (symbol  ";"   *> expr_B))
-
--- 'let' with numeric type
-letExpr_F :: TextField f => Parser (Expr f (AField f))
-letExpr_F =
-    try (ELet
-        <$> (keyword "let" *> var_B)
-        <*> (symbol  "="   *> expr_B)
-        <*> (symbol  ";"   *> expr_F))
-     <|> (ELet
-        <$> (keyword "let" *> var_F)
-        <*> (symbol  "="   *> expr_F)
-        <*> (symbol  ";"   *> expr_F))
+letExprPoly :: (TextField f, KnownUni f a) => Parser (Expr f a)
+letExprPoly = do
+    Some (var@(UniVar varUni _)) <- keyword "let" *> varSome
+    withKnownUni varUni $ ELet var
+        <$> (symbol "=" *> exprPoly)
+        <*> (symbol ";" *> exprPoly)
 
 econstr :: TextField f => Parser (EConstr f)
 econstr =
     EConstrFEq
-        <$> (keyword "assert" *> expr_F)
-        <*> (symbol  "=="     *> expr_F)
+        <$> (keyword "assert" *> exprPoly)
+        <*> (symbol  "=="     *> exprPoly)
 
-eqConstr_B :: TextField f => Parser (Expr f Bool)
-eqConstr_B =
+eqConstrPoly :: (TextField f, KnownUni f a) => Parser (Expr f a)
+eqConstrPoly =
     EConstr
         <$> econstr
-        <*> (symbol ";" *> expr_B)
-
-eqConstr_F :: TextField f => Parser (Expr f (AField f))
-eqConstr_F =
-    EConstr
-        <$> econstr
-        <*> (symbol ";" *> expr_F)
+        <*> (symbol ";" *> exprPoly)
