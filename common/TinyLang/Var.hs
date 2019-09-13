@@ -12,6 +12,7 @@ module TinyLang.Var
     , freeUniqueIntMap
     , freeUniqueFoldable
     , Var (..)
+    , setUnique
     , freshVar
     ) where
 
@@ -115,6 +116,10 @@ instance Ord Var where
 
 instance Monad m => Serial m Var where
     series = flip Var "x" <$> series
+
+-- Use @lens@?
+setUnique :: Unique -> Var -> Var
+setUnique uniq var = var { _varUniq = uniq }
 
 freshVar :: MonadSupply m => String -> m Var
 freshVar name = flip Var name <$> freshUnique

@@ -14,6 +14,7 @@ module TinyLang.Field.Core
     , SomeUniVal
     , SomeUniVar
     , SomeUniExpr (..)
+    , traverseSomeUniExpr
     , UnOp (..)
     , BinOp (..)
     , EConstr (..)
@@ -25,6 +26,7 @@ module TinyLang.Field.Core
     , ScopedVarSigns (..)
     , exprVarSigns
     , exprFreeVarSigns
+    , supplyFromAtLeastFree
     , embedBoolUnOp
     , embedBoolBinOp
     , embedBoolExpr
@@ -122,7 +124,6 @@ data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
     EConstr :: EConstr f -> Statement f
 
--- TODO: check that a variable is always of the same type.
 data Expr f a where
     EVal       :: UniVal f a -> Expr f a
     EVar       :: UniVar f a -> Expr f a
@@ -136,6 +137,11 @@ mapUniVal f (UniVal uni x) = UniVal uni $ f x
 
 zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
 zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
+
+traverseSomeUniExpr
+    :: Functor m
+    => (forall a. Expr f a -> m (Expr f a)) -> SomeUniExpr f -> m (SomeUniExpr f)
+traverseSomeUniExpr h (SomeUniExpr uni expr) = SomeUniExpr uni <$> h expr
 
 instance (Field f, af ~ AField f) => Field (UniVal f af) where
     zer = UniVal Field zer
@@ -261,7 +267,7 @@ data VarSign f = forall a. VarSign
 deriving instance Show (VarSign f)
 
 instance Eq (VarSign f) where
-    VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 (name1 == name2) False
+    VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 False $ name1 == name2
 
 data ScopedVarSigns f = ScopedVarSigns
     { _scopedVarSignsFree  :: Env (VarSign f)
@@ -303,6 +309,10 @@ exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
+
+supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
+supplyFromAtLeastFree expr = supplyFromAtLeast . freeUniqueIntMap . unEnv $ free <> bound where
+    ScopedVarSigns free bound = exprVarSigns expr
 
 embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
 embedBoolUnOp Boolean.Not = Not

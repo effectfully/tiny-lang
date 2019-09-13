@@ -64,14 +64,13 @@
 module TinyLang.Field.Parser
     ( parseBy
     , parseExprScope
-    , parseEConstrScope
     , parseExpr
-    , parseEConstr
     ) where
 
 import           TinyLang.Prelude               hiding (many, some, try, option)
 
 import           TinyLang.Field.Core
+import           TinyLang.Field.Rename
 import           TinyLang.Field.Evaluator
 import           TinyLang.ParseUtils
 
@@ -97,26 +96,13 @@ makeVar name = do
 parseExprScope
     :: forall f m. (MonadSupply m, TextField f)
     => String -> m (Either String (SomeUniExpr f), Scope)
-parseExprScope = parseBy expr
-
--- | Parse a @String@ and return @Either@ an error message or an @EConstr@.
--- Regardless of whether the result is an error or not, also returns the latest 'Scope'.
-parseEConstrScope
-    :: forall f m. (MonadSupply m, TextField f)
-    => String -> m (Either String (EConstr f), Scope)
-parseEConstrScope = parseBy econstr
+parseExprScope = parseBy expr >=> firstF (traverse $ traverseSomeUniExpr renameExpr)
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 parseExpr
     :: forall f m. (MonadSupply m, TextField f)
     => String -> m (Either String (SomeUniExpr f))
 parseExpr = fmap fst . parseExprScope
-
--- | Parse a @String@ and return @Either@ an error message or an @EConstr@.
-parseEConstr
-    :: forall f m. (MonadSupply m, TextField f)
-    => String -> m (Either String (EConstr f))
-parseEConstr = fmap fst . parseEConstrScope
 
 parseBy :: MonadSupply m => Parser a -> String -> m (Either String a, Scope)
 parseBy parser str =

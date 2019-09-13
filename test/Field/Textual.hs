@@ -101,7 +101,7 @@ test_printerParserRoundtrip =
 
 parsePrint :: String -> String
 parsePrint
-    = either id (\(SomeUniExpr _ expr) -> exprToString NoIDs expr)
+    = either id (\(SomeUniExpr _ expr) -> exprToString WithIDs expr)
     . runSupply
     . parseExpr @Rational
 
