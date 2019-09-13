@@ -98,3 +98,6 @@ instance Testable (Either String ()) where
 
 visitExtract :: (Functor t, Functor f) => (t a -> a) -> (a -> f b) -> t a -> f (t b)
 visitExtract ext f a = (<$ a) <$> f (ext a)
+
+firstF :: Functor f => (a -> f c) -> (a, b) -> f (c, b)
+firstF f (x, y) = flip (,) y <$> f x
