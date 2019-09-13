@@ -78,7 +78,10 @@ test-suite tiny-lang-test
         containers,
         QuickCheck,
         QuickCheck-GenT,
+        filepath,
+        directory,
         tasty,
+        tasty-golden,
         tasty-quickcheck
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
