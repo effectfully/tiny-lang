@@ -4,7 +4,7 @@
 -}
 
 module Field.Textual
-    ( test_printerParserRoundtrip
+    ( test_textual
     ) where
 
 import           TinyLang.Field.Core
@@ -18,6 +18,9 @@ import           TinyLang.Prelude
 import           Test.QuickCheck
 import           Test.Tasty
 import           Test.Tasty.QuickCheck
+import           Test.Tasty.Golden
+import           System.FilePath
+import           System.Directory
 
 -- TODO: we shouldn't forget uniques, because we ignore name shadowing problems in
 -- generators. I.e. we should implement alpha-equality (but it is kind of weird to change
@@ -26,15 +29,18 @@ import           Test.Tasty.QuickCheck
 forgetID :: UniVar f a -> UniVar f a
 forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 
+forgetStatementIDs :: Statement f -> Statement f
+forgetStatementIDs (ELet uvar d)      = ELet (forgetID uvar) (forgetIDs d)
+forgetStatementIDs (EConstr econstr)  = case econstr of
+    EConstrFEq lhs rhs -> EConstr (EConstrFEq (forgetIDs lhs) (forgetIDs rhs))
+
 forgetIDs :: Expr f a -> Expr f a
 forgetIDs (EVal uval)          = EVal uval
 forgetIDs (EVar uvar)          = EVar $ forgetID uvar
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
-forgetIDs (ELet uvar d e)      = ELet (forgetID uvar) (forgetIDs d) (forgetIDs e)
-forgetIDs (EConstr econstr e)  = case econstr of
-    EConstrFEq lhs rhs -> EConstr (EConstrFEq (forgetIDs lhs) (forgetIDs rhs)) (forgetIDs e)
+forgetIDs (EStatement stat e)  = EStatement (forgetStatementIDs stat) (forgetIDs e)
 
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))
@@ -57,7 +63,7 @@ prop_Ftest (SomeUniExpr uni expr) = do
                 , " is not equal to "
                 , show uni'
                 ]
-    withGeqUni uni uni' (checkResult expr') uniMismatch
+    withGeqUni uni uni' uniMismatch $ checkResult expr'
 
 data Binding f = forall a. Binding (UniVar f a) (Expr f a)
 
@@ -74,7 +80,7 @@ prop_nestedELet
 prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
     bind (Binding uniVar body) (SomeUniExpr uni expr) =
-        SomeUniExpr uni $ ELet uniVar body expr
+        SomeUniExpr uni $ EStatement (ELet uniVar body) expr
 
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
@@ -91,4 +97,49 @@ test_printerParserRoundtrip =
     testGroup "printerParserRoundtrip"
         [ test_checkParseGeneric
         , test_checkParseNestedLets
+        ]
+
+parsePrint :: String -> String
+parsePrint
+    = either id (\(SomeUniExpr _ expr) -> exprToString NoIDs expr)
+    . runSupply
+    . parseExpr @Rational
+
+parsePrintGolden :: String -> String -> TestTree
+parsePrintGolden name expr =
+    withResource (createDirectoryIfMissing True folder) mempty $ \_ ->
+        goldenVsString
+            name
+            (folder </> name <> ".golden")
+            (return . fromString $ parsePrint expr)
+  where
+    folder = "test" </> "Field" </> "golden"
+
+test_forLoops :: TestTree
+test_forLoops = parsePrintGolden "forLoops" $ unlines
+    [ "for i = 1 to 2 do"
+    , "    let i' = i;"
+    , "    for j = 2 to 3 do"
+    , "        let k = i * j;"
+    , "        assert k == i' * j;"
+    , "    end;"
+    , "    let p = i;"
+    , "    for l = 1 to 2 do"
+    , "        let p = p * l;"
+    , "    end;"
+    , "end;"
+    , "p"
+    ]
+
+test_parsePrintGolden :: TestTree
+test_parsePrintGolden =
+    testGroup "parsePrintGolden"
+        [ test_forLoops
+        ]
+
+test_textual :: TestTree
+test_textual =
+    testGroup "textual"
+        [ test_printerParserRoundtrip
+        , test_parsePrintGolden
         ]

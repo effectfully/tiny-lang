@@ -17,6 +17,7 @@ module TinyLang.Field.Core
     , UnOp (..)
     , BinOp (..)
     , EConstr (..)
+    , Statement (..)
     , Expr (..)
     , withGeqUni
     , withKnownUni
@@ -117,15 +118,18 @@ data EConstr f
     = EConstrFEq (Expr f (AField f)) (Expr f (AField f))
     deriving (Show, Eq)
 
+data Statement f where
+    ELet    :: UniVar f a -> Expr f a -> Statement f
+    EConstr :: EConstr f -> Statement f
+
 -- TODO: check that a variable is always of the same type.
 data Expr f a where
-    EVal      :: UniVal f a -> Expr f a
-    EVar      :: UniVar f a -> Expr f a
-    EIf       :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
-    EAppUnOp  :: UnOp f a b -> Expr f a -> Expr f b
-    EAppBinOp :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
-    ELet      :: UniVar f b -> Expr f b -> Expr f a -> Expr f a
-    EConstr   :: EConstr f -> Expr f a -> Expr f a
+    EVal       :: UniVal f a -> Expr f a
+    EVar       :: UniVar f a -> Expr f a
+    EIf        :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
+    EAppUnOp   :: UnOp f a b -> Expr f a -> Expr f b
+    EAppBinOp  :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
+    EStatement :: Statement f -> Expr f a -> Expr f a
 
 mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
 mapUniVal f (UniVal uni x) = UniVal uni $ f x
@@ -171,38 +175,39 @@ instance TextField f => Show (UniVal f a) where
     show (UniVal Bool  b) = "(" ++ "UniVal Bool " ++ show b ++ ")"
     show (UniVal Field i) = showField i
 
+deriving instance TextField f => Show (Statement f)
 deriving instance TextField f => Show (Expr f a)
 
 deriving instance TextField f => Show (Some (UniVal f))
 
 deriving instance TextField f => Show (SomeUniExpr f)
 
-withGeqUni :: Uni f a1 -> Uni f a2 -> (a1 ~ a2 => b) -> b -> b
-withGeqUni Bool  Bool  y _ = y
-withGeqUni Field Field y _ = y
-withGeqUni _     _     _ z = z
+withGeqUni :: Uni f a1 -> Uni f a2 -> b -> (a1 ~ a2 => b) -> b
+withGeqUni Bool  Bool  _ y = y
+withGeqUni Field Field _ y = y
+withGeqUni _     _     z _ = z
 
-withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> ((a1 ~ a2, b1 ~ b2) => d) -> d -> d
-withGeqUnOp Not  Not  y _ = y
-withGeqUnOp Neq0 Neq0 y _ = y
-withGeqUnOp Neg  Neg  y _ = y
-withGeqUnOp Inv  Inv  y _ = y
-withGeqUnOp _    _    _ z = z
+withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
+withGeqUnOp Not  Not  _ y = y
+withGeqUnOp Neq0 Neq0 _ y = y
+withGeqUnOp Neg  Neg  _ y = y
+withGeqUnOp Inv  Inv  _ y = y
+withGeqUnOp _    _    z _ = z
 
-withGeqBinOp :: BinOp f a1 b1 c1 -> BinOp f a2 b2 c2 -> ((a1 ~ a2, b1 ~ b2, c1 ~ c2) => d) -> d -> d
-withGeqBinOp Or  Or  y _ = y
-withGeqBinOp And And y _ = y
-withGeqBinOp Xor Xor y _ = y
-withGeqBinOp FEq FEq y _ = y
-withGeqBinOp FLt FLt y _ = y
-withGeqBinOp FLe FLe y _ = y
-withGeqBinOp FGe FGe y _ = y
-withGeqBinOp FGt FGt y _ = y
-withGeqBinOp Add Add y _ = y
-withGeqBinOp Sub Sub y _ = y
-withGeqBinOp Mul Mul y _ = y
-withGeqBinOp Div Div y _ = y
-withGeqBinOp _   _   _ z = z
+withGeqBinOp :: BinOp f a1 b1 c1 -> BinOp f a2 b2 c2 -> d -> ((a1 ~ a2, b1 ~ b2, c1 ~ c2) => d) -> d
+withGeqBinOp Or  Or  _ y = y
+withGeqBinOp And And _ y = y
+withGeqBinOp Xor Xor _ y = y
+withGeqBinOp FEq FEq _ y = y
+withGeqBinOp FLt FLt _ y = y
+withGeqBinOp FLe FLe _ y = y
+withGeqBinOp FGe FGe _ y = y
+withGeqBinOp FGt FGt _ y = y
+withGeqBinOp Add Add _ y = y
+withGeqBinOp Sub Sub _ y = y
+withGeqBinOp Mul Mul _ y = y
+withGeqBinOp Div Div _ y = y
+withGeqBinOp _   _   z _ = z
 
 -- This doesn't type check:
 --
@@ -218,27 +223,31 @@ instance Eq f => Eq (UniVal f a) where
 instance Eq f => Eq (UniVar f a) where
     UniVar _ v1 == UniVar _ v2 = v1 == v2
 
+instance Eq f => Eq (Statement f) where
+    ELet (UniVar u1 v1) d1 == ELet (UniVar u2 v2) d2 =
+        withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
+    EConstr ec1            == EConstr ec2            = ec1 == ec2
+
+    ELet    {} == _ = False
+    EConstr {} == _ = False
+
 instance Eq f => Eq (Expr f a) where
-    EVal uval1                == EVal uval2                  = uval1 == uval2
-    EVar uvar1                == EVar uvar2                  = uvar1 == uvar2
-    EIf b1 x1 y1              == EIf b2 x2 y2                = b1 == b2 && x1 == x2 && y1 == y2
-    EAppUnOp o1 x1            == EAppUnOp o2 x2              = withGeqUnOp o1 o2 (x1 == x2) False
-    EAppBinOp o1 x1 y1        == EAppBinOp o2 x2 y2          =
-        withGeqBinOp o1 o2 (x1 == x2 && y1 == y2) False
-    ELet (UniVar u1 v1) d1 e1 == ELet (UniVar u2 v2) d2 e2   =
-        withGeqUni u1 u2 (v1 == v2 && d1 == d2 && e1 == e2) False
-    EConstr ec1 e1            == EConstr ec2 e2              = ec1 == ec2 && e1 == e2
+    EVal uval1         == EVal uval2         = uval1 == uval2
+    EVar uvar1         == EVar uvar2         = uvar1 == uvar2
+    EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
+    EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 False $ x1 == x2
+    EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 False $ x1 == x2 && y1 == y2
+    EStatement st1 e1  == EStatement st2 e2  = st1 == st2 && e1 == e2
 
     -- Here we explicitly pattern match on the first argument again and always return 'False'.
     -- This way we'll get a warning when an additional constructor is added to 'Expr',
     -- instead of erroneously defaulting to 'False'.
-    EVal      {} == _ = False
-    EVar      {} == _ = False
-    EIf       {} == _ = False
-    EAppUnOp  {} == _ = False
-    EAppBinOp {} == _ = False
-    ELet      {} == _ = False
-    EConstr   {} == _ = False
+    EVal       {} == _ = False
+    EVar       {} == _ = False
+    EIf        {} == _ = False
+    EAppUnOp   {} == _ = False
+    EAppBinOp  {} == _ = False
+    EStatement {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool  = id
@@ -269,27 +278,28 @@ isTracked uniq x env =
 
 -- TODO: test me somehow.
 exprVarSigns :: Expr f a -> ScopedVarSigns f
-exprVarSigns = go $ ScopedVarSigns mempty mempty where
-    go :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
-    go signs (EVal _)               = signs
-    go signs (EVar (UniVar uni (Var uniq name)))
+exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
+    goStat :: ScopedVarSigns f -> Statement f -> ScopedVarSigns f
+    goStat signs (ELet uniVar def) = ScopedVarSigns free $ insertUnique uniq sign bound where
+        UniVar uni (Var uniq name) = uniVar
+        sign = VarSign name uni
+        ScopedVarSigns free bound = goExpr signs def
+    goStat signs (EConstr econstr) = case econstr of
+        EConstrFEq lhs rhs -> goExpr (goExpr signs rhs) lhs
+
+    goExpr :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
+    goExpr signs (EVal _) = signs
+    goExpr signs (EVar (UniVar uni (Var uniq name)))
         | tracked   = signs
         | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
         where
             ScopedVarSigns free bound = signs
             sign = VarSign name uni
             tracked = isTracked uniq sign bound || isTracked uniq sign free
-    go signs (EAppUnOp _ x)         = go signs x
-    go signs (EAppBinOp _ x y)      = go (go signs x) y
-    go signs (EIf b x y)            = go (go (go signs b) x) y
-    go signs (ELet uniVar def expr) =
-        go (ScopedVarSigns free $ insertUnique uniq sign bound) expr
-      where
-        UniVar uni (Var uniq name) = uniVar
-        sign = VarSign name uni
-        ScopedVarSigns free bound = go signs def
-    go signs (EConstr econstr expr) = case econstr of
-        EConstrFEq lhs rhs -> go (go (go signs rhs) lhs) expr
+    goExpr signs (EAppUnOp _ x) = goExpr signs x
+    goExpr signs (EAppBinOp _ x y) = goExpr (goExpr signs x) y
+    goExpr signs (EIf b x y) = goExpr (goExpr (goExpr signs b) x) y
+    goExpr signs (EStatement st e) = goExpr (goStat signs st) e
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
@@ -357,5 +367,4 @@ uniOfExpr = go where
     go (EAppUnOp op _)       = uniOfUnOpRes op
     go (EAppBinOp op _ _)    = uniOfBinOpRes op
     go (EIf _ x _)           = uniOfExpr x
-    go (ELet _ _ expr)       = uniOfExpr expr
-    go (EConstr _ expr)      = uniOfExpr expr
+    go (EStatement _ expr)   = uniOfExpr expr

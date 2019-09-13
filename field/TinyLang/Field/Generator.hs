@@ -57,7 +57,7 @@ type Vars f = [SomeUniVar f]
 uniVars :: forall f a. KnownUni f a => Vars f -> [UniVar f a]
 uniVars =
     mapMaybe $ forget $ \uniVar@(UniVar uni _) ->
-        withGeqUni uni (knownUni @f @a) (Just uniVar) Nothing
+        withGeqUni uni (knownUni @f @a) Nothing $ Just uniVar
 
 -- | Choose a variable of a particular type.
 chooseUniVar :: (KnownUni f a, MonadGen m) => Vars f -> m (UniVar f a)
@@ -236,7 +236,7 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                     uniVar <- genFreshUniVar @f @a'
                     let vars' = Some uniVar : vars
                         size' = size `Prelude.div` 2
-                    ELet uniVar
+                    EStatement . ELet uniVar
                         <$> go vars  size'
                         <*> go vars' size')
             , (2, withOneofUnOps  $ \unOp  -> do
@@ -252,14 +252,13 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                         -- This generates trivial constraints of the @x = x@ form.
                         let size' = size `Prelude.div` 3
                         x <- go vars size'
-                        EConstr (EConstrFEq x x)
+                        EStatement (EConstr $ EConstrFEq x x)
                             <$> go vars size'
                   , do
                         let size' = size `Prelude.div` 3
                         -- This generates constraints that are unlikely to hold.
-                        EConstr <$> (EConstrFEq
-                            <$> go vars size'
-                            <*> go vars size')
+                        EStatement . EConstr
+                            <$> (EConstrFEq <$> go vars size' <*> go vars size')
                             <*> go vars size'
                   ])
             ]
@@ -308,8 +307,8 @@ boundedArbitraryExprI vars size             = frequency
             uniVar <- genFreshUniVar
             let vars' = Some uniVar : vars
                 size' = size `Prelude.div` 2
-            ELet uniVar
-                <$> boundedArbitraryExprI vars  size'
+            EStatement . ELet uniVar
+                <$> boundedArbitraryExprI vars size'
                 <*> boundedArbitraryExprI vars' size')
     , (2, do
             let size' = size - 1
@@ -360,6 +359,16 @@ instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
         , uncurry EConstrFEq <$> shrink (lhs, rhs)
         ]
 
+-- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
+-- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
+-- 'shrink' can be used in the 'Arbitrary' instance of 'Expr' (a separately provided
+-- 'shrinkStatement' wouldn't work, because we want to shrink a pair of values, see the instance).
+instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
+    arbitrary = error "No implementation of 'arbitrary' for 'Statement'"
+
+    shrink (ELet uniVar def) = withKnownUni (_uniVarUni uniVar) $ ELet uniVar <$> shrink def
+    shrink (EConstr econstr) = EConstr <$> shrink econstr
+
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
         let vars = defaultVars
@@ -382,11 +391,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
         EVal _ -> []
         EVar _ -> []
-        ELet uniVar def expr ->
-            withKnownUni (_uniVarUni uniVar) $
-                uncurry (ELet uniVar) <$> shrink (def, expr)
-        EConstr econstr expr ->
-            uncurry EConstr <$> shrink (econstr, expr)
+        EStatement stat expr -> uncurry EStatement <$> shrink (stat, expr)
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
@@ -401,9 +406,10 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
             EIf e _ _ -> [SomeUniExpr Bool e]
             EVal _ -> []
             EVar _ -> []
-            ELet (UniVar uni _) def _ -> [SomeUniExpr uni def]
-            EConstr econstr _ -> case econstr of
-                EConstrFEq lhs rhs -> map (SomeUniExpr Field) [lhs, rhs]
+            EStatement stat _ -> case stat of
+                ELet (UniVar uni _) def -> [SomeUniExpr uni def]
+                EConstr econstr -> case econstr of
+                    EConstrFEq lhs rhs -> map (SomeUniExpr Field) [lhs, rhs]
 
 genEnvFromVarSigns :: Arbitrary f => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns =
