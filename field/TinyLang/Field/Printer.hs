@@ -1,6 +1,5 @@
 module TinyLang.Field.Printer
     ( PrintStyle (..)
-    , econstrToString
     , exprToString
     , someExprToString
     ) where
@@ -51,14 +50,6 @@ toStringUniVal :: TextField f => UniVal f a -> String
 toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
 toStringUniVal (UniVal Field i) = showField i
 
-econstrToString :: TextField f => PrintStyle -> EConstr f -> String
-econstrToString style (EConstrFEq lhs rhs) = concat
-    [ "assert "
-    , exprToString style lhs
-    , " == "
-    , exprToString style rhs
-    ]
-
 statementToString :: TextField f => PrintStyle -> Statement f -> String
 statementToString s (ELet (UniVar _ var) def) = concat
     [ "let "
@@ -66,7 +57,7 @@ statementToString s (ELet (UniVar _ var) def) = concat
     , " = "
     , exprToString s def
     ]
-statementToString s (EConstr econstr)         = econstrToString s econstr
+statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String

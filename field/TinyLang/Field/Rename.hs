@@ -32,8 +32,7 @@ withRenamedStatementM :: Statement f -> (Statement f -> RenameM c) -> RenameM c
 withRenamedStatementM (ELet (UniVar uni var) def) cont = do
     defRen <- renameExprM def
     withFreshenedVar var $ \varFr -> cont $ ELet (UniVar uni varFr) defRen
-withRenamedStatementM (EConstr econstr)           cont = case econstr of
-    EConstrFEq lhs rhs -> EConstrFEq <$> renameExprM lhs <*> renameExprM rhs >>= cont . EConstr
+withRenamedStatementM (EAssert expr)              cont = renameExprM expr >>= cont . EAssert
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EVal uniVal)              = pure $ EVal uniVal

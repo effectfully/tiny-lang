@@ -9,7 +9,7 @@
   the parser knows what the type is.  We'd need environments
   or type annotations or something to avoid this.
 
-  constraint ::=
+  assertion ::=
       'assert' expr == expr
 
   statements ::=
@@ -18,7 +18,7 @@
 
   statement ::=
       'let' var = expr
-      constraint
+      assertion
       'for' var = int 'to' int 'do' statements 'end'
 
   expr ::=
@@ -280,15 +280,13 @@ estatementPoly = flip (foldr EStatement) <$> statements <*> exprPoly
 
 statements :: TextField f => Parser [Statement f]
 statements = fmap concat . some $ asum
-    [ pure . EConstr <$> econstr
+    [ pure <$> assertStatement
     , pure <$> letStatement
     , forStatements
     ] <* symbol ";"
 
-econstr :: TextField f => Parser (EConstr f)
-econstr = EConstrFEq
-    <$> (keyword "assert" *> exprPoly)
-    <*> (symbol  "=="     *> exprPoly)
+assertStatement :: TextField f => Parser (Statement f)
+assertStatement = EAssert <$> (keyword "assert" *> exprPoly)
 
 letStatement :: TextField f => Parser (Statement f)
 letStatement = do
