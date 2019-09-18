@@ -52,17 +52,14 @@ evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
 evalBinOp Div = UniVal Field .* div
 
-checkEConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> Bool
-checkEConstr env (EConstrFEq lhs rhs) = evalExpr env lhs == evalExpr env rhs
-
 evalStatementUni
     :: (Eq f, Field f, AsInteger f)
     => Env (SomeUniVal f) -> Statement f -> Expr f a -> UniVal f a
-evalStatementUni env (ELet (UniVar _ var) def) expr =
-    evalExprUni (insertVar var (Some $ evalExprUni env def) env) expr
-evalStatementUni env (EConstr econstr) expr =
-    if checkEConstr env econstr
-        then evalExprUni env expr
+evalStatementUni env (ELet (UniVar _ var) def) rest =
+    evalExprUni (insertVar var (Some $ evalExprUni env def) env) rest
+evalStatementUni env (EAssert expr) rest =
+    if evalExpr env expr
+        then evalExprUni env rest
         else throw Denormal
 
 -- Note that we could use dependent maps, but we don't.
@@ -101,18 +98,15 @@ denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal
 denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
 denoteExpr env = denoteUniVal . evalExprUni env
 
-normEConstr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> EConstr f -> EConstr f
-normEConstr env (EConstrFEq lhs rhs) = EConstrFEq (normExpr env lhs) (normExpr env rhs)
-
 normStatement
     :: (Eq f, Field f, AsInteger f)
     => Env (SomeUniVal f) -> Statement f -> Expr f a -> Expr f a
-normStatement env (ELet (UniVar uni var) def) expr =
+normStatement env (ELet (UniVar uni var) def) rest =
     case normExpr env def of
-        EVal uniVal -> normExpr (insertVar var (Some uniVal) env) expr
-        def'        -> EStatement (ELet (UniVar uni var) def') $ normExpr env expr
-normStatement env (EConstr econstr) expr =
-    EStatement (EConstr $ normEConstr env econstr) $ normExpr env expr
+        EVal uniVal -> normExpr (insertVar var (Some uniVal) env) rest
+        def'        -> EStatement (ELet (UniVar uni var) def') $ normExpr env rest
+normStatement env (EAssert expr) rest =
+    EStatement (EAssert $ normExpr env expr) $ normExpr env rest
 
 -- | A recursive normalizer for expressions.
 normExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> Expr f a
@@ -142,8 +136,7 @@ normExpr env (EStatement stat expr) = normStatement env stat expr
 -- | Instantiate some of the variables of a statement with values.
 instStatement :: Env (SomeUniVal f) -> Statement f -> Statement f
 instStatement env (ELet uniVar def) = ELet uniVar $ instExpr env def
-instStatement env (EConstr econstr) = EConstr $ case econstr of
-    EConstrFEq lhs rhs -> EConstrFEq (instExpr env lhs) (instExpr env rhs)
+instStatement env (EAssert expr)    = EAssert $ instExpr env expr
 
 -- | Instantiate some of the variables of an expression with values.
 instExpr :: Env (SomeUniVal f) -> Expr f a -> Expr f a

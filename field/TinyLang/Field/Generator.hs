@@ -184,6 +184,12 @@ withOneofComparisons
     => (BinOp f (AField f) (AField f) Bool -> m r) -> m r
 withOneofComparisons k = oneof [k FLt, k FLe, k FGe, k FGt]
 
+-- | Generate a binary operator that can be turned into an assertion and feed it to the continuation.
+withOneofBinAsserts
+    :: forall f m r. MonadGen m
+    => (forall a. KnownUni f a => BinOp f a a Bool -> m r) -> m r
+withOneofBinAsserts k = oneof [k Or, k And, k Xor, k FEq, k FLt, k FLe, k FGe, k FGt]
+
 -- | An arbitrary integer value (for use in comparisons)
 arbitraryValI :: (Field f, MonadGen m) => m (UniVal f (AField f))
 arbitraryValI = UniVal Field . fromInteger <$> arbitraryM
@@ -247,19 +253,19 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                     EAppBinOp binOp
                         <$> go vars size'
                         <*> go vars size')
-            , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), oneof
-                  [ do
-                        -- This generates trivial constraints of the @x = x@ form.
-                        let size' = size `Prelude.div` 3
+            , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), frequency
+                  [ (4, withOneofBinAsserts $ \binOp -> do
+                        -- This generates assertions of the @x op x@ form.
+                        let size' = size `Prelude.div` 2
                         x <- go vars size'
-                        EStatement (EConstr $ EConstrFEq x x)
+                        EStatement (EAssert $ EAppBinOp binOp x x)
+                            <$> go vars size')
+                  , (4, do
+                        let size' = size `Prelude.div` 2
+                        -- This generates assertions that are unlikely to hold.
+                        EStatement . EAssert
                             <$> go vars size'
-                  , do
-                        let size' = size `Prelude.div` 3
-                        -- This generates constraints that are unlikely to hold.
-                        EStatement . EConstr
-                            <$> (EConstrFEq <$> go vars size' <*> go vars size')
-                            <*> go vars size'
+                            <*> go vars size')
                   ])
             ]
 
@@ -346,19 +352,6 @@ defaultUniVal = case knownUni @f @a of
     Bool  -> UniVal Bool True
     Field -> UniVal Field $ fromInteger 101
 
-instance (Field f, Arbitrary f) => Arbitrary (EConstr f) where
-    arbitrary = EConstrFEq <$> arbitrary <*> arbitrary
-
-    -- In addition to normal shrinking (which most of the time will break the assertion)
-    -- we shrink @lhs == rhs@ to @lhs' == lhs'@ or @rhs' == rhs'@ where
-    -- @lhs'@ and @rhs'@ are shrunk version of @lhs@ and @rhs@ respectively
-    -- (this is just to have some shrinking that does not break the assertion).
-    shrink (EConstrFEq lhs rhs) = concat
-        [ map (join EConstrFEq) $ shrink lhs
-        , map (join EConstrFEq) $ shrink rhs
-        , uncurry EConstrFEq <$> shrink (lhs, rhs)
-        ]
-
 -- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
 -- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
 -- 'shrink' can be used in the 'Arbitrary' instance of 'Expr' (a separately provided
@@ -367,7 +360,11 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     arbitrary = error "No implementation of 'arbitrary' for 'Statement'"
 
     shrink (ELet uniVar def) = withKnownUni (_uniVarUni uniVar) $ ELet uniVar <$> shrink def
-    shrink (EConstr econstr) = EConstr <$> shrink econstr
+    -- TODO: we need more clever shrinking here. E.g. in addition to normal shrinking
+    -- (which most of the time will break the assertion) we should shrink @lhs == rhs@ to
+    -- @lhs' == lhs'@ or @rhs' == rhs'@ where @lhs'@ and @rhs'@ are shrunk version of
+    -- @lhs@ and @rhs@ respectively (just to have some shrinking that does not break the assertion).
+    shrink (EAssert expr)    = EAssert <$> shrink expr
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
@@ -408,8 +405,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
             EVar _ -> []
             EStatement stat _ -> case stat of
                 ELet (UniVar uni _) def -> [SomeUniExpr uni def]
-                EConstr econstr -> case econstr of
-                    EConstrFEq lhs rhs -> map (SomeUniExpr Field) [lhs, rhs]
+                EAssert e               -> [SomeUniExpr Bool e]
 
 genEnvFromVarSigns :: Arbitrary f => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns =

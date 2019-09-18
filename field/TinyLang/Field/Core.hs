@@ -17,7 +17,6 @@ module TinyLang.Field.Core
     , traverseSomeUniExpr
     , UnOp (..)
     , BinOp (..)
-    , EConstr (..)
     , Statement (..)
     , Expr (..)
     , withGeqUni
@@ -112,17 +111,12 @@ data BinOp f a b c where
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
 
--- | Things that get compiled to constraints down the pipeline.
--- The evaluation semantics is the following: each constraint becomes a check at runtime
--- and the if the check fails, we have evaluation failure. So those constraints are essentially
--- assertions.
-data EConstr f
-    = EConstrFEq (Expr f (AField f)) (Expr f (AField f))
-    deriving (Show, Eq)
-
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
-    EConstr :: EConstr f -> Statement f
+    -- | Things that get compiled to constraints down the pipeline.
+    -- The evaluation semantics is the following: each assertion becomes a check at runtime
+    -- and the if the check fails, we have evaluation failure.
+    EAssert :: Expr f Bool -> Statement f
 
 data Expr f a where
     EVal       :: UniVal f a -> Expr f a
@@ -232,10 +226,10 @@ instance Eq f => Eq (UniVar f a) where
 instance Eq f => Eq (Statement f) where
     ELet (UniVar u1 v1) d1 == ELet (UniVar u2 v2) d2 =
         withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
-    EConstr ec1            == EConstr ec2            = ec1 == ec2
+    EAssert as1            == EAssert as2            = as1 == as2
 
     ELet    {} == _ = False
-    EConstr {} == _ = False
+    EAssert {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
     EVal uval1         == EVal uval2         = uval1 == uval2
@@ -290,8 +284,7 @@ exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
         UniVar uni (Var uniq name) = uniVar
         sign = VarSign name uni
         ScopedVarSigns free bound = goExpr signs def
-    goStat signs (EConstr econstr) = case econstr of
-        EConstrFEq lhs rhs -> goExpr (goExpr signs rhs) lhs
+    goStat signs (EAssert expr) = goExpr signs expr
 
     goExpr :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
     goExpr signs (EVal _) = signs
