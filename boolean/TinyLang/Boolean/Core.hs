@@ -8,17 +8,17 @@ module TinyLang.Boolean.Core
 import           TinyLang.Prelude
 import           TinyLang.Var
 
-import qualified Data.IntMap.Strict    as IntMap
+import qualified Data.IntMap.Strict as IntMap
 
 data UnOp
     = Not
-    deriving (Show, Read, Generic, Eq)
+    deriving (Show, Read, Eq)
 
 data BinOp
     = Or
     | And
     | Xor
-    deriving (Show, Read, Generic, Eq)
+    deriving (Show, Read, Eq)
 
 data Expr
     = EVal Bool
@@ -26,11 +26,7 @@ data Expr
     | EIf Expr Expr Expr
     | EAppUnOp UnOp Expr
     | EAppBinOp BinOp Expr Expr
-    deriving (Show, Generic, Eq)
-
-instance Monad m => Serial m UnOp
-instance Monad m => Serial m BinOp
-instance Monad m => Serial m Expr
+    deriving (Show, Eq)
 
 exprVarNames :: Expr -> IntMap String
 exprVarNames = go mempty where

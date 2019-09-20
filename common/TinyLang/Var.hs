@@ -26,9 +26,6 @@ newtype Unique = Unique
     { unUnique :: Int
     } deriving (Eq, Ord, Enum, Generic)
 
-instance Monad m => Serial m Unique where
-    series = Unique . getNonNegative <$> series
-
 newtype SupplyT m a = SupplyT
     { unSupplyT :: StateT Unique m a
     } deriving newtype
@@ -113,9 +110,6 @@ instance Eq Var where
 
 instance Ord Var where
     Var i _ `compare` Var j _ = i `compare` j
-
-instance Monad m => Serial m Var where
-    series = flip Var "x" <$> series
 
 -- Use @lens@?
 setUnique :: Unique -> Var -> Var
