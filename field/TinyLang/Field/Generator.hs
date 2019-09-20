@@ -228,7 +228,7 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
        => Vars f -> Int -> m (Expr f a)
     go vars size | size <= 1 = frequency $ groundArbitraryFreqs vars
     go vars size             = frequency everything where
-        everything = groundArbitraryFreqs vars ++ recursive ++ comparisons
+        everything = groundArbitraryFreqs vars ++ recursive ++ comparisons (size `Prelude.div` 2)
 
         -- The most general generator.
         recursive =
@@ -254,15 +254,21 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                         <$> go vars size'
                         <*> go vars size')
             , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), frequency
-                  [ (4, withOneofBinAsserts $ \binOp -> do
-                        -- This generates assertions of the @x op x@ form.
+                  [ (4, do
+                        -- Generates valid (but not necessarily holding) range constraints.
+                        let size' = size `Prelude.div` 3
+                        EStatement . EAssert
+                            <$> boundedArbitraryComparisons vars size'
+                            <*> go vars size')
+                  , (4, withOneofBinAsserts $ \binOp -> do
+                        -- Generates assertions of the @x op x@ form.
                         let size' = size `Prelude.div` 2
                         x <- go vars size'
                         EStatement (EAssert $ EAppBinOp binOp x x)
                             <$> go vars size')
                   , (4, do
                         let size' = size `Prelude.div` 2
-                        -- This generates assertions that are unlikely to hold.
+                        -- Generates assertions that are unlikely to hold.
                         EStatement . EAssert
                             <$> go vars size'
                             <*> go vars size')
@@ -270,15 +276,18 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
             ]
 
         -- A generator of comparisons.
-        comparisons = case knownUni @f @a of
+        comparisons size' = case knownUni @f @a of
             Field -> []
-            Bool  ->
-                [ (2, withOneofComparisons $ \comp -> do
-                    let size' = size `Prelude.div` 2
-                    EAppBinOp comp
-                        <$> boundedArbitraryExprI vars size'
-                        <*> boundedArbitraryExprI vars size')
-                ]
+            Bool  -> [(2, boundedArbitraryComparisons vars size')]
+
+boundedArbitraryComparisons
+    :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
+    => Vars f -> Int -> m (Expr f Bool)
+boundedArbitraryComparisons vars size' =
+    withOneofComparisons $ \comp ->
+        EAppBinOp comp
+            <$> boundedArbitraryExprI vars size'
+            <*> boundedArbitraryExprI vars size'
 
 -- | This produces an arbitrary integer-valued expression.
 -- Comparisons are only supposed to involve integers, so this
