@@ -397,6 +397,8 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
         EVal _ -> []
         EVar _ -> []
+        -- TODO: we can safely drop an assertion and we can drop a let-expression when
+        -- the let-bound variable is not used in @expr@.
         EStatement stat expr -> uncurry EStatement <$> shrink (stat, expr)
 
 -- An instance that QuickCheck can use for tests.
