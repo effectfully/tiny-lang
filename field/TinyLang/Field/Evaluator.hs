@@ -5,9 +5,9 @@ module TinyLang.Field.Evaluator
     , evalExprUni
     , evalExpr
     , evalExprWithEnv
-    , denoteUniVal
-    , denoteSomeUniVal
-    , denoteExpr
+--     , denoteUniVal
+--     , denoteSomeUniVal
+--     , denoteExpr
     , normExpr
     , instStatement
     , instExpr
@@ -88,15 +88,16 @@ evalExprWithEnv :: (Eq f, Field f, AsInteger f) => ExprWithEnv f -> SomeUniVal f
 evalExprWithEnv (ExprWithEnv (SomeUniExpr uni expr) env) =
     Some . UniVal uni $ evalExpr env expr
 
-denoteUniVal :: Field f => UniVal f a -> f
-denoteUniVal (UniVal Bool  b) = boolToField b
-denoteUniVal (UniVal Field i) = unAField i
+-- denoteUniVal :: Field f => UniVal f a -> f
+-- denoteUniVal (UniVal Bool  b) = boolToField b
+-- denoteUniVal (UniVal Field i) = unAField i
+-- denoteUniVal (UniVal (Vector uni) v) = ???
 
-denoteSomeUniVal :: Field f => SomeUniVal f -> f
-denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal
+-- denoteSomeUniVal :: Field f => SomeUniVal f -> f
+-- denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal
 
-denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
-denoteExpr env = denoteUniVal . evalExprUni env
+-- denoteExpr :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> f
+-- denoteExpr env = denoteUniVal . evalExprUni env
 
 normStatement
     :: (Eq f, Field f, AsInteger f)

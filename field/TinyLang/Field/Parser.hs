@@ -139,28 +139,43 @@ nonKeyword ident
     | ident `elem` keywords = fail $ "keyword " ++ show ident ++ " cannot be an identifier"
     | otherwise             = return ident
 
+makeIdentifier :: Parser String -> Parser String
+makeIdentifier p = lexeme . try $ p >>= nonKeyword
+
 -- For type disambiguation purposes variables of type Field have
 -- normal ids and ones of type Bool have ids beginning with '?'
-identifier_F :: Parser String
-identifier_F = lexeme . try $ p >>= nonKeyword where
-    p = (:) <$> lowerChar <*> many (lowerChar <|> digitChar <|> oneOf @[] "_\'")
 
-identifier_B :: Parser String
-identifier_B = lexeme . try $ p >>= nonKeyword where
-    p = (:) <$> char '?' <*> many (lowerChar <|> digitChar <|> oneOf @[] "_\'")
+varString_F :: Parser String
+varString_F = (:) <$> lowerChar <*> many (lowerChar <|> digitChar <|> oneOf @[] "_\'")
+
+varString_B :: Parser String
+varString_B = (:) <$> char '?' <*> many (lowerChar <|> digitChar <|> oneOf @[] "_\'")
+
+varString_V :: Uni f a -> Parser String
+varString_V uni = (:) <$> char '#' <*> case uni of
+    Bool         -> varString_B
+    Field        -> varString_F
+    Vector elUni -> varString_V elUni
 
 uniValPoly :: forall f a. (TextField f, KnownUni f a) => Parser (UniVal f a)
-uniValPoly = case knownUni @f @a of
-    -- Constants T and F
-    Bool  -> UniVal Bool  <$> (True <$ keyword "T" <|> False <$ keyword "F")
-    -- Literal constants from the field
-    Field -> UniVal Field <$> parseField
+uniValPoly =
+    UniVal uni <$> case uni of
+        -- Constants T and F
+        Bool     -> True <$ keyword "T" <|> False <$ keyword "F"
+        -- Literal constants from the field
+        Field    -> parseField
+        Vector _ -> fail "No syntax for vectors yet"
+    where
+        uni = knownUni @f @a
 
 var_F :: Parser Var
-var_F = identifier_F >>= makeVar
+var_F = makeIdentifier varString_F >>= makeVar
 
 var_B :: Parser Var
-var_B = identifier_B >>= makeVar
+var_B = makeIdentifier varString_B >>= makeVar
+
+var_V :: Uni f a -> Parser Var
+var_V uni = identifier_V uni >>= makeVar
 
 uniVar_F :: Parser (UniVar f (AField f))
 uniVar_F = UniVar Field <$> var_F
@@ -168,13 +183,23 @@ uniVar_F = UniVar Field <$> var_F
 uniVar_B :: Parser (UniVar f Bool)
 uniVar_B = UniVar Bool <$> var_B
 
+uniVar_V :: Uni f a -> Parser (UniVar f (Vector a))
+uniVar_V uni = UniVar (Vector uni) <$> var_V uni
+
+vectorVarSome
+
 varSome :: Parser (SomeUniVar f)
-varSome = Some <$> uniVar_B <|> Some <$> uniVar_F
+varSome = asum
+    [ Some <$> uniVar_B
+    , Some <$> uniVar_F
+    , Some <$> uniVar_V Bool
+    ]
 
 uniVarPoly :: forall f a. KnownUni f a => Parser (UniVar f a)
 uniVarPoly = case knownUni @f @a of
-    Bool  -> uniVar_B
-    Field -> uniVar_F
+    Bool       -> uniVar_B
+    Field      -> uniVar_F
+    Vector uni -> uniVar_V uni
 
 {- Use the Expr combinators from Control.Monad.Combinators.Expr to parse
    epressions involving prefix and infix operators.  This makes it a
@@ -198,11 +223,14 @@ expr1 = asum
     -- because we wouldn't be able to parse, say, @(-5) % 2@. We have to be careful with this
     -- because concrete syntax for finite fields might be complicated
     [ parens exprPoly
-    , EVal <$> uniValPoly
     , EVar <$> uniVarPoly
+    , EVal <$> uniValPoly
     , case knownUni @f @a of
-        Bool  -> neq0Expr <|> eqExpr
-        Field -> empty
+        Bool         -> neq0Expr <|> eqExpr
+        Field        -> empty
+        Vector elUni -> case elUni of
+            Bool -> unpackExpr
+            _    -> empty
     ]
 
 -- Special cases for eq and neq0 because the return type isn't the
@@ -212,6 +240,9 @@ neq0Expr = EAppUnOp Neq0 <$ keyword "neq0" <*> exprPoly
 
 eqExpr :: TextField f => Parser (Expr f Bool)
 eqExpr = EAppBinOp FEq <$> exprPoly <* symbol "==" <*> exprPoly
+
+unpackExpr :: TextField f => Parser (Expr f (Vector Bool))
+unpackExpr = EAppUnOp Unp <$ keyword "unpack" <*> exprPoly
 
 -- Operations for ordering comparisons of "integer" field elements
 -- GADTs stop us using makeExprParsr here: it expects the input and output type to be the same.
@@ -233,13 +264,15 @@ exprPoly :: forall f a. (TextField f, KnownUni f a) => Parser (Expr f a)
 exprPoly = asum
     [ ifExprPoly
     , estatementPoly
+    , try atExprPoly
     , try operExpr
     , case knownUni @f @a of
-        Bool  -> asum
+        Bool     -> asum
             [ try eqExpr
             , comparisonExpr
             ]
-        Field -> empty
+        Field    -> empty
+        Vector _ -> empty
     ]
 
 -- operExpr: expressions involving unary and binary operators.
@@ -252,17 +285,18 @@ operExpr = makeExprParser expr1 operators
 operators :: forall f a. KnownUni f a => [[E.Operator Parser (Expr f a)]]
 operators = case knownUni @f @a of
     -- The order here determines operator precedence.
-    Bool  ->
+    Bool     ->
         [ [Prefix (EAppUnOp  Not <$ keyword "not")]
         , [InfixL (EAppBinOp Xor <$ keyword "xor")]
         , [InfixL (EAppBinOp And <$ keyword "and")]
         , [InfixL (EAppBinOp Or  <$ keyword "or")]
         ]
-    Field ->
+    Field    ->
         [ [Prefix (EAppUnOp  Neg <$ keyword "neg"), Prefix (EAppUnOp Inv <$ keyword "inv")]
         , [InfixL (EAppBinOp Mul <$ symbol "*"), InfixL (EAppBinOp Div <$ symbol "/")]
         , [InfixL (EAppBinOp Add <$ symbol "+"), InfixL (EAppBinOp Sub <$ symbol "-")]
         ]
+    Vector _ -> []
 
 -- Can we somehow commit to an if-expression when we see "if expr_B" and then
 -- continue with the other cases?  This would reduce the need for backtracking.
@@ -274,6 +308,11 @@ ifExprPoly = EIf
     <$> (keyword "if" *> exprPoly)
     <*> (keyword "then" *> exprPoly)
     <*> (keyword "else" *> exprPoly)
+
+atExprPoly :: (TextField f, KnownUni f a) => Parser (Expr f a)
+atExprPoly = EAppBinOp At
+    <$> (EVar <$> uniVarPoly)
+    <*> (between "[" "]" exprPoly)
 
 estatementPoly :: (TextField f, KnownUni f a) => Parser (Expr f a)
 estatementPoly = flip (foldr EStatement) <$> statements <*> exprPoly

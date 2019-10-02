@@ -42,6 +42,7 @@ library
         containers,
         hashable,
         unordered-containers,
+        vector,
         megaparsec,
         mmorph,
         parser-combinators,

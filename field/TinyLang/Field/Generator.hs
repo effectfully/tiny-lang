@@ -386,7 +386,8 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     shrink (EVal uniVal) = EVal <$> shrink uniVal
     shrink expr0         = EVal defaultUniVal : case expr0 of
         EAppUnOp op e ->
-            withKnownUni (uniOfUnOpArg op) $
+            withUnOpUnis op $ \argUni _ ->
+            withKnownUni argUni $
                 EAppUnOp op <$> shrink e
         EAppBinOp op e1 e2 ->
             withKnownUni uni1 $
@@ -407,7 +408,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
 
     shrink (SomeUniExpr uni0 expr) =
         map (SomeUniExpr uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
-            EAppUnOp op e -> [SomeUniExpr (uniOfUnOpArg op) e]
+            EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeUniExpr argUni e]
             EAppBinOp op e1 e2 ->
                 case uniOfBinOpArg op of
                   (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]

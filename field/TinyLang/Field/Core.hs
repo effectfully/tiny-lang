@@ -19,6 +19,8 @@ module TinyLang.Field.Core
     , BinOp (..)
     , Statement (..)
     , Expr (..)
+    , withUnOpUnis
+    , withBinOpUnis
     , withGeqUni
     , withKnownUni
     , VarSign (..)
@@ -29,14 +31,11 @@ module TinyLang.Field.Core
     , embedBoolUnOp
     , embedBoolBinOp
     , embedBoolExpr
-    , uniOfUnOpArg
-    , uniOfUnOpRes
-    , uniOfBinOpArg
-    , uniOfBinOpRes
     , uniOfExpr
     ) where
 
 import           Prelude               hiding (div)
+import           TinyLang.Prelude
 
 import           Data.Field            as Field
 import           TinyLang.Var          as Var
@@ -50,8 +49,8 @@ forget :: (forall a. f a -> b) -> Some f -> b
 forget f (Some a) = f a
 
 data Uni f a where
-    Bool  :: Uni f Bool
-    Field :: Uni f (AField f)
+    Bool   :: Uni f Bool
+    Field  :: Uni f (AField f)
     -- ^ We need this additional 'AField' wrapper in order to make 'Uni' a singleton.
     -- That is, if we made it @Field :: Uni f f@, then with @f@ instantiated to @Bool@, both
     -- @Bool@ and @Field@ would be of the same type: @Uni Bool Bool@. Since we use @Uni@ in order
@@ -59,6 +58,7 @@ data Uni f a where
     -- Originally @Field@ didn't use the wrapper and we were getting annoying
     -- "pattern matching is not exhaustive" warnings. Now @a@ uniquely determines the constructor
     -- and we do not have such warnings.
+    Vector :: Uni f a -> Uni f (Vector a)
 
 class KnownUni f a where
     knownUni :: Uni f a
@@ -68,6 +68,9 @@ instance KnownUni f Bool where
 
 instance f ~ f' => KnownUni f (AField f') where
     knownUni = Field
+
+instance KnownUni f uni => KnownUni f (Vector uni) where
+    knownUni = Vector knownUni
 
 -- Needed for the sake of deriving.
 data UniVal f a = UniVal
@@ -96,6 +99,7 @@ data UnOp f a b where
     Neq0 :: UnOp f (AField f) Bool
     Neg  :: UnOp f (AField f) (AField f)
     Inv  :: UnOp f (AField f) (AField f)
+    Unp  :: UnOp f (AField f) (Vector Bool)
 
 data BinOp f a b c where
     Or  :: BinOp f Bool       Bool       Bool
@@ -110,6 +114,7 @@ data BinOp f a b c where
     Sub :: BinOp f (AField f) (AField f) (AField f)
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
+    At  :: KnownUni f a => BinOp f (AField f) (Vector a) a
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -172,8 +177,9 @@ deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
 instance TextField f => Show (UniVal f a) where
-    show (UniVal Bool  b) = "(" ++ "UniVal Bool " ++ show b ++ ")"
-    show (UniVal Field i) = showField i
+    show (UniVal Bool  b)          = "(UniVal Bool " ++ show b ++ ")"
+    show (UniVal Field i)          = showField i
+    show (UniVal (Vector uni) vec) = show $ UniVal uni <$> vec
 
 deriving instance TextField f => Show (Statement f)
 deriving instance TextField f => Show (Expr f a)
@@ -182,32 +188,61 @@ deriving instance TextField f => Show (Some (UniVal f))
 
 deriving instance TextField f => Show (SomeUniExpr f)
 
+withUnOpUnis :: UnOp f a b -> (Uni f a -> Uni f b -> c) -> c
+withUnOpUnis Not  k = k knownUni knownUni
+withUnOpUnis Neq0 k = k knownUni knownUni
+withUnOpUnis Inv  k = k knownUni knownUni
+withUnOpUnis Neg  k = k knownUni knownUni
+withUnOpUnis Unp  k = k knownUni knownUni
+
+withBinOpUnis :: BinOp f a b c -> (Uni f a -> Uni f b -> Uni f c -> d) -> d
+withBinOpUnis Or  k = k knownUni knownUni knownUni
+withBinOpUnis And k = k knownUni knownUni knownUni
+withBinOpUnis Xor k = k knownUni knownUni knownUni
+withBinOpUnis FEq k = k knownUni knownUni knownUni
+withBinOpUnis FLt k = k knownUni knownUni knownUni
+withBinOpUnis FLe k = k knownUni knownUni knownUni
+withBinOpUnis FGe k = k knownUni knownUni knownUni
+withBinOpUnis FGt k = k knownUni knownUni knownUni
+withBinOpUnis Add k = k knownUni knownUni knownUni
+withBinOpUnis Sub k = k knownUni knownUni knownUni
+withBinOpUnis Mul k = k knownUni knownUni knownUni
+withBinOpUnis Div k = k knownUni knownUni knownUni
+withBinOpUnis At  k = k knownUni knownUni knownUni
+
+uniOfExpr :: Expr f a -> Uni f a
+uniOfExpr = go where
+    go (EVal (UniVal uni _)) = uni
+    go (EVar (UniVar uni _)) = uni
+    go (EAppUnOp op _)       = withUnOpUnis op $ \_ resUni -> resUni
+    go (EAppBinOp op _ _)    = withBinOpUnis op $ \_ _ resUni -> resUni
+    go (EIf _ x _)           = uniOfExpr x
+    go (EStatement _ expr)   = uniOfExpr expr
+
 withGeqUni :: Uni f a1 -> Uni f a2 -> b -> (a1 ~ a2 => b) -> b
-withGeqUni Bool  Bool  _ y = y
-withGeqUni Field Field _ y = y
-withGeqUni _     _     z _ = z
+withGeqUni Bool          Bool          _ y = y
+withGeqUni Field         Field         _ y = y
+withGeqUni (Vector uni1) (Vector uni2) z y = withGeqUni uni1 uni2 z y
+withGeqUni Bool     _ z _ = z
+withGeqUni Field    _ z _ = z
+withGeqUni Vector{} _ z _ = z
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
-withGeqUnOp Not  Not  _ y = y
-withGeqUnOp Neq0 Neq0 _ y = y
-withGeqUnOp Neg  Neg  _ y = y
-withGeqUnOp Inv  Inv  _ y = y
-withGeqUnOp _    _    z _ = z
+withGeqUnOp unOp1 unOp2 z y =
+    withUnOpUnis unOp1 $ \argUni1 resUni1 ->
+    withUnOpUnis unOp2 $ \argUni2 resUni2 ->
+    withGeqUni argUni1 argUni2 z $
+    withGeqUni resUni1 resUni2 z $
+        if unOp1 /= unOp2 then z else y
 
 withGeqBinOp :: BinOp f a1 b1 c1 -> BinOp f a2 b2 c2 -> d -> ((a1 ~ a2, b1 ~ b2, c1 ~ c2) => d) -> d
-withGeqBinOp Or  Or  _ y = y
-withGeqBinOp And And _ y = y
-withGeqBinOp Xor Xor _ y = y
-withGeqBinOp FEq FEq _ y = y
-withGeqBinOp FLt FLt _ y = y
-withGeqBinOp FLe FLe _ y = y
-withGeqBinOp FGe FGe _ y = y
-withGeqBinOp FGt FGt _ y = y
-withGeqBinOp Add Add _ y = y
-withGeqBinOp Sub Sub _ y = y
-withGeqBinOp Mul Mul _ y = y
-withGeqBinOp Div Div _ y = y
-withGeqBinOp _   _   z _ = z
+withGeqBinOp binOp1 binOp2 z y =
+    withBinOpUnis binOp1 $ \argUni11 argUni12 resUni1 ->
+    withBinOpUnis binOp2 $ \argUni21 argUni22 resUni2 ->
+    withGeqUni argUni11 argUni21 z $
+    withGeqUni argUni12 argUni22 z $
+    withGeqUni resUni1  resUni2  z $
+        if binOp1 /= binOp2 then z else y
 
 -- This doesn't type check:
 --
@@ -217,8 +252,10 @@ withGeqBinOp _   _   z _ = z
 -- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
 -- but then it's easier to just pattern match on universes.
 instance Eq f => Eq (UniVal f a) where
-    UniVal Bool  b1 == UniVal Bool  b2 = b1 == b2
-    UniVal Field i1 == UniVal Field i2 = i1 == i2
+    UniVal Bool          bool1 == UniVal Bool          bool2 = bool1 == bool2
+    UniVal Field         el1   == UniVal Field         el2   = el1 == el2
+    UniVal (Vector uni1) vec1  == UniVal (Vector uni2) vec2  =
+        fmap (UniVal uni1) vec1 == fmap (UniVal uni2) vec2
 
 instance Eq f => Eq (UniVar f a) where
     UniVar _ v1 == UniVar _ v2 = v1 == v2
@@ -250,8 +287,9 @@ instance Eq f => Eq (Expr f a) where
     EStatement {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
-withKnownUni Bool  = id
-withKnownUni Field = id
+withKnownUni Bool         = id
+withKnownUni Field        = id
+withKnownUni (Vector uni) = withKnownUni uni
 
 data VarSign f = forall a. VarSign
     { _varSignName :: String
@@ -322,52 +360,3 @@ embedBoolExpr = go where
     go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
     go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)
     go (Boolean.EAppBinOp op x y) = EAppBinOp (embedBoolBinOp op) (go x) (go y)
-
-uniOfUnOpArg :: UnOp f a b -> Uni f a
-uniOfUnOpArg Not  = Bool
-uniOfUnOpArg Neq0 = Field
-uniOfUnOpArg Inv  = Field
-uniOfUnOpArg Neg  = Field
-
-uniOfUnOpRes :: UnOp f a b -> Uni f b
-uniOfUnOpRes Not  = Bool
-uniOfUnOpRes Neq0 = Bool
-uniOfUnOpRes Inv  = Field
-uniOfUnOpRes Neg  = Field
-
-uniOfBinOpArg :: BinOp f a b c ->  (Uni f a, Uni f b)
-uniOfBinOpArg Or  = (Bool, Bool)
-uniOfBinOpArg And = (Bool, Bool)
-uniOfBinOpArg Xor = (Bool, Bool)
-uniOfBinOpArg FEq = (Field, Field)
-uniOfBinOpArg FLt = (Field, Field)
-uniOfBinOpArg FLe = (Field, Field)
-uniOfBinOpArg FGe = (Field, Field)
-uniOfBinOpArg FGt = (Field, Field)
-uniOfBinOpArg Add = (Field, Field)
-uniOfBinOpArg Sub = (Field, Field)
-uniOfBinOpArg Mul = (Field, Field)
-uniOfBinOpArg Div = (Field, Field)
-
-uniOfBinOpRes :: BinOp f a b c ->  Uni f c
-uniOfBinOpRes Or  = Bool
-uniOfBinOpRes And = Bool
-uniOfBinOpRes Xor = Bool
-uniOfBinOpRes FEq = Bool
-uniOfBinOpRes FLt = Bool
-uniOfBinOpRes FLe = Bool
-uniOfBinOpRes FGe = Bool
-uniOfBinOpRes FGt = Bool
-uniOfBinOpRes Add = Field
-uniOfBinOpRes Sub = Field
-uniOfBinOpRes Mul = Field
-uniOfBinOpRes Div = Field
-
-uniOfExpr :: Expr f a -> Uni f a
-uniOfExpr = go where
-    go (EVal (UniVal uni _)) = uni
-    go (EVar (UniVar uni _)) = uni
-    go (EAppUnOp op _)       = uniOfUnOpRes op
-    go (EAppBinOp op _ _)    = uniOfBinOpRes op
-    go (EIf _ x _)           = uniOfExpr x
-    go (EStatement _ expr)   = uniOfExpr expr
