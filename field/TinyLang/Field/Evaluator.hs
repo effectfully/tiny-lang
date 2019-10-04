@@ -1,5 +1,8 @@
 module TinyLang.Field.Evaluator
-    ( ExprWithEnv (..)
+    ( unpackPositiveRev
+    , unpackPositive
+    , packPositive
+    , ExprWithEnv (..)
     , evalUnOp
     , evalBinOp
     , evalExprUni
@@ -19,24 +22,39 @@ import           TinyLang.Environment
 import           TinyLang.Field.Core
 import           TinyLang.Prelude
 
+import qualified Data.Vector          as Vector
+
+unpackPositiveRev :: Integer -> [Bool]
+unpackPositiveRev n0 | n0 < 0 = throw Underflow  -- error $ "Negative number: " ++ show n0
+unpackPositiveRev n0          = map (== 1) $ go n0 where
+    go n | n < 2 = [n]
+    go n         = r : go q where
+        (q, r) = n `quotRem` 2
+
+unpackPositive :: Integer -> [Bool]
+unpackPositive = reverse . unpackPositiveRev
+
+packPositive :: [Bool] -> Integer
+packPositive = sum . zipWith (\i b -> if b then i else 0) (iterate (* 2) 1) . reverse
+
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
 -- If we get a non-integer we throw Denormal, and if we get something negative
 -- we throw Underflow. Maybe we want our own exceptions here.
 compareIntegerValues :: AsInteger f => (Integer -> Integer -> Bool) -> f -> f -> Bool
-compareIntegerValues op a b =
-    case (asInteger a, asInteger b) of
-      (Just m, Just n) ->
-          if m<0 || n<0
-          then throw Underflow
-          else op m n
-      _                -> throw Denormal
+compareIntegerValues op a b
+    | m >= 0 && n >= 0 = op m n
+    | otherwise        = throw Underflow
+    where
+        m = unsafeAsInteger a
+        n = unsafeAsInteger b
 
-evalUnOp :: (Eq f, Field f) => UnOp f a b -> a -> UniVal f b
+evalUnOp :: (Eq f, Field f, AsInteger f) => UnOp f a b -> a -> UniVal f b
 evalUnOp Not  = UniVal Bool . not
 evalUnOp Neq0 = UniVal Bool . (/= zer)
 evalUnOp Neg  = UniVal Field . neg
 evalUnOp Inv  = UniVal Field . inv
+evalUnOp Unp  = UniVal Vector . Vector.fromList . unpackPositive . unsafeAsInteger
 
 evalBinOp :: (Eq f, Field f, AsInteger f) => BinOp f a b c -> a -> b -> UniVal f c
 evalBinOp Or  = UniVal Bool .* (||)
@@ -51,6 +69,7 @@ evalBinOp Add = UniVal Field .* add
 evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
 evalBinOp Div = UniVal Field .* div
+evalBinOp BAt = UniVal Bool .* flip (Vector.!) . fromIntegral . unsafeAsInteger
 
 evalStatementUni
     :: (Eq f, Field f, AsInteger f)
@@ -89,8 +108,9 @@ evalExprWithEnv (ExprWithEnv (SomeUniExpr uni expr) env) =
     Some . UniVal uni $ evalExpr env expr
 
 denoteUniVal :: Field f => UniVal f a -> f
-denoteUniVal (UniVal Bool  b) = boolToField b
-denoteUniVal (UniVal Field i) = unAField i
+denoteUniVal (UniVal Bool   b) = toField b
+denoteUniVal (UniVal Field  i) = unAField i
+denoteUniVal (UniVal Vector v) = unAField . fromInteger . packPositive $ toList v
 
 denoteSomeUniVal :: Field f => SomeUniVal f -> f
 denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal

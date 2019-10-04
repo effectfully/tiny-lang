@@ -1,11 +1,12 @@
 module Data.Field
     ( Field (..)
     , AField (..)
+    , ToField (..)
     , TextField (..)
     , AsInteger (..)
     , IsNegative (..)
+    , unsafeAsInteger
     , two
-    , boolToField
     ) where
 
 import           Prelude          hiding (div)
@@ -15,6 +16,7 @@ import           TinyLang.ParseUtils
 
 import           Control.Exception (throw, ArithException (..))
 import           Data.Coerce
+import           Data.Maybe
 import           Data.Ratio
 import           Data.Foldable     (asum)
 import           Text.Megaparsec
@@ -94,7 +96,7 @@ class Field f => TextField f where
 
 newtype AField f = AField
     { unAField :: f
-    } deriving (Eq)
+    } deriving (Eq, Functor, Foldable, Traversable)
 
 two :: Field f => f
 two = one `add` one
@@ -171,9 +173,21 @@ instance TextField Rational where
         | denominator r == 1 = show $ numerator r
         | otherwise          = "(" ++ show (numerator r) ++ " / " ++ show (denominator r) ++ ")"
 
-boolToField :: Field f => Bool -> f
-boolToField False = zer
-boolToField True  = one
+class Field f => ToField f a where
+    toField :: a -> f
+
+instance (Field f, f ~ f') => ToField f (AField f') where
+    toField = unAField
+
+instance Field f => ToField f Integer where
+    toField = unAField . fromInteger
+
+instance Field f => ToField f Bool where
+    toField False = zer
+    toField True  = one
+
+instance Field f => ToField f Rational where
+    toField = unAField . fromRational
 
 {- | We're dealing with fields in which certain elements can be regarded
  as integers, and we're only supposed to carry out comparisons on such
@@ -184,6 +198,9 @@ boolToField True  = one
 -}
 class AsInteger f where
     asInteger :: f -> Maybe Integer
+
+unsafeAsInteger :: AsInteger f => f -> Integer
+unsafeAsInteger = fromMaybe (throw Denormal) . asInteger
 
 instance AsInteger f => AsInteger (AField f) where
     asInteger = coerce $ asInteger @f

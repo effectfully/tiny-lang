@@ -44,7 +44,7 @@ unF4913 :: F4913 -> (Int, Int, Int)
 unF4913 (F a b c) = (a, b, c)
 
 instance Show F4913 where
-    show (F a b c) = "{" ++ show a ++ "," ++ show b ++ "," ++ show c ++ "}"
+    show (F a b c) = "`{" ++ show a ++ "," ++ show b ++ "," ++ show c ++ "}"
 
 instance Field F4913 where
     zer = toF4913 0 0 0
@@ -75,9 +75,9 @@ pow x0 n0 =
 
 instance TextField F4913 where
     parseField = toF4913
-        <$> (symbol "{" *> lexeme L.decimal)
-        <*> (symbol "," *> lexeme L.decimal)
-        <*> (symbol "," *> lexeme L.decimal <* symbol "}")
+        <$> (symbol "`{" *> lexeme L.decimal)
+        <*> (symbol ","  *> lexeme L.decimal)
+        <*> (symbol ","  *> lexeme L.decimal <* symbol "}")
 
 instance AsInteger F4913 where
     asInteger (F a b c)

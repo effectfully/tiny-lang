@@ -4,7 +4,11 @@ module TinyLang.Field.Printer
     , someExprToString
     ) where
 
+import           TinyLang.Prelude
+
 import           TinyLang.Field.Core
+
+import qualified Data.Vector         as Vector
 
 -- | Variable names are equipped with Unique identifiers.  The
 -- PrintStyle type determines whether printed variable names include
@@ -21,20 +25,22 @@ toStringUnOp Not  = "not "
 toStringUnOp Neq0 = "neq0 "
 toStringUnOp Neg  = "neg "
 toStringUnOp Inv  = "inv "
+toStringUnOp Unp  = "unpack "
 
-toStringBinOp :: BinOp f a b c -> String
-toStringBinOp Or  = " or "
-toStringBinOp And = " and "
-toStringBinOp Xor = " xor "
-toStringBinOp FEq = " == "
-toStringBinOp FLt = " < "
-toStringBinOp FLe = " <= "
-toStringBinOp FGe = " >= "
-toStringBinOp FGt = " > "
-toStringBinOp Add = " + "
-toStringBinOp Sub = " - "
-toStringBinOp Mul = " * "
-toStringBinOp Div = " / "
+toStringBinOp :: BinOp f a b c -> String -> String -> String
+toStringBinOp Or  l r = l ++ " or "  ++ r
+toStringBinOp And l r = l ++ " and " ++ r
+toStringBinOp Xor l r = l ++ " xor " ++ r
+toStringBinOp FEq l r = l ++ " == "  ++ r
+toStringBinOp FLt l r = l ++ " < "   ++ r
+toStringBinOp FLe l r = l ++ " <= "  ++ r
+toStringBinOp FGe l r = l ++ " >= "  ++ r
+toStringBinOp FGt l r = l ++ " > "   ++ r
+toStringBinOp Add l r = l ++ " + "   ++ r
+toStringBinOp Sub l r = l ++ " - "   ++ r
+toStringBinOp Mul l r = l ++ " * "   ++ r
+toStringBinOp Div l r = l ++ " / "   ++ r
+toStringBinOp BAt l r = r ++ "[" ++ l ++ "]"
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
@@ -46,9 +52,14 @@ isSimple _       = False
 exprToString1 :: TextField f => PrintStyle -> Expr f a -> String
 exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString s e ++ ")"
 
+toStringBool :: Bool -> String
+toStringBool b = if b then "T" else "F"
+
 toStringUniVal :: TextField f => UniVal f a -> String
-toStringUniVal (UniVal Bool  b) = if b then "T" else "F"
-toStringUniVal (UniVal Field i) = showField i
+toStringUniVal (UniVal Bool   b) = toStringBool b
+toStringUniVal (UniVal Field  i) = showField i
+toStringUniVal (UniVal Vector v) =
+    "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
 statementToString :: TextField f => PrintStyle -> Statement f -> String
 statementToString s (ELet (UniVar _ var) def) = concat
@@ -64,7 +75,7 @@ exprToString :: TextField f => PrintStyle -> Expr f a -> String
 exprToString _ (EVal uv)            = toStringUniVal uv
 exprToString s (EVar (UniVar _ v))  = toStringVar s v
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
-exprToString s (EAppBinOp op e1 e2) = exprToString1 s e1 ++ toStringBinOp op ++ exprToString1 s e2
+exprToString s (EAppBinOp op e1 e2) = toStringBinOp op (exprToString1 s e1) (exprToString1 s e2)
 exprToString s (EIf e e1 e2)        = concat
     [ "if "
     , exprToString1 s e

@@ -42,11 +42,13 @@ library
         containers,
         hashable,
         unordered-containers,
+        vector,
         megaparsec,
         mmorph,
         parser-combinators,
         QuickCheck,
-        QuickCheck-GenT
+        QuickCheck-GenT,
+        quickcheck-instances
     default-language: Haskell2010
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances

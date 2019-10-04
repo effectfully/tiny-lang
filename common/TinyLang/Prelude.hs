@@ -74,6 +74,11 @@ import qualified Data.IntMap.Strict        as IntMap
 
 import           Test.QuickCheck.Property
 
+-- vector
+------------------------------
+
+import           Data.Vector               as Export (Vector)
+
 infixr 9 .*
 
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
