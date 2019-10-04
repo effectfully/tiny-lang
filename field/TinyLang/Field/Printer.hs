@@ -4,7 +4,11 @@ module TinyLang.Field.Printer
     , someExprToString
     ) where
 
+import           TinyLang.Prelude
+
 import           TinyLang.Field.Core
+
+import qualified Data.Vector         as Vector
 
 -- | Variable names are equipped with Unique identifiers.  The
 -- PrintStyle type determines whether printed variable names include
@@ -36,7 +40,7 @@ toStringBinOp Add l r = l ++ " + "   ++ r
 toStringBinOp Sub l r = l ++ " - "   ++ r
 toStringBinOp Mul l r = l ++ " * "   ++ r
 toStringBinOp Div l r = l ++ " / "   ++ r
-toStringBinOp At  l r = r ++ "[" ++ l ++ "]"
+toStringBinOp BAt l r = r ++ "[" ++ l ++ "]"
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
@@ -48,10 +52,14 @@ isSimple _       = False
 exprToString1 :: TextField f => PrintStyle -> Expr f a -> String
 exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString s e ++ ")"
 
+toStringBool :: Bool -> String
+toStringBool b = if b then "T" else "F"
+
 toStringUniVal :: TextField f => UniVal f a -> String
-toStringUniVal (UniVal Bool       b) = if b then "T" else "F"
-toStringUniVal (UniVal Field      i) = showField i
-toStringUniVal (UniVal (Vector _) _) = "NO SYNTAX FOR VECTORS"
+toStringUniVal (UniVal Bool   b) = toStringBool b
+toStringUniVal (UniVal Field  i) = showField i
+toStringUniVal (UniVal Vector v) =
+    "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
 statementToString :: TextField f => PrintStyle -> Statement f -> String
 statementToString s (ELet (UniVar _ var) def) = concat

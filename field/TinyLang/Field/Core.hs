@@ -58,7 +58,7 @@ data Uni f a where
     -- Originally @Field@ didn't use the wrapper and we were getting annoying
     -- "pattern matching is not exhaustive" warnings. Now @a@ uniquely determines the constructor
     -- and we do not have such warnings.
-    Vector :: Uni f a -> Uni f (Vector a)
+    Vector :: Uni f (Vector Bool)
 
 class KnownUni f a where
     knownUni :: Uni f a
@@ -69,8 +69,8 @@ instance KnownUni f Bool where
 instance f ~ f' => KnownUni f (AField f') where
     knownUni = Field
 
-instance KnownUni f uni => KnownUni f (Vector uni) where
-    knownUni = Vector knownUni
+instance bool ~ Bool => KnownUni f (Vector bool) where
+    knownUni = Vector
 
 -- Needed for the sake of deriving.
 data UniVal f a = UniVal
@@ -114,7 +114,7 @@ data BinOp f a b c where
     Sub :: BinOp f (AField f) (AField f) (AField f)
     Mul :: BinOp f (AField f) (AField f) (AField f)
     Div :: BinOp f (AField f) (AField f) (AField f)
-    At  :: KnownUni f a => BinOp f (AField f) (Vector a) a
+    BAt :: BinOp f (AField f) (Vector Bool) Bool
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -177,9 +177,9 @@ deriving instance Show (BinOp f a b c)
 deriving instance Eq   (BinOp f a b c)
 
 instance TextField f => Show (UniVal f a) where
-    show (UniVal Bool  b)          = "(UniVal Bool " ++ show b ++ ")"
-    show (UniVal Field i)          = showField i
-    show (UniVal (Vector uni) vec) = show $ UniVal uni <$> vec
+    show (UniVal Bool   b) = "(UniVal Bool " ++ show b ++ ")"
+    show (UniVal Field  i) = showField i
+    show (UniVal Vector v) = "(UniVal Vector " ++ show v ++ ")"
 
 deriving instance TextField f => Show (Statement f)
 deriving instance TextField f => Show (Expr f a)
@@ -208,7 +208,7 @@ withBinOpUnis Add k = k knownUni knownUni knownUni
 withBinOpUnis Sub k = k knownUni knownUni knownUni
 withBinOpUnis Mul k = k knownUni knownUni knownUni
 withBinOpUnis Div k = k knownUni knownUni knownUni
-withBinOpUnis At  k = k knownUni knownUni knownUni
+withBinOpUnis BAt k = k knownUni knownUni knownUni
 
 uniOfExpr :: Expr f a -> Uni f a
 uniOfExpr = go where
@@ -220,12 +220,12 @@ uniOfExpr = go where
     go (EStatement _ expr)   = uniOfExpr expr
 
 withGeqUni :: Uni f a1 -> Uni f a2 -> b -> (a1 ~ a2 => b) -> b
-withGeqUni Bool          Bool          _ y = y
-withGeqUni Field         Field         _ y = y
-withGeqUni (Vector uni1) (Vector uni2) z y = withGeqUni uni1 uni2 z y
-withGeqUni Bool     _ z _ = z
-withGeqUni Field    _ z _ = z
-withGeqUni Vector{} _ z _ = z
+withGeqUni Bool   Bool   _ y = y
+withGeqUni Field  Field  _ y = y
+withGeqUni Vector Vector _ y = y
+withGeqUni Bool   _ z _ = z
+withGeqUni Field  _ z _ = z
+withGeqUni Vector _ z _ = z
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
@@ -252,10 +252,9 @@ withGeqBinOp binOp1 binOp2 z y =
 -- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
 -- but then it's easier to just pattern match on universes.
 instance Eq f => Eq (UniVal f a) where
-    UniVal Bool          bool1 == UniVal Bool          bool2 = bool1 == bool2
-    UniVal Field         el1   == UniVal Field         el2   = el1 == el2
-    UniVal (Vector uni1) vec1  == UniVal (Vector uni2) vec2  =
-        fmap (UniVal uni1) vec1 == fmap (UniVal uni2) vec2
+    UniVal Bool   bool1 == UniVal Bool   bool2 = bool1 == bool2
+    UniVal Field  el1   == UniVal Field  el2   = el1 == el2
+    UniVal Vector vec1  == UniVal Vector vec2  = vec1 == vec2
 
 instance Eq f => Eq (UniVar f a) where
     UniVar _ v1 == UniVar _ v2 = v1 == v2
@@ -287,9 +286,9 @@ instance Eq f => Eq (Expr f a) where
     EStatement {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
-withKnownUni Bool         = id
-withKnownUni Field        = id
-withKnownUni (Vector uni) = withKnownUni uni
+withKnownUni Bool   = id
+withKnownUni Field  = id
+withKnownUni Vector = id
 
 data VarSign f = forall a. VarSign
     { _varSignName :: String

@@ -28,9 +28,13 @@ import           TinyLang.Field.Core
 import           TinyLang.Field.Evaluator
 
 import qualified Data.IntMap.Strict        as IntMap
+import qualified Data.Vector               as Vector
 import           QuickCheck.GenT
 import           Test.QuickCheck           hiding (elements, frequency, oneof,
                                                    sized)
+import           Test.QuickCheck.Instances.Vector ()
+
+deriving newtype instance Arbitrary f => Arbitrary (AField f)
 
 -- Our generators all run in such an @m@ that @MonadGen m@ and
 -- @MonadSupply m@ are satisfied for it, so that we can generate fresh
@@ -71,8 +75,9 @@ genFreshUniVar :: forall f a m. (KnownUni f a, MonadGen m, MonadSupply m) => m (
 genFreshUniVar = do
     let uni = knownUni @f @a
     name <- elements $ case uni of
-        Bool  -> map (\c -> '?':[c]) ['a'..'z']
-        Field -> map (:[]) ['a'..'z']
+        Bool   -> map (\c -> '?':[c]) ['a'..'z']
+        Field  -> map (:[]) ['a'..'z']
+        Vector -> map (\c -> '#':[c]) ['a'..'z']
     UniVar uni <$> freshVar name
 
 {- The next function does some hacking to adjust the supply of
@@ -103,9 +108,10 @@ adjustUniquesForVars =
 defaultVars :: Vars f
 defaultVars = runSupply $ do
     let make uni name = Some . UniVar uni <$> freshVar name
-    fieldVars <- traverse (make Field) ["x", "y", "z", "p", "q", "r", "s", "t"]
-    boolVars  <- traverse (make Bool)  ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
-    return $ fieldVars ++ boolVars
+    fieldVars  <- traverse (make Field ) ["x", "y", "z", "p", "q", "r", "s", "t"]
+    boolVars   <- traverse (make Bool  ) ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
+    vectorVars <- traverse (make Vector) ["#q", "#r", "#s", "#t", "#u", "#v", "#w"]
+    return $ fieldVars ++ boolVars ++ vectorVars
 
 -- | A wrapper around @UniVar f a@ provided for its @Arbitrary@ instance that allows to generate
 -- variables from the default set of them.
@@ -125,13 +131,19 @@ withOneofUnis k = oneof [k Bool, k Field]
 -- @Arbitrary@ isntance of @SomeUniVal@.
 -- | Shrink a 'UniVal'.
 shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
-shrinkUniVal (UniVal Bool b) = [UniVal Bool False | b]
-shrinkUniVal (UniVal Field (AField i)) = map (UniVal Field . AField) $ shrink i
+shrinkUniVal (UniVal uni x) = map (UniVal uni) $ case uni of
+    Bool   -> shrink x
+    Field  -> shrink x
+    Vector -> shrink x
 
 instance (KnownUni f a, Arbitrary f) => Arbitrary (UniVal f a) where
-    arbitrary = case knownUni @f @a of
-        Bool  -> UniVal Bool           <$> arbitrary
-        Field -> UniVal Field . AField <$> arbitrary
+    arbitrary =
+        UniVal uni <$> case uni of
+            Bool   -> arbitrary
+            Field  -> arbitrary
+            Vector -> arbitrary
+        where
+            uni = knownUni @f @a
 
     shrink = shrinkUniVal
 
@@ -162,21 +174,25 @@ withOneofUnOps
     :: forall f b m r. (KnownUni f b, MonadGen m)
     => (forall a. KnownUni f a => UnOp f a b -> m r) -> m r
 withOneofUnOps k = oneof $ case knownUni @f @b of
-    Bool  -> [k Not, k Neq0]
-    Field -> [k Neg, k Inv]
+    Bool   -> [k Not, k Neq0]
+    Field  -> [k Neg, k Inv]
+    Vector -> [k Unp]
 
 -- | Generate a 'BinOp' and feed it to the continuation.
 -- Note that @c@ is bound outside of the continuation and @a@ and @b@ are bound inside.
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of arguments and so we can pick any.
 withOneofBinOps
-    :: forall f c m r. (KnownUni f c, MonadGen m)
-    => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m r) -> m r
+    :: forall f c m d. (Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
+    => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m (Expr f d)) -> m (Expr f d)
 withOneofBinOps k = case knownUni @f @c of
-    Bool  -> frequency $
+    Bool   -> frequency $
         map ((,) 16) [k Or, k And, k Xor, k FEq] ++
-        map ((,) 1)  [k FLt, k FLe, k FGe, k FGt]
-    Field -> oneof [k Add, k Sub, k Mul, k Div]
+        map ((,) 1)  [k FLt, k FLe, k FGe, k FGt, k BAt]
+    Field  -> oneof [k Add, k Sub, k Mul, k Div]
+    -- There are no binary operators that return a 'Vector' and hence we just generate an
+    -- arbitrary constant vector here.
+    Vector -> EVal <$> arbitraryM
 
 -- | Generate a comparison operator and feed it to the continuation.
 withOneofComparisons
@@ -277,8 +293,8 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
 
         -- A generator of comparisons.
         comparisons size' = case knownUni @f @a of
-            Field -> []
-            Bool  -> [(2, boundedArbitraryComparisons vars size')]
+            Bool -> [(2, boundedArbitraryComparisons vars size')]
+            _    -> []
 
 boundedArbitraryComparisons
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
@@ -357,9 +373,13 @@ shrinking is type-preserving, we let the type-preserving shrinker do it.
 -- We can shrink any expression to just a hardcoded ground value (except we shouldn't shrink other
 -- ground values to hardcoded ground values to prevent looping).
 defaultUniVal :: forall f a. (KnownUni f a, Field f) => UniVal f a
-defaultUniVal = case knownUni @f @a of
-    Bool  -> UniVal Bool True
-    Field -> UniVal Field $ fromInteger 101
+defaultUniVal =
+    UniVal uni $ case uni of
+        Bool   -> True
+        Field  -> fromInteger 101
+        Vector -> Vector.fromList [False, True, True, True, False, False, True]
+    where
+        uni = knownUni @f @a
 
 -- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
 -- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
@@ -386,15 +406,14 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     shrink (EVal uniVal) = EVal <$> shrink uniVal
     shrink expr0         = EVal defaultUniVal : case expr0 of
         EAppUnOp op e ->
-            withUnOpUnis op $ \argUni _ ->
-            withKnownUni argUni $
+            withUnOpUnis op $ \uni _ ->
+            withKnownUni uni $
                 EAppUnOp op <$> shrink e
         EAppBinOp op e1 e2 ->
+            withBinOpUnis op $ \uni1 uni2 _ ->
             withKnownUni uni1 $
             withKnownUni uni2 $
                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
-          where
-              (uni1, uni2) = uniOfBinOpArg op
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
         EVal _ -> []
         EVar _ -> []
@@ -410,8 +429,8 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
         map (SomeUniExpr uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
             EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeUniExpr argUni e]
             EAppBinOp op e1 e2 ->
-                case uniOfBinOpArg op of
-                  (t1,t2) -> [SomeUniExpr t1 e1, SomeUniExpr t2 e2]
+                withBinOpUnis op $ \uni1 uni2 _ ->
+                    [SomeUniExpr uni1 e1, SomeUniExpr uni2 e2]
             EIf e _ _ -> [SomeUniExpr Bool e]
             EVal _ -> []
             EVar _ -> []

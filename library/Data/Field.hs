@@ -5,6 +5,7 @@ module Data.Field
     , TextField (..)
     , AsInteger (..)
     , IsNegative (..)
+    , unsafeAsInteger
     , two
     ) where
 
@@ -15,6 +16,7 @@ import           TinyLang.ParseUtils
 
 import           Control.Exception (throw, ArithException (..))
 import           Data.Coerce
+import           Data.Maybe
 import           Data.Ratio
 import           Data.Foldable     (asum)
 import           Text.Megaparsec
@@ -94,7 +96,7 @@ class Field f => TextField f where
 
 newtype AField f = AField
     { unAField :: f
-    } deriving (Eq)
+    } deriving (Eq, Functor, Foldable, Traversable)
 
 two :: Field f => f
 two = one `add` one
@@ -196,6 +198,9 @@ instance Field f => ToField f Rational where
 -}
 class AsInteger f where
     asInteger :: f -> Maybe Integer
+
+unsafeAsInteger :: AsInteger f => f -> Integer
+unsafeAsInteger = fromMaybe (throw Denormal) . asInteger
 
 instance AsInteger f => AsInteger (AField f) where
     asInteger = coerce $ asInteger @f
