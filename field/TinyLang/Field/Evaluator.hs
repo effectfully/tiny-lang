@@ -39,11 +39,19 @@ unpackPositiveAsc n0          = map (== 1) $ go n0 where
 unpackPositiveDesc :: Integer -> [Bool]
 unpackPositiveDesc = reverse . unpackPositiveAsc
 
-packPositiveAsc :: [Bool] -> Integer
-packPositiveAsc = sum . zipWith (\i b -> if b then i else 0) (iterate (* 2) 1)
+-- Note that this leaks due to '(,)' being lazy.
+packPositiveAsc :: Foldable f => f Bool -> Integer
+packPositiveAsc = fst . foldl' (\(a, p) b -> (a + if b then p else 0, p * 2)) (0, 1)
 
 packPositiveDesc :: [Bool] -> Integer
 packPositiveDesc = packPositiveAsc . reverse
+
+normUniVal :: forall f a. (Field f, AsInteger f) => UniVal f a -> UniVal f a
+normUniVal (UniVal Bool   b) = UniVal Bool   b
+normUniVal (UniVal Field  f) = UniVal Field  f
+normUniVal (UniVal Vector v) = UniVal Vector $ normUnpacking v where
+    normUnpacking =
+        Vector.fromList . unpackPositiveAsc . unsafeAsInteger . toField @f . packPositiveAsc
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
@@ -71,8 +79,8 @@ evalBinOp Xor = UniVal Bool .* (/=)
 evalBinOp FEq = UniVal Bool .* (==)
 evalBinOp FLt = UniVal Bool .* compareIntegerValues (<)
 evalBinOp FLe = UniVal Bool .* compareIntegerValues (<=)
-evalBinOp FGe = UniVal Bool .* compareIntegerValues (>=)
 evalBinOp FGt = UniVal Bool .* compareIntegerValues (>)
+evalBinOp FGe = UniVal Bool .* compareIntegerValues (>=)
 evalBinOp Add = UniVal Field .* add
 evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
@@ -92,9 +100,12 @@ evalStatementUni env (EAssert expr) rest =
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
 evalExprUni :: (Eq f, Field f, AsInteger f) => Env (SomeUniVal f) -> Expr f a -> UniVal f a
-evalExprUni _   (EVal uniVal) = uniVal
-evalExprUni env (EVar (UniVar uni var)) = case unsafeLookupVar var env of
-    Some uniVal@(UniVal uni' _) -> withGeqUni uni uni' (error "type mismatch") uniVal
+evalExprUni _   (EVal uniVal) = normUniVal uniVal
+evalExprUni env (EVar (UniVar uni var)) =
+    case unsafeLookupVar var env of
+        Some uniVal@(UniVal uni' _) ->
+            withGeqUni uni uni' (error "type mismatch") $
+                evalExprUni env $ EVal uniVal
 evalExprUni env (EIf e e1 e2) = if evalExpr env e then evalExprUni env e1 else evalExprUni env e2
 evalExprUni env (EAppUnOp op e) = evalUnOp op (evalExpr env e)
 evalExprUni env (EAppBinOp op e1 e2) =
