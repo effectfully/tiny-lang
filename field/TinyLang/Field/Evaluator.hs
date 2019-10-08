@@ -1,5 +1,6 @@
 module TinyLang.Field.Evaluator
-    ( unpackPositiveRev
+    ( arithAt
+    , unpackPositiveRev
     , unpackPositive
     , packPositive
     , ExprWithEnv (..)
@@ -23,6 +24,9 @@ import           TinyLang.Field.Core
 import           TinyLang.Prelude
 
 import qualified Data.Vector          as Vector
+
+arithAt :: Int -> Vector a -> a
+arithAt i xs = fromMaybe (throw Overflow) $ xs Vector.!? i
 
 unpackPositiveRev :: Integer -> [Bool]
 unpackPositiveRev n0 | n0 < 0 = throw Underflow  -- error $ "Negative number: " ++ show n0
@@ -69,7 +73,7 @@ evalBinOp Add = UniVal Field .* add
 evalBinOp Sub = UniVal Field .* sub
 evalBinOp Mul = UniVal Field .* mul
 evalBinOp Div = UniVal Field .* div
-evalBinOp BAt = UniVal Bool .* flip (Vector.!) . fromIntegral . unsafeAsInteger
+evalBinOp BAt = UniVal Bool .* arithAt . fromIntegral . unsafeAsInteger
 
 evalStatementUni
     :: (Eq f, Field f, AsInteger f)
