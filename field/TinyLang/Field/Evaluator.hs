@@ -1,8 +1,9 @@
 module TinyLang.Field.Evaluator
     ( arithAt
-    , unpackPositiveRev
-    , unpackPositive
-    , packPositive
+    , unpackPositiveAsc
+    , unpackPositiveDesc
+    , packPositiveAsc
+    , packPositiveDesc
     , ExprWithEnv (..)
     , evalUnOp
     , evalBinOp
@@ -28,18 +29,21 @@ import qualified Data.Vector          as Vector
 arithAt :: Int -> Vector a -> a
 arithAt i xs = fromMaybe (throw Overflow) $ xs Vector.!? i
 
-unpackPositiveRev :: Integer -> [Bool]
-unpackPositiveRev n0 | n0 < 0 = throw Underflow  -- error $ "Negative number: " ++ show n0
-unpackPositiveRev n0          = map (== 1) $ go n0 where
+unpackPositiveAsc :: Integer -> [Bool]
+unpackPositiveAsc n0 | n0 < 0 = throw Underflow  -- error $ "Negative number: " ++ show n0
+unpackPositiveAsc n0          = map (== 1) $ go n0 where
     go n | n < 2 = [n]
     go n         = r : go q where
         (q, r) = n `quotRem` 2
 
-unpackPositive :: Integer -> [Bool]
-unpackPositive = reverse . unpackPositiveRev
+unpackPositiveDesc :: Integer -> [Bool]
+unpackPositiveDesc = reverse . unpackPositiveAsc
 
-packPositive :: [Bool] -> Integer
-packPositive = sum . zipWith (\i b -> if b then i else 0) (iterate (* 2) 1) . reverse
+packPositiveAsc :: [Bool] -> Integer
+packPositiveAsc = sum . zipWith (\i b -> if b then i else 0) (iterate (* 2) 1)
+
+packPositiveDesc :: [Bool] -> Integer
+packPositiveDesc = packPositiveAsc . reverse
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
@@ -58,7 +62,7 @@ evalUnOp Not  = UniVal Bool . not
 evalUnOp Neq0 = UniVal Bool . (/= zer)
 evalUnOp Neg  = UniVal Field . neg
 evalUnOp Inv  = UniVal Field . inv
-evalUnOp Unp  = UniVal Vector . Vector.fromList . unpackPositive . unsafeAsInteger
+evalUnOp Unp  = UniVal Vector . Vector.fromList . unpackPositiveAsc . unsafeAsInteger
 
 evalBinOp :: (Eq f, Field f, AsInteger f) => BinOp f a b c -> a -> b -> UniVal f c
 evalBinOp Or  = UniVal Bool .* (||)
@@ -114,7 +118,7 @@ evalExprWithEnv (ExprWithEnv (SomeUniExpr uni expr) env) =
 denoteUniVal :: Field f => UniVal f a -> f
 denoteUniVal (UniVal Bool   b) = toField b
 denoteUniVal (UniVal Field  i) = unAField i
-denoteUniVal (UniVal Vector v) = unAField . fromInteger . packPositive $ toList v
+denoteUniVal (UniVal Vector v) = unAField . fromInteger . packPositiveAsc $ toList v
 
 denoteSomeUniVal :: Field f => SomeUniVal f -> f
 denoteSomeUniVal (Some uniVal) = denoteUniVal uniVal
