@@ -141,7 +141,8 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniVal f a) where
         UniVal uni <$> case uni of
             Bool   -> arbitrary
             Field  -> frequency
-                [ (2, fromIntegral <$> arbitrarySizedBoundedIntegral @Int)
+                [ (1, fromIntegral <$> arbitrary @Int)
+                , (1, fromIntegral <$> arbitrarySizedBoundedIntegral @Int)
                 , (1, arbitrary)
                 ]
             Vector -> arbitrary
