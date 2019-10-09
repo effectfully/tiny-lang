@@ -136,18 +136,21 @@ shrinkUniVal (UniVal uni x) = map (UniVal uni) $ case uni of
     Field  -> shrink x
     Vector -> shrink x
 
-instance (KnownUni f a, Arbitrary f) => Arbitrary (UniVal f a) where
+instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniVal f a) where
     arbitrary =
         UniVal uni <$> case uni of
             Bool   -> arbitrary
-            Field  -> arbitrary
+            Field  -> frequency
+                [ (2, fromIntegral <$> arbitrarySizedBoundedIntegral @Int)
+                , (1, arbitrary)
+                ]
             Vector -> arbitrary
         where
             uni = knownUni @f @a
 
     shrink = shrinkUniVal
 
-instance Arbitrary f => Arbitrary (SomeUniVal f) where
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f) where
     arbitrary = withOneofUnis $ \(_ :: Uni f a) -> Some <$> arbitrary @(UniVal f a)
 
     shrink (Some uniVal) = Some <$> shrinkUniVal uniVal
@@ -183,7 +186,7 @@ withOneofUnOps k = oneof $ case knownUni @f @b of
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of arguments and so we can pick any.
 withOneofBinOps
-    :: forall f c m d. (Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
+    :: forall f c m d. (Field f, Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
     => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m (Expr f d)) -> m (Expr f d)
 withOneofBinOps k = case knownUni @f @c of
     Bool   -> frequency $
@@ -227,7 +230,7 @@ arbitraryBinOpRing :: MonadGen m => m (BinOp f (AField f) (AField f) (AField f))
 arbitraryBinOpRing = elements [Add, Sub, Mul]
 
 groundArbitraryFreqs
-    :: (Arbitrary f, KnownUni f a, MonadGen m)
+    :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
     => Vars f -> [(Int, m (Expr f a))]
 groundArbitraryFreqs vars =
     [ (1, EVal <$> arbitraryM)
@@ -438,7 +441,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 ELet (UniVar uni _) def -> [SomeUniExpr uni def]
                 EAssert e               -> [SomeUniExpr Bool e]
 
-genEnvFromVarSigns :: Arbitrary f => Env (VarSign f) -> Gen (Env (SomeUniVal f))
+genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns =
     traverse $ \(VarSign _ (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniVal f a))
