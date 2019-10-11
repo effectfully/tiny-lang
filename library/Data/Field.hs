@@ -20,8 +20,8 @@ import           Data.Maybe
 import           Data.Ratio
 import           Data.Foldable     (asum)
 import qualified Data.Field.Galois as GF
-import           Text.Megaparsec
 import           GHC.TypeLits (KnownNat)
+import           Text.Megaparsec
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`

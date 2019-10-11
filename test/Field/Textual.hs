@@ -90,7 +90,7 @@ test_checkParseGeneric =
 test_checkParseNestedLets :: TestTree
 test_checkParseNestedLets =
     testProperty "checkParseNestedLets" $
-        withMaxSuccess 100 . property $ prop_nestedELet @BigField
+        withMaxSuccess 100 . property $ prop_nestedELet @F17
 
 test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
@@ -103,7 +103,7 @@ parsePrint :: String -> String
 parsePrint
     = either id (\(SomeUniExpr _ expr) -> exprToString WithIDs expr)
     . runSupply
-    . parseExpr @BigField
+    . parseExpr @Rational
 
 parsePrintGolden :: String -> String -> TestTree
 parsePrintGolden name expr =
