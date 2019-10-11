@@ -8,6 +8,7 @@ module Field.Textual
     ) where
 
 import           TinyLang.Field.Core
+import           TinyLang.Field.BigField
 import           TinyLang.Field.F17
 import           TinyLang.Field.F4913
 import           TinyLang.Field.Parser
@@ -86,6 +87,11 @@ test_checkParseGeneric =
     testProperty "checkParseGeneric" $
         withMaxSuccess 1000 . property $ prop_Ftest @F4913
 
+test_checkParseGeneric2 :: TestTree
+test_checkParseGeneric2 =
+    testProperty "checkParseGeneric2" $
+        withMaxSuccess 1000 . property $ prop_Ftest @BigField
+
 test_checkParseNestedLets :: TestTree
 test_checkParseNestedLets =
     testProperty "checkParseNestedLets" $
@@ -95,6 +101,7 @@ test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
     testGroup "printerParserRoundtrip"
         [ test_checkParseGeneric
+        , test_checkParseGeneric2
         , test_checkParseNestedLets
         ]
 

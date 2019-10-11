@@ -33,6 +33,7 @@ library
         TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
+        TinyLang.Field.BigField
         TinyLang.Field.F17
         TinyLang.Field.F4913
     build-depends:
@@ -40,6 +41,8 @@ library
         transformers,
         mtl,
         containers,
+        galois-field,
+        semirings,
         hashable,
         unordered-containers,
         vector,
