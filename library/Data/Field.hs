@@ -19,7 +19,9 @@ import           Data.Coerce
 import           Data.Maybe
 import           Data.Ratio
 import           Data.Foldable     (asum)
+import qualified Data.Field.Galois as GF
 import           Text.Megaparsec
+import           GHC.TypeLits (KnownNat)
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
@@ -223,3 +225,28 @@ class IsNegative f where
     isNegative x = x < 0
 
 instance IsNegative Rational
+
+
+-- | Various instances making Data.Field.Galois.Prime fit our type
+-- classes for fields.  Most of these would generalise to non-prime
+-- fields quite easily, but parsing and printing would require some
+-- work.
+
+instance KnownNat p => Field (GF.Prime p)
+    where add = (+)
+          sub = (-)
+          mul = (*)
+          div = (GF./)
+          zer = 0
+          one = 1
+
+instance KnownNat p => TextField (GF.Prime p)
+    where parseField = GF.toP <$> signedDecimal
+          showField  = show . GF.fromP
+    
+instance KnownNat p =>  AsInteger (GF.Prime p)
+    where asInteger = Just . GF.fromP
+
+instance IsNegative (GF.Prime p) where
+    isNegative _ = False
+

@@ -8,6 +8,7 @@ module Field.Textual
     ) where
 
 import           TinyLang.Field.Core
+import           TinyLang.Field.BigField
 import           TinyLang.Field.F17
 import           TinyLang.Field.F4913
 import           TinyLang.Field.Parser
@@ -84,12 +85,12 @@ prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
     testProperty "checkParseGeneric" $
-        withMaxSuccess 1000 . property $ prop_Ftest @F4913
+        withMaxSuccess 1000 . property $ prop_Ftest @BigField
 
 test_checkParseNestedLets :: TestTree
 test_checkParseNestedLets =
     testProperty "checkParseNestedLets" $
-        withMaxSuccess 100 . property $ prop_nestedELet @F17
+        withMaxSuccess 100 . property $ prop_nestedELet @BigField
 
 test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
@@ -102,7 +103,7 @@ parsePrint :: String -> String
 parsePrint
     = either id (\(SomeUniExpr _ expr) -> exprToString WithIDs expr)
     . runSupply
-    . parseExpr @Rational
+    . parseExpr @BigField
 
 parsePrintGolden :: String -> String -> TestTree
 parsePrintGolden name expr =
