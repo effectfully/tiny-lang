@@ -7,10 +7,10 @@ module Field.Textual
     ( test_textual
     ) where
 
+import           Data.Field.F17
+import           Data.Field.F4913
 import           TinyLang.Field.Core
 import           TinyLang.Field.BigField
-import           TinyLang.Field.F17
-import           TinyLang.Field.F4913
 import           TinyLang.Field.Parser
 import           TinyLang.Field.Printer
 import           TinyLang.Field.Generator

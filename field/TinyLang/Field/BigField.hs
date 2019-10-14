@@ -1,5 +1,6 @@
-module TinyLang.Field.BigField (BigField)
-where
+module TinyLang.Field.BigField
+    ( BigField
+    ) where
 
 import Data.Field.Galois
 

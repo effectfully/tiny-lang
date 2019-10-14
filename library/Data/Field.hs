@@ -1,6 +1,7 @@
 module Data.Field
     ( Field (..)
     , AField (..)
+    , ABaseField (..)
     , ToField (..)
     , TextField (..)
     , AsInteger (..)
@@ -15,13 +16,14 @@ import qualified Prelude          (div)
 import           TinyLang.ParseUtils
 
 import           Control.Exception (throw, ArithException (..))
-import           Data.Coerce
-import           Data.Maybe
+import           Control.Monad     (guard)
+import           Data.Maybe        (fromMaybe)
 import           Data.Ratio
 import           Data.Foldable     (asum)
 import qualified Data.Field.Galois as GF
-import           GHC.TypeLits (KnownNat)
+import           GHC.TypeLits      (KnownNat)
 import           Text.Megaparsec
+import           Test.QuickCheck
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
@@ -59,6 +61,8 @@ infixl 7 `mul`, `div`
 -- that we definitely need. Anyway, would be nice to have, just too much of a bother.
 
 class Field f where
+    {-# MINIMAL zer, add, one, mul, (neg | sub), (inv | div) #-}
+
     zer :: f
 
     neg :: f -> f
@@ -79,8 +83,6 @@ class Field f where
     div :: f -> f -> f
     x `div` y = x `mul` inv y
 
-    {-# MINIMAL zer, add, one, mul, (neg | sub), (inv | div) #-}
-
 parseFieldDefault :: Field f => Parser f
 parseFieldDefault = unAField . fromInteger <$> signedDecimal
 
@@ -99,28 +101,25 @@ class Field f => TextField f where
 newtype AField f = AField
     { unAField :: f
     } deriving (Eq, Functor, Foldable, Traversable)
+      deriving newtype (Field, TextField, AsInteger, Arbitrary)
 
-two :: Field f => f
-two = one `add` one
+newtype ABaseField a = ABaseField
+    { unABaseField :: a
+    } deriving newtype (Num, Fractional)
 
-instance Field f => Field (AField f) where
-    zer = coerce $ zer @f
-    neg = coerce $ neg @f
-    add = coerce $ add @f
-    sub = coerce $ sub @f
-    one = coerce $ one @f
-    inv = coerce $ inv @f
-    mul = coerce $ mul @f
-    div = coerce $ div @f
-
-instance Field Rational where
+instance (Num a, Fractional a) => Field (ABaseField a) where
     zer = 0
     neg = negate
     add = (+)
     sub = (-)
     one = 1
-    inv = \x -> denominator x % numerator x
     mul = (*)
+    div = (/)
+
+two :: Field f => f
+two = one `add` one
+
+deriving via ABaseField Rational instance Field Rational
 
 instance Field Bool where
     zer = False
@@ -154,10 +153,6 @@ instance Field f => Fractional (AField f) where
     (/) = div
     recip = inv
     fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
-
-instance TextField f => TextField (AField f) where
-    parseField = AField <$> parseField
-    showField = showField . unAField
 
 instance TextField f => Show (AField f) where
     show = showField . unAField
@@ -204,17 +199,14 @@ class AsInteger f where
 unsafeAsInteger :: AsInteger f => f -> Integer
 unsafeAsInteger = fromMaybe (throw Denormal) . asInteger
 
-instance AsInteger f => AsInteger (AField f) where
-    asInteger = coerce $ asInteger @f
-
 -- | For Rational, we check if a fraction is in fact an integer.  We
 -- can safely use the 'denominator' function to do this because it
 -- reduces fractions to lowest terms before computing the result (eg,
 -- denominator (111/3) == 1)
 instance AsInteger Rational where
-    asInteger r = if denominator r == 1
-                   then Just (numerator r)
-                   else Nothing
+    asInteger r = do
+        guard $ denominator r == 1
+        Just $ numerator r
 
 -- | The 'IsNegative' class adds an operation that allows to check whether a field element is
 -- negative. For finite fields like 'F17' we simply always return 'False'. The class is currently
@@ -226,27 +218,19 @@ class IsNegative f where
 
 instance IsNegative Rational
 
-
 -- | Various instances making Data.Field.Galois.Prime fit our type
 -- classes for fields.  Most of these would generalise to non-prime
 -- fields quite easily, but parsing and printing would require some
 -- work.
 
-instance KnownNat p => Field (GF.Prime p)
-    where add = (+)
-          sub = (-)
-          mul = (*)
-          div = (GF./)
-          zer = 0
-          one = 1
+deriving via ABaseField (GF.Prime p) instance KnownNat p => Field (GF.Prime p)
 
-instance KnownNat p => TextField (GF.Prime p)
-    where parseField = GF.toP <$> signedDecimal
-          showField  = show . GF.fromP
-    
-instance KnownNat p =>  AsInteger (GF.Prime p)
-    where asInteger = Just . GF.fromP
+instance KnownNat p => TextField (GF.Prime p) where
+    parseField = GF.toP <$> signedDecimal
+    showField  = show . GF.fromP
+
+instance KnownNat p =>  AsInteger (GF.Prime p) where
+    asInteger = Just . GF.fromP
 
 instance IsNegative (GF.Prime p) where
     isNegative _ = False
-

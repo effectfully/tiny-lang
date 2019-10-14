@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingVia #-}
-
 module TinyLang.Field.Core
     ( module Field
     , module Var

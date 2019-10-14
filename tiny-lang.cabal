@@ -17,6 +17,9 @@ library
     hs-source-dirs: library common boolean field
     exposed-modules:
         Data.Field
+        Data.Field.F17
+        Data.Field.F4913
+        Data.NamedType
         TinyLang.Environment
         TinyLang.Generator
         TinyLang.ParseUtils
@@ -34,8 +37,6 @@ library
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.BigField
-        TinyLang.Field.F17
-        TinyLang.Field.F4913
     build-depends:
         base >= 4.7 && < 5,
         transformers,
@@ -57,9 +58,9 @@ library
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
         ScopedTypeVariables, ConstraintKinds, DefaultSignatures
         GADTs, DataKinds, PolyKinds, RankNTypes, TypeFamilies, FunctionalDependencies
-        DerivingStrategies, DeriveAnyClass, GeneralizedNewtypeDeriving, StandaloneDeriving
-        DeriveFunctor, DeriveFoldable, DeriveTraversable
-        DeriveGeneric, DeriveDataTypeable,
+        DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveGeneric, DeriveDataTypeable
+        DerivingStrategies, GeneralizedNewtypeDeriving, DeriveAnyClass
+        DerivingVia, StandaloneDeriving
         EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
         TypeOperators, PatternSynonyms, TypeApplications
         OverloadedStrings, StrictData
@@ -75,6 +76,7 @@ test-suite tiny-lang-test
     other-modules:
         Boolean.Textual
         Field.Textual
+        Field.Axioms
     default-language: Haskell2010
     build-depends:
         tiny-lang,
