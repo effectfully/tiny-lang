@@ -34,8 +34,6 @@ import           Test.QuickCheck           hiding (elements, frequency, oneof,
                                                    sized)
 import           Test.QuickCheck.Instances.Vector ()
 
-deriving newtype instance Arbitrary f => Arbitrary (AField f)
-
 -- Our generators all run in such an @m@ that @MonadGen m@ and
 -- @MonadSupply m@ are satisfied for it, so that we can generate fresh
 -- variables. The final @Arbitrary@ instances call @runSupplyGenT@ to get

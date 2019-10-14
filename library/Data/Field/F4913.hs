@@ -1,4 +1,4 @@
-module TinyLang.Field.F4913
+module Data.Field.F4913
     ( F4913
     , toF4913
     , unF4913
@@ -6,8 +6,9 @@ module TinyLang.Field.F4913
 
 import           Data.Field
 import           TinyLang.ParseUtils
-import           TinyLang.Prelude
 
+import           Control.Exception
+import           GHC.Generics
 import           Test.QuickCheck
 import qualified Text.Megaparsec.Char.Lexer as L
 

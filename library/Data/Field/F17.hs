@@ -1,11 +1,11 @@
-module TinyLang.Field.F17
+module Data.Field.F17
     ( F17 (unF17)
     , toF17
     ) where
 
-import           TinyLang.Field.Core
-import           TinyLang.Prelude
-
+import           Control.Exception
+import           Data.Field
+import           Data.Hashable
 import           Test.QuickCheck
 
 {-| A quick implementation of the field of seventeen elements for
