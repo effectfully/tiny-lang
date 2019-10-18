@@ -36,7 +36,7 @@ library
         TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
-        TinyLang.Field.BigField
+        TinyLang.Field.Jubjub
     build-depends:
         base >= 4.7 && < 5,
         transformers,
