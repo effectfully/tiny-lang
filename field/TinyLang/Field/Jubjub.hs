@@ -7,6 +7,7 @@ module TinyLang.Field.Jubjub
     , d
     ) where
 
+import           Data.Field
 import qualified Data.Field.Galois as GF
 
 type F = GF.Prime 52435875175126190479447740508185965837690552500527637822603658699938581184513
@@ -18,5 +19,5 @@ u = -0xd201000000010000
 r :: Integer
 r = let u2 = u*u in u2*u2 - u2 + 1
 
-d :: F
+d :: AField F
 d = fromInteger $ toInteger (-10240/10241 :: F) `mod` r
