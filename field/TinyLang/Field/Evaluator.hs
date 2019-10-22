@@ -123,7 +123,7 @@ data ExprWithEnv f
 
 -- | Evaluate an expression in a given environment
 evalExprWithEnv :: (Eq f, Field f, AsInteger f) => ExprWithEnv f -> SomeUniVal f
-evalExprWithEnv (ExprWithEnv (SomeUniExpr uni expr) env) =
+evalExprWithEnv (ExprWithEnv (SomeOf uni expr) env) =
     Some . UniVal uni $ evalExpr env expr
 
 denoteUniVal :: Field f => UniVal f a -> f

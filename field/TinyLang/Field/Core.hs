@@ -4,15 +4,15 @@ module TinyLang.Field.Core
     , module Env
     , Some (..)
     , SomeOf (..)
-    , forget
+    , Forget (..)
+    , traverseSomeOf
     , Uni (..)
     , KnownUni (..)
     , UniVal (..)
     , UniVar (..)
     , SomeUniVal
     , SomeUniVar
-    , SomeUniExpr (..)
-    , traverseSomeUniExpr
+    , SomeUniExpr
     , UnOp (..)
     , BinOp (..)
     , Statement (..)
@@ -40,11 +40,20 @@ import           TinyLang.Var          as Var
 import           TinyLang.Environment  as Env
 import qualified TinyLang.Boolean.Core as Boolean
 
-data Some f = forall a. Some (f a)
-data SomeOf uni f = forall a. SomeOf (uni a) (f a)
+data Some (f :: k -> *) = forall x. Some (f x)
+data SomeOf uni (f :: k -> *) = forall x. SomeOf (uni x) (f x)
 
-forget :: (forall a. f a -> b) -> Some f -> b
-forget f (Some a) = f a
+class Forget some where
+    forget :: (forall x. f x -> r) -> some f -> r
+
+instance Forget Some where
+    forget f (Some a) = f a
+
+instance Forget (SomeOf uni) where
+    forget f (SomeOf _ a) = f a
+
+traverseSomeOf :: Functor m => (forall a. f a -> m (f a)) -> SomeOf uni f -> m (SomeOf uni f)
+traverseSomeOf f (SomeOf uni a) = SomeOf uni <$> f a
 
 data Uni f a where
     Bool   :: Uni f Bool
@@ -90,7 +99,7 @@ data UniVar f a = UniVar
 
 type SomeUniVal f = Some (UniVal f)
 type SomeUniVar f = Some (UniVar f)
-data SomeUniExpr f = forall a. SomeUniExpr (Uni f a) (Expr f a)
+type SomeUniExpr f = SomeOf (Uni f) (Expr f)
 
 data UnOp f a b where
     Not  :: UnOp f Bool       Bool
@@ -134,11 +143,6 @@ mapUniVal f (UniVal uni x) = UniVal uni $ f x
 
 zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
 zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
-
-traverseSomeUniExpr
-    :: Functor m
-    => (forall a. Expr f a -> m (Expr f a)) -> SomeUniExpr f -> m (SomeUniExpr f)
-traverseSomeUniExpr h (SomeUniExpr uni expr) = SomeUniExpr uni <$> h expr
 
 instance (Field f, af ~ AField f) => Field (UniVal f af) where
     zer = UniVal Field zer

@@ -75,7 +75,9 @@ import           TinyLang.Field.Evaluator
 import           TinyLang.ParseUtils
 
 import           Control.Monad.Combinators.Expr as Comb
-import qualified Data.Map                       as Map
+import qualified Data.IntMap.Strict             as IntMap
+import qualified Data.IntSet                    as IntSet
+import qualified Data.Map.Strict                as Map
 import qualified Data.Vector as Vector
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
@@ -97,7 +99,16 @@ makeVar name = do
 parseExprScope
     :: forall f m. (MonadSupply m, TextField f)
     => String -> m (Either String (SomeUniExpr f), Scope)
-parseExprScope = parseBy expr >=> firstF (traverse $ traverseSomeUniExpr renameExpr)
+parseExprScope str = do
+    (errOrSomeUniExpr, totalScope) <- parseBy expr str
+    case errOrSomeUniExpr of
+        Left  err            -> return (Left err, totalScope)
+        Right (SomeOf uni e) -> do
+            eRen <- renameExpr e
+            let freeIndices = IntMap.keysSet . unEnv $ exprFreeVarSigns eRen
+                isFree var = unUnique (_varUniq var) `IntSet.member` freeIndices
+                freeScope = Map.filter isFree totalScope
+            return $ (Right $ SomeOf uni eRen, freeScope)
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 parseExpr
@@ -116,9 +127,9 @@ top = between ws eof
 
 expr :: TextField f => Parser (SomeUniExpr f)
 expr = asum
-    [ try $ SomeUniExpr Bool   <$> exprPoly
-    , try $ SomeUniExpr Field  <$> exprPoly
-    ,       SomeUniExpr Vector <$> exprPoly
+    [ try $ SomeOf Bool   <$> exprPoly
+    , try $ SomeOf Field  <$> exprPoly
+    ,       SomeOf Vector <$> exprPoly
     ]
 -- Putting FieldExpr first causes trouble with non-parenthesised "1==2", for example.
 -- I'm not sure why: it seems to see the 1 and then starts parsing a field expression,

@@ -61,7 +61,7 @@ library
         DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveGeneric, DeriveDataTypeable
         DerivingStrategies, GeneralizedNewtypeDeriving, DeriveAnyClass
         DerivingVia, StandaloneDeriving
-        EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
+        EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections, MagicHash
         TypeOperators, PatternSynonyms, TypeApplications
         OverloadedStrings, StrictData
     ghc-options:
@@ -94,10 +94,10 @@ test-suite tiny-lang-test
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
         ScopedTypeVariables, ConstraintKinds, DefaultSignatures
         GADTs, DataKinds, PolyKinds, RankNTypes, TypeFamilies, FunctionalDependencies
-        DerivingStrategies, DeriveAnyClass, GeneralizedNewtypeDeriving, StandaloneDeriving
-        DeriveFunctor, DeriveFoldable, DeriveTraversable
-        DeriveGeneric, DeriveDataTypeable,
-        EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections
+        DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveGeneric, DeriveDataTypeable
+        DerivingStrategies, GeneralizedNewtypeDeriving, DeriveAnyClass
+        DerivingVia, StandaloneDeriving
+        EmptyCase, LambdaCase, BangPatterns, MultiWayIf, TupleSections, MagicHash
         TypeOperators, PatternSynonyms, TypeApplications
         OverloadedStrings, StrictData
     ghc-options:

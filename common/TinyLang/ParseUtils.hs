@@ -17,7 +17,7 @@ module TinyLang.ParseUtils
 import           TinyLang.Prelude           hiding (many, try)
 import           TinyLang.Var
 
-import qualified Data.Map                   as M
+import qualified Data.Map.Strict            as M
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L

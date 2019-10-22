@@ -49,8 +49,8 @@ forgetIDs (EStatement stat e)  = EStatement (forgetStatementIDs stat) (forgetIDs
 -}
 
 prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
-prop_Ftest (SomeUniExpr uni expr) = do
-    SomeUniExpr uni' expr' <- runSupply $ parseExpr (exprToString NoIDs expr)
+prop_Ftest (SomeOf uni expr) = do
+    SomeOf uni' expr' <- runSupply $ parseExpr (exprToString NoIDs expr)
     let checkResult expr'' =
             when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
                 [ exprToString NoIDs expr
@@ -79,8 +79,8 @@ prop_nestedELet
     => [Binding f] -> SomeUniExpr f -> Either String ()
 prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
-    bind (Binding uniVar body) (SomeUniExpr uni expr) =
-        SomeUniExpr uni $ EStatement (ELet uniVar body) expr
+    bind (Binding uniVar body) (SomeOf uni expr) =
+        SomeOf uni $ EStatement (ELet uniVar body) expr
 
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
@@ -107,7 +107,7 @@ test_printerParserRoundtrip =
 
 parsePrint :: String -> String
 parsePrint
-    = either id (\(SomeUniExpr _ expr) -> exprToString WithIDs expr)
+    = either id (forget $ exprToString WithIDs)
     . runSupply
     . parseExpr @Rational
 

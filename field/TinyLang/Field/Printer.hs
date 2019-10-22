@@ -91,4 +91,4 @@ exprToString s (EStatement stat e)  = concat
     ]
 
 someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String
-someExprToString s (SomeUniExpr _ e) = exprToString s e
+someExprToString s = forget $ exprToString s

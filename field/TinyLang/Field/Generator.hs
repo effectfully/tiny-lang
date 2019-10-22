@@ -425,20 +425,20 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
-    arbitrary = withOneofUnis $ \uni -> SomeUniExpr uni <$> arbitrary
+    arbitrary = withOneofUnis $ \uni -> SomeOf uni <$> arbitrary
 
-    shrink (SomeUniExpr uni0 expr) =
-        map (SomeUniExpr uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
-            EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeUniExpr argUni e]
+    shrink (SomeOf uni0 expr) =
+        map (SomeOf uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
+            EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeOf argUni e]
             EAppBinOp op e1 e2 ->
                 withBinOpUnis op $ \uni1 uni2 _ ->
-                    [SomeUniExpr uni1 e1, SomeUniExpr uni2 e2]
-            EIf e _ _ -> [SomeUniExpr Bool e]
+                    [SomeOf uni1 e1, SomeOf uni2 e2]
+            EIf e _ _ -> [SomeOf Bool e]
             EVal _ -> []
             EVar _ -> []
             EStatement stat _ -> case stat of
-                ELet (UniVar uni _) def -> [SomeUniExpr uni def]
-                EAssert e               -> [SomeUniExpr Bool e]
+                ELet (UniVar uni _) def -> [SomeOf uni def]
+                EAssert e               -> [SomeOf Bool e]
 
 genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniVal f))
 genEnvFromVarSigns =
@@ -452,10 +452,9 @@ genEnvFromVarSigns =
 instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         someUniExpr <- arbitrary
-        vals <- case someUniExpr of
-            SomeUniExpr _ expr -> genEnvFromVarSigns $ exprFreeVarSigns expr
+        vals <- forget (genEnvFromVarSigns . exprFreeVarSigns) someUniExpr
         return $ ExprWithEnv someUniExpr vals
     shrink (ExprWithEnv someUniExpr (Env vals)) =
         -- TODO: test me.
-        flip map (shrink someUniExpr) $ \shrunk@(SomeUniExpr _ expr) ->
+        flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
             ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigns expr
