@@ -18,10 +18,11 @@ import           TinyLang.ParseUtils
 import           Control.Exception (throw, ArithException (..))
 import           Control.Monad     (guard)
 import           Data.Maybe        (fromMaybe)
+import           Data.Proxy
 import           Data.Ratio
 import           Data.Foldable     (asum)
 import qualified Data.Field.Galois as GF
-import           GHC.TypeLits      (KnownNat)
+import           GHC.TypeLits
 import           Text.Megaparsec
 import           Test.QuickCheck
 
@@ -209,8 +210,8 @@ instance AsInteger Rational where
         Just $ numerator r
 
 -- | The 'IsNegative' class adds an operation that allows to check whether a field element is
--- negative. For finite fields like 'F17' we simply always return 'False'. The class is currently
--- used only for pretty-printing.
+-- negative. The class is currently used only for pretty-printing and its semantics allows for
+-- treating an element of a finite field as being negative.
 class IsNegative f where
     isNegative :: f -> Bool
     default isNegative :: (Ord f, Num f) => f -> Bool
@@ -225,12 +226,19 @@ instance IsNegative Rational
 
 deriving via ABaseField (GF.Prime p) instance KnownNat p => Field (GF.Prime p)
 
-instance KnownNat p => TextField (GF.Prime p) where
-    parseField = GF.toP <$> signedDecimal
-    showField  = show . GF.fromP
-
-instance KnownNat p =>  AsInteger (GF.Prime p) where
+instance KnownNat p => AsInteger (GF.Prime p) where
     asInteger = Just . GF.fromP
 
-instance IsNegative (GF.Prime p) where
-    isNegative _ = False
+instance KnownNat p => IsNegative (GF.Prime p) where
+    isNegative f = i > p `Prelude.div` 2 where
+        p = natVal @p Proxy
+        i = GF.fromP f
+
+instance KnownNat p => TextField (GF.Prime p) where
+    parseField = GF.toP <$> signedDecimal
+    showField f
+        | isNegative f = show $ i - p
+        | otherwise    = show i
+        where
+            p = natVal @p Proxy
+            i = GF.fromP f
