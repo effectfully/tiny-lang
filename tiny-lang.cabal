@@ -19,7 +19,6 @@ library
         Data.Field
         Data.Field.F17
         Data.Field.F4913
-        Data.NamedType
         TinyLang.Environment
         TinyLang.Generator
         TinyLang.ParseUtils
@@ -33,6 +32,7 @@ library
         TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Generator
+        TinyLang.Field.NamedType
         TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename

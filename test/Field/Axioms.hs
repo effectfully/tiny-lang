@@ -7,7 +7,7 @@ module Field.Axioms
 import           TinyLang.Prelude
 
 import           Data.Field
-import           Data.NamedType
+import           TinyLang.Field.NamedType
 
 import           Test.Tasty
 import           Test.Tasty.QuickCheck
