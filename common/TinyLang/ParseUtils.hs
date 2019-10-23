@@ -6,7 +6,9 @@
 module TinyLang.ParseUtils
     ( Parser
     , Scope
-    , emptyScope
+    , Scoped (..)
+    , parseBy
+    , makeVar
     , ws
     , lexeme
     , symbol
@@ -17,26 +19,50 @@ module TinyLang.ParseUtils
 import           TinyLang.Prelude           hiding (many, try)
 import           TinyLang.Var
 
-import qualified Data.Map.Strict            as M
+import qualified Data.Map.Strict            as Map
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 -- | 'Scope' maps names onto 'Var's.
-type Scope = M.Map String Var
+type Scope = Map String Var
 
-emptyScope :: Scope
-emptyScope = mempty
+data Scoped a = Scoped
+    { _scopedScope :: Map String Var
+    , _scopedValue :: a
+    } deriving (Functor, Foldable, Traversable)
 
  -- Void -> No custom error messages
 type Parser = ParsecT Void String (StateT Scope Supply)
 
 instance (MonadSupply m, Stream s) => MonadSupply (ParsecT e s m)
 
+parseBy :: MonadSupply m => Parser a -> String -> m (Scoped (Either String a))
+parseBy parser str =
+    liftSupply $
+        runStateT (runParserT (top parser) "" str) mempty <&> \(errOrRes, scope) ->
+            Scoped scope $ first errorBundlePretty errOrRes
+
+-- | Look up a variable name. If we've already seen it, return the corresponding Var;
+-- otherwise, increase the Unique counter and use it to construct a new Var.
+makeVar :: String -> Parser Var
+makeVar name = do
+    vars <- get
+    case Map.lookup name vars of
+        Just var -> pure var
+        Nothing  -> do
+            var <- freshVar name
+            put $ Map.insert name var vars
+            pure var
+
 -- Consume whitespace
 ws :: Parser ()
 ws = L.space space1 empty empty
 -- Last two arguments are for comment delimiters.  Let's not have any comments for now.
+
+-- Parse the whole of an input stream
+top :: Parser a -> Parser a
+top = between ws eof
 
 -- Wrapper to consume whitespace after parsing an item using the wrapped parser
 lexeme :: Parser a -> Parser a

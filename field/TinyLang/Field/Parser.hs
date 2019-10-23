@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {-| A parser for a tiny language involving booleans and field elements.
   The concrete syntax is as follows:
 
@@ -10,7 +12,7 @@
   or type annotations or something to avoid this.
 
   assertion ::=
-      'assert' expr == expr
+      'assert' expr
 
   statements ::=
       null
@@ -41,6 +43,8 @@
       expr - expr
       expr * expr
       expr / expr
+      'unp' expr
+      expr [expr]
       'if' expr 'then' expr 'else' expr
       statement; expr
       (expr)
@@ -63,7 +67,7 @@
 
 module TinyLang.Field.Parser
     ( parseBy
-    , parseExprScope
+    , parseScopedExpr
     , parseExpr
     ) where
 
@@ -82,48 +86,35 @@ import qualified Data.Vector as Vector
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
--- | Look up a variable name. If we've already seen it, return the corresponding Var;
--- otherwise, increase the Unique counter and use it to construct a new Var.
-makeVar :: String -> Parser Var
-makeVar name = do
-    vars <- get
-    case Map.lookup name vars of
-        Just var -> pure var
-        Nothing  -> do
-            var <- freshVar name
-            put $ Map.insert name var vars
-            pure var
+instance TextField f => IsString (Some (Expr f)) where
+    fromString = _scopedValue <$> fromString
+
+-- TODO: use a proper @newtype@.
+instance TextField f => IsString (Scoped (Some (Expr f))) where
+    fromString = fmap (either error $ forget Some) . runSupply . parseScopedExpr
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
--- Regardless of whether the result is an error or not, also returns the latest 'Scope'.
-parseExprScope
+-- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
+-- consisting of all free variables of the expression.
+parseScopedExpr
     :: forall f m. (MonadSupply m, TextField f)
-    => String -> m (Either String (SomeUniExpr f), Scope)
-parseExprScope str = do
-    (errOrSomeUniExpr, totalScope) <- parseBy expr str
+    => String -> m (Scoped (Either String (SomeUniExpr f)))
+parseScopedExpr str = do
+    Scoped totalScope errOrSomeUniExpr <- parseBy expr str
     case errOrSomeUniExpr of
-        Left  err            -> return (Left err, totalScope)
+        Left  err            -> return . Scoped totalScope $ Left err
         Right (SomeOf uni e) -> do
             eRen <- renameExpr e
             let freeIndices = IntMap.keysSet . unEnv $ exprFreeVarSigns eRen
                 isFree var = unUnique (_varUniq var) `IntSet.member` freeIndices
                 freeScope = Map.filter isFree totalScope
-            return $ (Right $ SomeOf uni eRen, freeScope)
+            return . Scoped freeScope . Right $ SomeOf uni eRen
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 parseExpr
     :: forall f m. (MonadSupply m, TextField f)
     => String -> m (Either String (SomeUniExpr f))
-parseExpr = fmap fst . parseExprScope
-
-parseBy :: MonadSupply m => Parser a -> String -> m (Either String a, Scope)
-parseBy parser str =
-    liftSupply $ first (first errorBundlePretty) <$>
-        runStateT (runParserT (top parser) "" str) emptyScope
-
--- Parse the whole of an input stream
-top :: Parser a -> Parser a
-top = between ws eof
+parseExpr = fmap _scopedValue . parseScopedExpr
 
 expr :: TextField f => Parser (SomeUniExpr f)
 expr = asum
