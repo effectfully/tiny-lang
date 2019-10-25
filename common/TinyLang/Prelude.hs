@@ -80,9 +80,7 @@ import           Test.QuickCheck.Property
 import           Data.Vector               as Export (Vector)
 
 infixr 9 .*
-
-(.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
-(.*) = (.) . (.)
+infixr 2 ?
 
 newtype PairT b f a = PairT
     { unPairT :: f (b, a)
@@ -100,8 +98,55 @@ instance Testable (Either String ()) where
         Left err -> failed { reason = err }
         Right () -> succeeded
 
+(.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+(.*) = (.) . (.)
+{-# INLINABLE (.*) #-}
+
+(?) :: Alternative f => Bool -> a -> f a
+(?) b x = x <$ guard b
+{-# INLINABLE (?) #-}
+
 visitExtract :: (Functor t, Functor f) => (t a -> a) -> (a -> f b) -> t a -> f (t b)
 visitExtract ext f a = (<$ a) <$> f (ext a)
+{-# INLINABLE visitExtract #-}
 
 firstF :: Functor f => (a -> f c) -> (a, b) -> f (c, b)
 firstF f (x, y) = flip (,) y <$> f x
+{-# INLINABLE firstF #-}
+
+foldlM' :: (Foldable t, Monad m) => (b -> a -> m b) -> b -> t a -> m b
+foldlM' f z xs = foldr step return xs z where
+  step x r a = f a x >>= (r $!)
+{-# INLINABLE foldlM' #-}
+
+foldMapA :: (Foldable t, Applicative f, Monoid b) => (a -> f b) -> t a -> f b
+foldMapA f = foldr (\x r -> mappend <$> f x <*> r) (pure mempty)
+{-# INLINABLE foldMapA #-}
+
+-- | Fold a monadic function over a 'Foldable'. The monadic version of 'foldMap'.
+foldMapM :: (Foldable f, Monad m, Monoid b) => (a -> m b) -> f a -> m b
+foldMapM f xs = foldr step return xs mempty where
+    step x r z = f x >>= \y -> r $! z `mappend` y
+{-# INLINABLE foldMapM #-}
+
+asumMap :: (Foldable t, Alternative f) => (a -> f b) -> t a -> f b
+asumMap f = foldr ((<|>) . f) empty
+{-# INLINABLE asumMap #-}
+
+mapMaybeA :: Applicative f => (a -> f (Maybe b)) -> [a] -> f [b]
+mapMaybeA f = foldr (\x r -> maybe id (:) <$> f x <*> r) (pure empty)
+{-# INLINABLE mapMaybeA #-}
+
+fromOption :: (Foldable f, Applicative g) => g a -> f a -> g a
+fromOption = foldr (const . pure)
+{-# INLINABLE fromOption #-}
+
+-- | This function generalizes 'eitherToMaybe', 'eitherToList',
+-- 'listToMaybe' and other such functions.
+reoption :: (Foldable f, Alternative g) => f a -> g a
+reoption = fromOption empty
+{-# INLINABLE reoption #-}
+
+forBind :: (Monad m, Traversable m, Applicative f) => m a -> (a -> f (m b)) -> f (m b)
+forBind a f = join <$> traverse f a
+{-# INLINABLE forBind #-}

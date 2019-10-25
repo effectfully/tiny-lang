@@ -3,7 +3,6 @@ module Data.Field.F17
     , toF17
     ) where
 
-import           Control.Exception
 import           Data.Field
 import           Data.Hashable
 import           Test.QuickCheck
@@ -31,25 +30,25 @@ instance Field F17 where
     add (F17 m) (F17 n) = toF17 $ m + n
     sub (F17 m) (F17 n) = toF17 $ m - n
     mul (F17 m) (F17 n) = toF17 $ m * n
-    inv (F17 n) = F17 $ case n of
-        0  -> throw DivideByZero
-        1  -> 1
-        2  -> 9
-        3  -> 6
-        4  -> 13
-        5  -> 7
-        6  -> 3
-        7  -> 5
-        8  -> 15
-        9  -> 2
-        10 -> 12
-        11 -> 14
-        12 -> 10
-        13 -> 4
-        14 -> 11
-        15 -> 8
-        16 -> 16
-        _  -> error $ "F17 is not in the [0, 16] range: " ++ show n
+    inv (F17 n) = F17 <$> case n of
+        0  -> Nothing
+        1  -> Just 1
+        2  -> Just 9
+        3  -> Just 6
+        4  -> Just 13
+        5  -> Just 7
+        6  -> Just 3
+        7  -> Just 5
+        8  -> Just 15
+        9  -> Just 2
+        10 -> Just 12
+        11 -> Just 14
+        12 -> Just 10
+        13 -> Just 4
+        14 -> Just 11
+        15 -> Just 8
+        16 -> Just 16
+        _  -> error $ "Panic: F17 is not in the [0, 16] range: " ++ show n
 
 -- | Z_17 is a prime field, so every element can be obtained canonically from an integer.
 instance AsInteger F17 where

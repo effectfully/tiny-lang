@@ -144,15 +144,21 @@ mapUniVal f (UniVal uni x) = UniVal uni $ f x
 zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
 zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
 
+mapUniValF :: Functor g => (a -> g a) -> UniVal f a -> g (UniVal f a)
+mapUniValF f (UniVal uni x) = UniVal uni <$> f x
+
+zipUniValF :: Functor g => (a -> a -> g a) -> UniVal f a -> UniVal f a -> g (UniVal f a)
+zipUniValF f (UniVal uni x) (UniVal _ y) = UniVal uni <$> f x y
+
 instance (Field f, af ~ AField f) => Field (UniVal f af) where
     zer = UniVal Field zer
-    neg = mapUniVal neg
-    add = zipUniVal add
-    sub = zipUniVal sub
+    neg = mapUniVal  neg
+    add = zipUniVal  add
+    sub = zipUniVal  sub
     one = UniVal Field one
-    inv = mapUniVal inv
-    mul = zipUniVal mul
-    div = zipUniVal div
+    inv = mapUniValF inv
+    mul = zipUniVal  mul
+    div = zipUniValF div
 
 instance (Field f, af ~ AField f) => Field (Expr f af) where
     zer = EVal zer
@@ -160,9 +166,9 @@ instance (Field f, af ~ AField f) => Field (Expr f af) where
     add = EAppBinOp Add
     sub = EAppBinOp Sub
     one = EVal one
-    inv = EAppUnOp Inv
+    inv = Just . EAppUnOp Inv
     mul = EAppBinOp Mul
-    div = EAppBinOp Div
+    div = Just .* EAppBinOp Div
 
 deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Num        (UniVal f af)
 deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Fractional (UniVal f af)
@@ -312,7 +318,7 @@ isTracked uniq x env =
     case lookupUnique uniq env of
         Just x'
             | x == x'   -> True
-            | otherwise -> error $ concat ["mismatch: '", show x, "' vs '", show x', "'"]
+            | otherwise -> error $ concat ["panic: mismatch: '", show x, "' vs '", show x', "'"]
         Nothing -> False
 
 -- TODO: test me somehow.

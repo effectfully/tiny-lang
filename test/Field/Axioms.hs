@@ -80,9 +80,13 @@ test_nonZeroInverse :: forall f proxy. TestableField f => proxy f -> TestTree
 test_nonZeroInverse _ =
     testGroup "nonZeroInverse"
         [ testPropertyHard "left"  $ \(x :: AField f) ->
-              x /= zer ==> inv x `mul` x === one
+              case (`mul` x) <$> inv x of
+                  Nothing  -> x   === zer
+                  Just res -> res === 1
         , testPropertyHard "right" $ \(x :: AField f) ->
-              x /= zer ==> x `mul` inv x === one
+              case (x `mul`) <$> inv x of
+                  Nothing  -> x   === zer
+                  Just res -> res === one
         ]
 
 -- mul distributes over add

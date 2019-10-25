@@ -50,6 +50,7 @@ library
         megaparsec,
         mmorph,
         parser-combinators,
+        interpolate,
         QuickCheck,
         QuickCheck-GenT,
         quickcheck-instances
