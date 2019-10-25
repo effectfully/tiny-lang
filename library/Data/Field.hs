@@ -6,7 +6,6 @@ module Data.Field
     , TextField (..)
     , AsInteger (..)
     , IsNegative (..)
-    , unsafeAsInteger
     , two
     ) where
 
@@ -76,13 +75,28 @@ class Field f where
 
     one :: f
 
-    inv :: f -> f
+    inv :: f -> Maybe f
     inv x = one `div` x
 
     mul :: f -> f -> f
 
-    div :: f -> f -> f
-    x `div` y = x `mul` inv y
+    div :: f -> f -> Maybe f
+    x `div` y = mul x <$> inv y
+
+makeInv :: (Eq f, Field f) => (f -> f) -> f -> Maybe f
+makeInv i x = do
+    -- Note that we assume that @i x@ can only fail when @x@ is zero.
+    guard $ x /= zer
+    Just $ i x
+
+makeDiv :: (Eq f, Field f) => (f -> f -> f) -> f -> f -> Maybe f
+makeDiv d x y = do
+    -- Note that we assume that @x `d` y@ can only fail when @y@ is zero.
+    guard $ y /= zer
+    Just $ x `d` y
+
+fromDivided :: Maybe f -> f
+fromDivided = fromMaybe $ throw DivideByZero
 
 parseFieldDefault :: Field f => Parser f
 parseFieldDefault = unAField . fromInteger <$> signedDecimal
@@ -106,16 +120,17 @@ newtype AField f = AField
 
 newtype ABaseField a = ABaseField
     { unABaseField :: a
-    } deriving newtype (Num, Fractional)
+    } deriving newtype (Eq, Num, Fractional)
 
-instance (Num a, Fractional a) => Field (ABaseField a) where
+instance (Eq a, Num a, Fractional a) => Field (ABaseField a) where
     zer = 0
     neg = negate
     add = (+)
     sub = (-)
     one = 1
+    inv = makeInv recip
     mul = (*)
-    div = (/)
+    div = makeDiv (/)
 
 two :: Field f => f
 two = one `add` one
@@ -129,8 +144,8 @@ instance Field Bool where
     one = True
     mul = (&&)
 
-    inv False = throw DivideByZero
-    inv True  = True
+    inv False = Nothing
+    inv True  = Just True
 
 instance Field f => Num (AField f) where
     negate = neg
@@ -151,18 +166,22 @@ instance Field f => Num (AField f) where
             go n          = one `add` fromInteger (n - 1)
 
 instance Field f => Fractional (AField f) where
-    (/) = div
-    recip = inv
+    x / y = fromDivided $ x `div` y
+    recip = fromDivided . inv
     fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
 
 instance TextField f => Show (AField f) where
     show = showField . unAField
 
--- Note that the parser for @Rational@ accepts ONLY plain integers. This is because we pretty-print
--- rationals as @a / b@ and so @/@ is parsed elsewhere as regular division.
 instance TextField Rational where
     parseField = asum
-        [ try (div <$> parseFieldDefault <* symbol "/" <*> parseFieldDefault)
+        [ try $ do
+              num <- parseFieldDefault
+              _ <- symbol "/"
+              den <- parseFieldDefault
+              case num `div` den of
+                  Just res -> pure res
+                  Nothing  -> fail $ show num ++ "/" ++ show den ++ " is not a valid Rational"
         , parseFieldDefault
         , parens parseField
         ]
@@ -196,9 +215,6 @@ instance Field f => ToField f Rational where
 -}
 class AsInteger f where
     asInteger :: f -> Maybe Integer
-
-unsafeAsInteger :: AsInteger f => f -> Integer
-unsafeAsInteger = fromMaybe (throw Denormal) . asInteger
 
 -- | For Rational, we check if a fraction is in fact an integer.  We
 -- can safely use the 'denominator' function to do this because it

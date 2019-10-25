@@ -343,10 +343,11 @@ letStatement = do
     Some (var@(UniVar varUni _)) <- keyword "let" *> varSome
     withKnownUni varUni $ ELet var <$> (symbol "=" *> exprPoly)
 
-unrollLoop :: Field f => Var -> Integer -> Integer -> [Statement f] -> [Statement f]
+unrollLoop :: TextField f => Var -> Integer -> Integer -> [Statement f] -> [Statement f]
 unrollLoop var lower bound stats = do
     i <- [lower .. bound]
-    map (instStatement $ insertVar var (Some $ fromInteger i) mempty) stats
+    let env = insertVar var (Some $ fromInteger i) mempty
+    map (either (error . show) id . instStatement env) stats
 
 forStatements :: TextField f => Parser [Statement f]
 forStatements = unrollLoop

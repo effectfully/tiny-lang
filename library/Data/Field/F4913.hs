@@ -55,8 +55,8 @@ instance Field F4913 where
     mul (F a b c) (F d e f) = toF4913 (a*d - 3*c*e - 3*b*f)
                                       (b*d + (a-c)*e +(-b -3*c)*f)
                                       (c*d + b*e + (a-c)*f)
-    inv (F 0 0 0) = throw DivideByZero
-    inv f         = pow f 4911
+    inv (F 0 0 0) = Nothing
+    inv f         = Just $ pow f 4911
 
 -- Exponentiation by repeated squaring
 pow :: F4913 -> Int -> F4913
@@ -66,7 +66,7 @@ pow x0 n0 =
              | n == 1    = x
              | even n    = pow' (square x) (half n)
              | odd n     = x `mul` pow' (square x) (half (n-1))
-             | otherwise = error "Impossible power"
+             | otherwise = error "Panic: impossible power"
              where square x' = x' `mul` x'
                    half n' = n' `Prelude.div` 2
     in if x0==zer && n0<0
