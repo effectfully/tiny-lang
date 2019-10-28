@@ -388,7 +388,7 @@ defaultUniVal =
 -- 'shrink' can be used in the 'Arbitrary' instance of 'Expr' (a separately provided
 -- 'shrinkStatement' wouldn't work, because we want to shrink a pair of values, see the instance).
 instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
-    arbitrary = error "No implementation of 'arbitrary' for 'Statement'"
+    arbitrary = error "Panic: no implementation of 'arbitrary' for 'Statement'"
 
     shrink (ELet uniVar def) = withKnownUni (_uniVarUni uniVar) $ ELet uniVar <$> shrink def
     -- TODO: we need more clever shrinking here. E.g. in addition to normal shrinking

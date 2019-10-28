@@ -86,12 +86,12 @@ import qualified Data.Vector as Vector
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
-instance TextField f => IsString (Some (Expr f)) where
-    fromString = _scopedValue <$> fromString
-
 -- TODO: use a proper @newtype@.
 instance TextField f => IsString (Scoped (Some (Expr f))) where
     fromString = fmap (either error $ forget Some) . runSupply . parseScopedExpr
+
+instance TextField f => IsString (Some (Expr f)) where
+    fromString = _scopedValue <$> fromString
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 -- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
@@ -347,7 +347,8 @@ unrollLoop :: TextField f => Var -> Integer -> Integer -> [Statement f] -> [Stat
 unrollLoop var lower bound stats = do
     i <- [lower .. bound]
     let env = insertVar var (Some $ fromInteger i) mempty
-    map (either (error . show) id . instStatement env) stats
+        report err = error $ "Panic: " ++ show err
+    map (either report id . instStatement env) stats
 
 forStatements :: TextField f => Parser [Statement f]
 forStatements = unrollLoop

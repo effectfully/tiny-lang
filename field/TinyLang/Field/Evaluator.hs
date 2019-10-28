@@ -39,7 +39,8 @@ import qualified Data.String.Interpolate.IsString as QQ
 data TypeMismatch f = forall a b. TypeMismatch (UniVar f a) (UniVal f b)
 
 data EvalError f
-    = IndexTooLargeEvalError Int
+    = VariableNotInScope Var
+    | IndexTooLargeEvalError Int
     | UnpackNegativeEvalError Integer
     | NonIntegerAsIntegerEvalError (AField f)
     | DivideByZeroEvalError
@@ -157,9 +158,10 @@ evalExprUni
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniVal f) -> Expr f a -> m (UniVal f a)
 evalExprUni _   (EVal uniVal) = normUniVal uniVal
-evalExprUni env (EVar uniVar@(UniVar uni var)) =
-    case unsafeLookupVar var env of
-        Some uniVal@(UniVal uni' _) -> do
+evalExprUni env (EVar uniVar@(UniVar uni var)) = do
+    case lookupVar var env of
+        Nothing                            -> throwError $ VariableNotInScope var
+        Just (Some uniVal@(UniVal uni' _)) -> do
             let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
             withGeqUni uni uni' err $ evalExprUni env $ EVal uniVal
 evalExprUni env (EIf e e1 e2) = do
