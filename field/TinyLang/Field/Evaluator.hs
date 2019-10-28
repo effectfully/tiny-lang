@@ -3,7 +3,12 @@
 module TinyLang.Field.Evaluator
     ( EvalError (..)
     , MonadEvalError
+    , invEval
+    , divEval
     , atEval
+    , asIntegerEval
+    , asPositiveEval
+    , asPositiveIntegerEval
     , unpackPositiveAsc
     , unpackPositiveDesc
     , packPositiveAsc
@@ -99,8 +104,7 @@ normUniVal (UniVal Vector v) = UniVal Vector <$> normUnpacking v where
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
--- If we get a non-integer we throw Denormal, and if we get something negative
--- we throw Underflow. Maybe we want our own exceptions here.
+-- If we get a non-integer or a negative integer we throw an error.
 compareIntegerValues
     :: (MonadEvalError f m, AsInteger f)
     => (Integer -> Integer -> Bool) -> AField f -> AField f -> m Bool
