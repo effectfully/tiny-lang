@@ -3,6 +3,7 @@
 module TinyLang.Field.Evaluator
     ( EvalError (..)
     , MonadEvalError
+    , lookupVarEval
     , invEval
     , divEval
     , atEval
@@ -39,7 +40,7 @@ import qualified Data.String.Interpolate.IsString as QQ
 data TypeMismatch f = forall a b. TypeMismatch (UniVar f a) (UniVal f b)
 
 data EvalError f
-    = VariableNotInScope Var
+    = VariableNotInScopeEvalError Var
     | IndexTooLargeEvalError Int
     | UnpackNegativeEvalError Integer
     | NonIntegerAsIntegerEvalError (AField f)
@@ -55,6 +56,9 @@ type MonadEvalError f m = MonadError (EvalError f) m
 instance TextField f => Show (TypeMismatch f) where
     show (TypeMismatch (UniVar uniExp var) uniValAct) =
         [QQ.i|Variable #{var} has type #{uniExp}, but was instantiated with #{uniValAct}|]
+
+lookupVarEval :: MonadEvalError g m => Var -> Env f -> m f
+lookupVarEval var = fromOption (throwError $ VariableNotInScopeEvalError var) . lookupVar var
 
 invEval :: (MonadEvalError g m, Field f) => f -> m f
 invEval = fromOption (throwError DivideByZeroEvalError) . inv
@@ -159,11 +163,9 @@ evalExprUni
     => Env (SomeUniVal f) -> Expr f a -> m (UniVal f a)
 evalExprUni _   (EVal uniVal) = normUniVal uniVal
 evalExprUni env (EVar uniVar@(UniVar uni var)) = do
-    case lookupVar var env of
-        Nothing                            -> throwError $ VariableNotInScope var
-        Just (Some uniVal@(UniVal uni' _)) -> do
-            let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
-            withGeqUni uni uni' err $ evalExprUni env $ EVal uniVal
+    Some uniVal@(UniVal uni' _) <- lookupVarEval var env
+    let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
+    withGeqUni uni uni' err $ evalExprUni env $ EVal uniVal
 evalExprUni env (EIf e e1 e2) = do
     eR <- evalExpr env e
     if eR
