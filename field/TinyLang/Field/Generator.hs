@@ -317,19 +317,17 @@ boundedArbitraryExprI
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f (AField f))
 boundedArbitraryExprI _    size | size <= 1 = EVal <$> arbitraryValI
+{-| NOTE.  If we allow variables here we won't generally know in
+  advance that they'll have integer values, so there would be a danger
+  that our comparisons will have a high probability of failing.  We
+  could fill the environment with lots of integer-valued variables to
+  reduce the risk of this, or supply a separate list of variables
+  which we're certain will only contain integer values.  This Note
+  also applies to the @size <= 1@ case above.
+-}
 boundedArbitraryExprI vars size             = frequency
     [ (1, EVal <$> arbitraryValI)
     , (0, EVar <$> chooseUniVar vars)
-      {- ^ NOTE.  If we allow variables here we won't generally know in
-         advance that they'll have integer values, so there
-         would be a danger that our comparisons will have a
-         high probability of failing.  We could fill the
-         environment with lots of integer-valued variables to
-         reduce the risk of this, or supply a separate list of
-         variables which we're certain will only contain integer
-         values.
-         This Note also applies to the @size <= 1@ case above.
-       -}
     , (2, do
             let size' = size `Prelude.div` 3
             EIf
