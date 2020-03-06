@@ -70,8 +70,8 @@ At the moment constants consist of literals only.
 @
 const ::=
   bool-literal
-  vec-literal
   int-literal
+  vec-literal
 @
 
 == Expressions
