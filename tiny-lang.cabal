@@ -34,6 +34,7 @@ library
         TinyLang.Field.Generator
         TinyLang.Field.NamedType
         TinyLang.Field.Parser
+        TinyLang.Field.UParser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
