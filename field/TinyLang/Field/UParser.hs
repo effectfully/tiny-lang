@@ -143,28 +143,32 @@ statements ::=
 
 module TinyLang.Field.UParser where
 
-data Identifier = Identifier String
-data Val = Val Bool
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
+import qualified Text.Megaparsec.Char.Lexer   as L
+import           Data.Void
+import qualified Data.Set                     as S
+import           GHC.Unicode ( isLower
+                             , isDigit)
 
-data Var
-  = FVar Identifier
-  | BVar Identifier
-  | VVar Identifier
+type Parser = Parsec Void String
 
-data Statements = Statements [Statement]
+type Identifier = String
 
-data Statement
-  = ELet    Var Expr
-  | EAssert Expr
-  
+data Const
+  = CBool  Bool
+  | CInt   Integer
+  | CVec   [Bool]
+
+data Var = Var Identifier
 
 data Expr
-  = EVal       Val
+  = EConst     Const
   | EVar       Var
-  | EIf        Expr      Expr Expr
-  | EAppUnOp   BinOp     Expr
   | EAppBinOp  UnOp      Expr
+  | EAppUnOp   BinOp     Expr
   | EStatement Statement Expr
+  | EIf        Expr      Expr Expr
 
 data BinOp
   = Or
@@ -187,4 +191,51 @@ data UnOp
   | Inv
   | Unp
   
+data Statement
+  = ELet    Var Expr
+  | EAssert Expr
+
+-- Lexer
+sc :: Parser ()
+sc = L.space space1 empty empty
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
+
+symbol :: String -> Parser String
+symbol = L.symbol sc
+
+
+-- Identifier Character
+isIdentifierChar :: Char -> Bool
+isIdentifierChar c =
+  or $ map (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
+
+
+identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
+identifierChar = satisfy isIdentifierChar <?> "identifier character [a-z0-9_']"
+{-# INLINE identifierChar #-}
+
+pKeyword :: String -> Parser String
+pKeyword keyword = lexeme (string keyword <* notFollowedBy identifierChar)
+
+keywords :: S.Set String
+keywords =
+  S.fromList 
+    [ "T", "F"
+    , "not", "and", "or", "xor"
+    , "neq0", "neg", "inv"
+    , "let"
+    , "if", "then", "else"
+    , "for", "do", "end"
+    , "unpack"
+    ]
+
+pIdentifier :: Parser String
+pIdentifier = do
+  t <- option "" (string "?" <|> string "#")
+  v <- (:) <$> lowerChar
+  undefined
+  
+
 
