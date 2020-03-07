@@ -1,5 +1,3 @@
-
-
 {-|
 = Untyped Parser
 
@@ -233,9 +231,8 @@ keywords =
 
 pIdentifier :: Parser String
 pIdentifier = do
-  t <- option "" (string "?" <|> string "#")
-  v <- (:) <$> lowerChar
-  undefined
-  
+  prefix     <- option "" (string "?" <|> string "#")
+  identifier <- (:) <$> lowerChar <*> many identifierChar
+  pure $ prefix ++ identifier
 
 
