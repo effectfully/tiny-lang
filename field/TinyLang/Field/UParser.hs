@@ -204,7 +204,6 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
-
 -- Identifier Character
 isIdentifierChar :: Char -> Bool
 isIdentifierChar c =
