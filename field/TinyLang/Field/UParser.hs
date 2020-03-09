@@ -141,13 +141,19 @@ See also https://markkarpov.com/megaparsec/megaparsec.html
 
 module TinyLang.Field.UParser where
 
+import           TinyLang.Prelude hiding ( Const
+                                         , option
+                                         , some
+                                         )
+import           Data.Set ( fromList
+                          , member
+                          )
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer      as L
-import           Data.Void
-import qualified Data.Set                        as S
+import qualified Text.Megaparsec.Char.Lexer as L
 import           GHC.Unicode ( isLower
-                             , isDigit)
+                             , isDigit
+                             )
 
 type Parser = Parsec Void String
 
@@ -218,9 +224,9 @@ identifierChar = satisfy isIdentifierChar <?> identifierCharLabel
 pKeyword :: String -> Parser String
 pKeyword keyword = lexeme (string keyword <* notFollowedBy identifierChar)
 
-keywords :: S.Set String
+keywords :: Set String
 keywords =
-    S.fromList 
+    fromList
     [ "T", "F"
     , "not", "and", "or", "xor"
     , "neq0", "neg", "inv"
@@ -231,7 +237,7 @@ keywords =
     ]
 
 isKeyword :: String -> Bool
-isKeyword = (`S.member` keywords)
+isKeyword = (`member` keywords)
 
 pIdentifier :: Parser Identifier
 pIdentifier =
