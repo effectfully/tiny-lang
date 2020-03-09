@@ -32,22 +32,22 @@ Here is a list of keywords used in the language.
 
 @
 keyword ::=
-  "and"
-  "assert"
-  "do"
-  "else"
-  "end"
-  "for"
-  "if"
-  "inv"
-  "let"
-  "neq0"
-  "not"
-  "or"
-  "then"
-  "to"
-  "unpack"
-  "xor"
+    "and"
+    "assert"
+    "do"
+    "else"
+    "end"
+    "for"
+    "if"
+    "inv"
+    "let"
+    "neq0"
+    "not"
+    "or"
+    "then"
+    "to"
+    "unpack"
+    "xor"
 @
 
 == Identifiers
@@ -67,9 +67,9 @@ At the moment constants consist of literals only.
 
 @
 const ::=
-  bool-literal
-  int-literal
-  vec-literal
+    bool-literal
+    int-literal
+    vec-literal
 @
 
 == Expressions
@@ -79,35 +79,35 @@ parser.
 
 @
 expr ::=
-  const
-  "(" expr ")"
-  ident
-  expr infix-op expr
-  prefix-op expr
-  expr "[" expr "]"
-  statement ";" expr
-  "if" expr "then" expr "else" expr
+    const
+    "(" expr ")"
+    ident
+    expr infix-op expr
+    prefix-op expr
+    expr "[" expr "]"
+    statement ";" expr
+    "if" expr "then" expr "else" expr
 
 infix-op ::=
-  "and"
-  "or"
-  "xor"
-  "=="
-  "<="
-  "<"
-  ">="
-  ">"
-  "+"
-  "-"
-  "*"
-  "/"
+    "and"
+    "or"
+    "xor"
+    "=="
+    "<="
+    "<"
+    ">="
+    ">"
+    "+"
+    "-"
+    "*"
+    "/"
 
 prefix-op ::=
-  "not"
-  "neq0"
-  "neg"
-  "inv"
-  "unpack"
+    "not"
+    "neq0"
+    "neg"
+    "inv"
+    "unpack"
 @
 
 == Statement
@@ -117,25 +117,25 @@ expressions nor the usual statements.
 
 @
 statement ::=
-  "let" var "=" expr
-  "assert" expr
-  "for" var "=" int "to" int "do" statements "end"
+    "let" var "=" expr
+    "assert" expr
+    "for" var "=" int "to" int "do" statements "end"
 
 statements ::=
-  (statement (";" statement)*)?
+    (statement (";" statement)*)?
 @
 
 == Operator Precedence
-  Precedence: "not" > "xor" > "and" > "or"  (but use parentheses anyway).
-  if-then-else has to be parenthesised unless it's at the very top.
+Precedence: "not" > "xor" > "and" > "or" (but use parentheses anyway).
+if-then-else has to be parenthesised unless it's at the very top.
 
-  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
-  Things like "neg inv 5" are illegal: use parentheses.
+Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
+Things like "neg inv 5" are illegal: use parentheses.
 
-  The code is based on the tutorial at
-  https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
+The code is based on the tutorial at
+https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
 
-  See also https://markkarpov.com/megaparsec/megaparsec.html
+See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
 
 
@@ -154,44 +154,44 @@ type Parser = Parsec Void String
 type Identifier = String
 
 data Const
-  = CBool  Bool
-  | CInt   Integer
-  | CVec   [Bool]
+    = CBool  Bool
+    | CInt   Integer
+    | CVec   [Bool]
 
 data Var = Var Identifier
 
 data Expr
-  = EConst     Const
-  | EVar       Var
-  | EAppBinOp  UnOp      Expr
-  | EAppUnOp   BinOp     Expr
-  | EStatement Statement Expr
-  | EIf        Expr      Expr Expr
+    = EConst     Const
+    | EVar       Var
+    | EAppBinOp  UnOp      Expr
+    | EAppUnOp   BinOp     Expr
+    | EStatement Statement Expr
+    | EIf        Expr      Expr Expr
 
 data BinOp
-  = Or
-  | And
-  | Xor
-  | FEq
-  | FLe
-  | FGe
-  | FGt
-  | Add
-  | Sub
-  | Mul
-  | Div
-  | BAt
+    = Or
+    | And
+    | Xor
+    | FEq
+    | FLe
+    | FGe
+    | FGt
+    | Add
+    | Sub
+    | Mul
+    | Div
+    | BAt
 
 data UnOp
-  = Not
-  | Neq0
-  | Neg
-  | Inv
-  | Unp
+    = Not
+    | Neq0
+    | Neg
+    | Inv
+    | Unp
   
 data Statement
-  = ELet    Var Expr
-  | EAssert Expr
+    = ELet    Var Expr
+    | EAssert Expr
 
 -- Lexer
 sc :: Parser ()
@@ -206,7 +206,7 @@ symbol = L.symbol sc
 -- Identifier Character
 isIdentifierChar :: Char -> Bool
 isIdentifierChar c =
-  any (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
+    any (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
 
 -- Parser label for identifier charactersr
 identifierCharLabel :: String
@@ -220,7 +220,7 @@ pKeyword keyword = lexeme (string keyword <* notFollowedBy identifierChar)
 
 keywords :: S.Set String
 keywords =
-  S.fromList 
+    S.fromList 
     [ "T", "F"
     , "not", "and", "or", "xor"
     , "neq0", "neg", "inv"
@@ -235,38 +235,38 @@ isKeyword = (`S.member` keywords)
 
 pIdentifier :: Parser Identifier
 pIdentifier =
-  lexeme $ do
-    prefix     <- option "" (string "?" <|> string "#")
-    identifier <- (:) <$> lowerChar
-                      <*> takeWhileP (Just identifierCharLabel)
-                      isIdentifierChar
-    pure $ prefix ++ identifier
+    lexeme $ do
+        prefix     <- option "" (string "?" <|> string "#")
+        identifier <- (:) <$> lowerChar
+                          <*> takeWhileP (Just identifierCharLabel)
+                              isIdentifierChar
+        pure $ prefix ++ identifier
 
 pBoolLiteral :: Parser Bool
 pBoolLiteral =
-  lexeme $
-  fmap charToBool (satisfy (\x -> x == 'T' || x == 'F') <?> "T or F")
-  where
-    charToBool 'T' = True
-    charToBool 'F' = False
-    charToBool _   = error "impossible"
+    lexeme $ fmap charToBool (satisfy isTF <?> "T or F")
+    where
+        isTF x = x == 'T' || x == 'F'
+        --
+        charToBool 'T' = True
+        charToBool 'F' = False
+        charToBool _   = error "impossible"
 
 pIntLiteral :: Parser Integer
 pIntLiteral =
-  lexeme $
-    fmap read (some digitChar)
+    lexeme $ fmap read (some digitChar)
 
 pVecLiteral :: Parser [Bool]
 pVecLiteral =
-  lexeme $
-    between
-      (symbol "{")
-      (symbol "}")
-      (pBoolLiteral `sepBy` (symbol ","))
+    lexeme $
+        between
+            (symbol "{")
+            (symbol "}")
+            (pBoolLiteral `sepBy` (symbol ","))
 
 pConst :: Parser Expr
 pConst =
-  fmap EConst $ choice
+    fmap EConst $ choice
     [ CBool <$> pBoolLiteral
     , CInt  <$> pIntLiteral
     , CVec  <$> pVecLiteral
@@ -274,6 +274,6 @@ pConst =
 
 pExpr :: Parser Expr
 pExpr =
-  choice
+    choice
     [ pConst
     ]
