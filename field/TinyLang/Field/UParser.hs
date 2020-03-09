@@ -250,7 +250,7 @@ pIdentifier =
 
 pBoolLiteral :: Parser Bool
 pBoolLiteral =
-    lexeme $ fmap charToBool (satisfy isTF <?> "T or F")
+    lexeme $ charToBool <$> (satisfy isTF <?> "T or F")
     where
         isTF x = x == 'T' || x == 'F'
         --
@@ -272,11 +272,11 @@ pVecLiteral =
 
 pConst :: Parser Expr
 pConst =
-    fmap EConst $ choice
-    [ CBool <$> pBoolLiteral
-    , CInt  <$> pIntLiteral
-    , CVec  <$> pVecLiteral
-    ]
+    EConst <$> choice
+        [ CBool <$> pBoolLiteral
+        , CInt  <$> pIntLiteral
+        , CVec  <$> pVecLiteral
+        ]
 
 pExpr :: Parser Expr
 pExpr =
