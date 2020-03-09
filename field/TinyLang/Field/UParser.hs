@@ -208,7 +208,7 @@ symbol = L.symbol sc
 -- Identifier Character
 isIdentifierChar :: Char -> Bool
 isIdentifierChar c =
-  or $ map (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
+  any (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
 
 
 identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
