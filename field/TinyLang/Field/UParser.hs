@@ -208,10 +208,12 @@ isIdentifierChar :: Char -> Bool
 isIdentifierChar c =
   any (\f -> f c) [isLower , isDigit, (=='_'), (=='\'')]
 
+-- Parser label for identifier charactersr
+identifierCharLabel :: String
+identifierCharLabel = "identifier character [a-z0-9_']"
 
 identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
-identifierChar = satisfy isIdentifierChar <?> "identifier character [a-z0-9_']"
-{-# INLINE identifierChar #-}
+identifierChar = satisfy isIdentifierChar <?> identifierCharLabel
 
 pKeyword :: String -> Parser String
 pKeyword keyword = lexeme (string keyword <* notFollowedBy identifierChar)
@@ -235,7 +237,9 @@ pIdentifier :: Parser Identifier
 pIdentifier =
   lexeme $ do
     prefix     <- option "" (string "?" <|> string "#")
-    identifier <- (:) <$> lowerChar <*> many identifierChar
+    identifier <- (:) <$> lowerChar
+                      <*> takeWhileP (Just identifierCharLabel)
+                      isIdentifierChar
     pure $ prefix ++ identifier
 
 pBoolLiteral :: Parser Bool
