@@ -233,26 +233,45 @@ keywords =
 isKeyword :: String -> Bool
 isKeyword = (`S.member` keywords)
 
-pIdentifier :: Parser String
+pIdentifier :: Parser Identifier
 pIdentifier =
   lexeme $ do
-  prefix     <- option "" (string "?" <|> string "#")
-  identifier <- (:) <$> lowerChar <*> many identifierChar
-  pure $ prefix ++ identifier
+    prefix     <- option "" (string "?" <|> string "#")
+    identifier <- (:) <$> lowerChar <*> many identifierChar
+    pure $ prefix ++ identifier
 
-pBoolLiteral :: Parser String
+pBoolLiteral :: Parser Bool
 pBoolLiteral =
-  lexeme (fmap pure (satisfy (\x -> x == 'T' || x == 'F') <?> "T or F"))
+  lexeme $
+  fmap charToBool (satisfy (\x -> x == 'T' || x == 'F') <?> "T or F")
+  where
+    charToBool 'T' = True
+    charToBool 'F' = False
+    charToBool _   = error "impossible"
 
-pIntLiteral :: Parser String
+pIntLiteral :: Parser Integer
 pIntLiteral =
-  lexeme (some digitChar)
+  lexeme $
+    fmap read (some digitChar)
 
-pVecLiteral :: Parser String
+pVecLiteral :: Parser [Bool]
 pVecLiteral =
   lexeme $
-  between
-  (symbol "{")
-  (symbol "}")
-  ((pBoolLiteral `sepBy` (symbol ",")) >>= (pure . concat))
+    between
+      (symbol "{")
+      (symbol "}")
+      (pBoolLiteral `sepBy` (symbol ","))
 
+pConst :: Parser Expr
+pConst =
+  fmap EConst $ choice
+    [ CBool <$> pBoolLiteral
+    , CInt  <$> pIntLiteral
+    , CVec  <$> pVecLiteral
+    ]
+
+pExpr :: Parser Expr
+pExpr =
+  choice
+    [ pConst
+    ]
