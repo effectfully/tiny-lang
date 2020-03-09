@@ -141,11 +141,12 @@ statements ::=
 
 module TinyLang.Field.UParser where
 
+import           Control.Applicative.Combinators hiding (many, sepBy, some)
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer   as L
+import qualified Text.Megaparsec.Char.Lexer      as L
 import           Data.Void
-import qualified Data.Set                     as S
+import qualified Data.Set                        as S
 import           GHC.Unicode ( isLower
                              , isDigit)
 
@@ -229,10 +230,29 @@ keywords =
     , "unpack"
     ]
 
+isKeyword :: String -> Bool
+isKeyword = (`S.member` keywords)
+
 pIdentifier :: Parser String
-pIdentifier = do
+pIdentifier =
+  lexeme $ do
   prefix     <- option "" (string "?" <|> string "#")
   identifier <- (:) <$> lowerChar <*> many identifierChar
   pure $ prefix ++ identifier
 
+pBoolLiteral :: Parser String
+pBoolLiteral =
+  lexeme (fmap pure (satisfy (\x -> x == 'T' || x == 'F') <?> "T or F"))
+
+pIntLiteral :: Parser String
+pIntLiteral =
+  lexeme (some digitChar)
+
+pVecLiteral :: Parser String
+pVecLiteral =
+  lexeme $
+  between
+  (symbol "{")
+  (symbol "}")
+  ((pBoolLiteral `sepBy` (symbol ",")) >>= (pure . concat))
 
