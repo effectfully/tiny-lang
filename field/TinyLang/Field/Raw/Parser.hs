@@ -151,6 +151,7 @@ import           Data.Set ( fromList
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
+import           Text.Megaparsec.Debug
 import qualified Control.Monad.Combinators.Expr as Comb
 
 type Parser = Parsec Void String
@@ -343,14 +344,18 @@ pTerm :: forall f. Parser (Expr f)
 pTerm =
     choice
     [ EConst        <$> pConst
+    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     , parens pExpr
     , EVar          <$> pVar
     , EAppBinOp BAt <$> pExpr  <*> brackets pExpr
---    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     ]
 
 pStatement :: forall f. Parser (Statement f)
-pStatement = undefined
+pStatement =
+    dbg "statement" $ choice
+    [ keyword "let"    $> ELet    <*> pVar <* symbol "=" <*> pExpr
+    , keyword "assert" $> EAssert <*> pExpr
+    ]
 
 pExpr :: forall f. Parser (Expr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
