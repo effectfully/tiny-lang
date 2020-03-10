@@ -145,12 +145,14 @@ import           TinyLang.Prelude hiding ( Const
                                          , option
                                          , some
                                          )
+-- import           TinyLang.Field.Core
 import           Data.Set ( fromList
                           , member
                           )
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer as L
+import qualified Text.Megaparsec.Char.Lexer     as L
+import qualified Control.Monad.Combinators.Expr as Comb
 import           GHC.Unicode ( isLower
                              , isDigit
                              )
@@ -159,20 +161,25 @@ type Parser = Parsec Void String
 
 type Identifier = String
 
+
+
 data Const
     = CBool  Bool
     | CInt   Integer
     | CVec   [Bool]
+    deriving (Show)
 
 data Var = Var Identifier
+    deriving (Show)
 
 data Expr
     = EConst     Const
     | EVar       Var
-    | EAppBinOp  UnOp      Expr
-    | EAppUnOp   BinOp     Expr
+    | EAppBinOp  BinOp     Expr Expr
+    | EAppUnOp   UnOp      Expr
     | EStatement Statement Expr
     | EIf        Expr      Expr Expr
+    deriving (Show)
 
 data BinOp
     = Or
@@ -180,6 +187,7 @@ data BinOp
     | Xor
     | FEq
     | FLe
+    | FLt
     | FGe
     | FGt
     | Add
@@ -187,6 +195,7 @@ data BinOp
     | Mul
     | Div
     | BAt
+    deriving (Show)
 
 data UnOp
     = Not
@@ -194,10 +203,13 @@ data UnOp
     | Neg
     | Inv
     | Unp
-  
+    deriving (Show)
+
+
 data Statement
     = ELet    Var Expr
     | EAssert Expr
+    deriving (Show)
 
 -- Lexer
 sc :: Parser ()
@@ -208,6 +220,7 @@ lexeme = L.lexeme sc
 
 symbol :: String -> Parser String
 symbol = L.symbol sc
+
 
 -- Identifier Character
 isIdentifierChar :: Char -> Bool
@@ -221,8 +234,8 @@ identifierCharLabel = "identifier character [a-z0-9_']"
 identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identifierChar = satisfy isIdentifierChar <?> identifierCharLabel
 
-pKeyword :: String -> Parser String
-pKeyword keyword = lexeme (string keyword <* notFollowedBy identifierChar)
+keyword :: String -> Parser ()
+keyword kwd = lexeme (string kwd *> notFollowedBy identifierChar)
 
 keywords :: Set String
 keywords =
@@ -270,16 +283,68 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
-pConst :: Parser Expr
+pConst :: Parser Const
 pConst =
-    EConst <$> choice
+    choice
         [ CBool <$> pBoolLiteral
         , CInt  <$> pIntLiteral
         , CVec  <$> pVecLiteral
         ]
 
-pExpr :: Parser Expr
-pExpr =
-    choice
-    [ pConst
+-- variable is an identifier that is not a keyword
+pVar :: Parser Var
+pVar = do
+    ident <- pIdentifier
+    when (isKeyword ident)
+         (fail ("keyword " ++ show ident ++ " cannot be an identifier"))
+    pure $ Var ident
+
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+-- Unary operators are based on keywords
+-- TODO:  switch f to UnOp
+unary :: Parser a -> (Expr -> Expr) -> Comb.Operator Parser Expr
+unary pName f = Comb.Prefix (f <$ pName)
+
+-- TODO:  switch f to BinOp
+-- Binary operators are based on symbols
+binary :: Parser a -> (Expr -> Expr -> Expr) -> Comb.Operator Parser Expr
+binary pName f = Comb.InfixL (f <$ pName)
+
+operatorTable :: [[Comb.Operator Parser Expr]]
+operatorTable =
+    [ [ unary  (keyword "not")    $ EAppUnOp  Not
+      , unary  (keyword "neq0")   $ EAppUnOp  Neq0
+      , unary  (keyword "neg")    $ EAppUnOp  Neg
+      , unary  (keyword "inv")    $ EAppUnOp  Inv
+      , unary  (keyword "unpack") $ EAppUnOp  Unp
+      ]
+    , [ binary (symbol  "*")      $ EAppBinOp _
+      , binary (symbol  "/")      $ EAppBinOp _
+      ]
+    , [ binary (symbol  "+")      $ EAppBinOp _
+      , binary (symbol  "-")      $ EAppBinOp _
+      ]
+    , [ binary (keyword "and")    $ EAppBinOp _
+      , binary (keyword "or")     $ EAppBinOp _
+      , binary (keyword "xor")    $ EAppBinOp _
+      ]
+    , [ binary (symbol  "==")     $ EAppBinOp FEq
+      , binary (symbol  "<=")     $ EAppBinOp FLe
+      , binary (symbol  "<")      $ EAppBinOp FLt
+      , binary (symbol  ">=")     $ EAppBinOp FGe
+      , binary (symbol  ">")      $ EAppBinOp FGt
+      ]
     ]
+
+pTerm :: Parser Expr
+pTerm =
+    choice
+    [ EConst <$> pConst
+    , parens pExpr
+    , EVar   <$> pVar
+    ]
+
+pExpr :: Parser Expr
+pExpr = Comb.makeExprParser pTerm operatorTable
