@@ -168,13 +168,13 @@ data Const
 data Var = Var Identifier
     deriving (Show)
 
-data Expr
+data Expr f
     = EConst     Const
     | EVar       Var
-    | EAppBinOp  BinOp     Expr Expr
-    | EAppUnOp   UnOp      Expr
-    | EStatement Statement Expr
-    | EIf        Expr      Expr Expr
+    | EAppBinOp  BinOp         (Expr f) (Expr f)
+    | EAppUnOp   UnOp          (Expr f)
+    | EStatement (Statement f) (Expr f)
+    | EIf        (Expr f)      (Expr f) (Expr f)
     deriving (Show)
 
 data BinOp
@@ -202,9 +202,9 @@ data UnOp
     deriving (Show)
 
 
-data Statement
-    = ELet    Var Expr
-    | EAssert Expr
+data Statement f
+    = ELet    Var      (Expr f)
+    | EAssert (Expr f)
     deriving (Show)
 
 -- Lexer
@@ -298,13 +298,13 @@ pVar = do
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
-unary :: Parser a -> UnOp -> Comb.Operator Parser Expr
+unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (Expr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
-binary :: Parser a -> BinOp -> Comb.Operator Parser Expr
+binary :: forall a f.  Parser a -> BinOp -> Comb.Operator Parser (Expr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
-operatorTable :: [[Comb.Operator Parser Expr]]
+operatorTable :: forall f. [[Comb.Operator Parser (Expr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
       ]
@@ -332,7 +332,7 @@ operatorTable =
       ]
     ]
 
-pTerm :: Parser Expr
+pTerm :: forall f. Parser (Expr f)
 pTerm =
     choice
     [ EConst <$> pConst
@@ -340,5 +340,6 @@ pTerm =
     , EVar   <$> pVar
     ]
 
-pExpr :: Parser Expr
+
+pExpr :: forall f. Parser (Expr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
