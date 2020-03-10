@@ -143,7 +143,6 @@ module TinyLang.Field.UParser where
 
 import           TinyLang.Prelude hiding ( Const
                                          , option
-                                         , some
                                          )
 -- import           TinyLang.Field.Core
 import           Data.Set ( fromList
@@ -153,9 +152,6 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
 import qualified Control.Monad.Combinators.Expr as Comb
-import           GHC.Unicode ( isLower
-                             , isDigit
-                             )
 
 type Parser = Parsec Void String
 
@@ -273,7 +269,7 @@ pBoolLiteral =
 
 pIntLiteral :: Parser Integer
 pIntLiteral =
-    lexeme $ fmap read (some digitChar)
+    lexeme $ read <$> takeWhile1P (Just "digit") isDigit
 
 pVecLiteral :: Parser [Bool]
 pVecLiteral =
