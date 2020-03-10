@@ -302,39 +302,35 @@ pVar = do
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
--- Unary operators are based on keywords
--- TODO:  switch f to UnOp
-unary :: Parser a -> (Expr -> Expr) -> Comb.Operator Parser Expr
-unary pName f = Comb.Prefix (f <$ pName)
+unary :: Parser a -> UnOp -> Comb.Operator Parser Expr
+unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
--- TODO:  switch f to BinOp
--- Binary operators are based on symbols
-binary :: Parser a -> (Expr -> Expr -> Expr) -> Comb.Operator Parser Expr
-binary pName f = Comb.InfixL (f <$ pName)
+binary :: Parser a -> BinOp -> Comb.Operator Parser Expr
+binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
 operatorTable :: [[Comb.Operator Parser Expr]]
 operatorTable =
-    [ [ unary  (keyword "not")    $ EAppUnOp  Not
-      , unary  (keyword "neq0")   $ EAppUnOp  Neq0
-      , unary  (keyword "neg")    $ EAppUnOp  Neg
-      , unary  (keyword "inv")    $ EAppUnOp  Inv
-      , unary  (keyword "unpack") $ EAppUnOp  Unp
+    [ [ unary  (keyword "not")    $ Not
+      , unary  (keyword "neq0")   $ Neq0
+      , unary  (keyword "neg")    $ Neg
+      , unary  (keyword "inv")    $ Inv
+      , unary  (keyword "unpack") $ Unp
       ]
-    , [ binary (symbol  "*")      $ EAppBinOp _
-      , binary (symbol  "/")      $ EAppBinOp _
+    , [ binary (symbol  "*")      $ Mul
+      , binary (symbol  "/")      $ Div
       ]
-    , [ binary (symbol  "+")      $ EAppBinOp _
-      , binary (symbol  "-")      $ EAppBinOp _
+    , [ binary (symbol  "+")      $ Add
+      , binary (symbol  "-")      $ Sub
       ]
-    , [ binary (keyword "and")    $ EAppBinOp _
-      , binary (keyword "or")     $ EAppBinOp _
-      , binary (keyword "xor")    $ EAppBinOp _
+    , [ binary (symbol  "==")     $ FEq
+      , binary (symbol  "<=")     $ FLe
+      , binary (symbol  "<")      $ FLt
+      , binary (symbol  ">=")     $ FGe
+      , binary (symbol  ">")      $ FGt
       ]
-    , [ binary (symbol  "==")     $ EAppBinOp FEq
-      , binary (symbol  "<=")     $ EAppBinOp FLe
-      , binary (symbol  "<")      $ EAppBinOp FLt
-      , binary (symbol  ">=")     $ EAppBinOp FGe
-      , binary (symbol  ">")      $ EAppBinOp FGt
+    , [ binary (keyword "and")    $ And
+      , binary (keyword "or")     $ Or
+      , binary (keyword "xor")    $ Xor
       ]
     ]
 
