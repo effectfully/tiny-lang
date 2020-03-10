@@ -298,18 +298,28 @@ pVar = do
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
+brackets :: Parser a -> Parser a
+brackets = between (symbol "[") (symbol "]")
+
 unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (Expr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
 binary :: forall a f.  Parser a -> BinOp -> Comb.Operator Parser (Expr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
+pIndex :: forall f . Parser (Expr f)
+pIndex = brackets pExpr
+
 operatorTable :: forall f. [[Comb.Operator Parser (Expr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
-      ]
-    , [ unary  (keyword "neg")    $ Neg
+      , unary  (keyword "neg")    $ Neg
       , unary  (keyword "inv")    $ Inv
+      , unary  (keyword "neq0")   $ Neq0
+      , unary  (keyword "unpack") $ Unp
+      ]
+      -- expr [ expr ]
+    , [ Comb.Postfix (flip (EAppBinOp BAt) <$> pIndex)
       ]
     , [ binary (symbol  "*")      $ Mul
       , binary (symbol  "/")      $ Div
@@ -322,24 +332,25 @@ operatorTable =
       , binary (symbol  "<")      $ FLt
       , binary (symbol  ">=")     $ FGe
       , binary (symbol  ">")      $ FGt
-      , unary  (keyword "neq0")   $ Neq0
       ]
     , [ binary (keyword "xor")    $ Xor
       , binary (keyword "and")    $ And
       , binary (keyword "or")     $ Or
-      ]
-    , [ unary  (keyword "unpack") $ Unp
       ]
     ]
 
 pTerm :: forall f. Parser (Expr f)
 pTerm =
     choice
-    [ EConst <$> pConst
+    [ EConst        <$> pConst
     , parens pExpr
-    , EVar   <$> pVar
+    , EVar          <$> pVar
+    , EAppBinOp BAt <$> pExpr  <*> brackets pExpr
+--    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     ]
 
+pStatement :: forall f. Parser (Statement f)
+pStatement = undefined
 
 pExpr :: forall f. Parser (Expr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
