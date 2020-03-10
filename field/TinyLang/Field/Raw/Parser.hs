@@ -1,5 +1,5 @@
 {-|
-= Untyped Parser
+= Raw Parser
 
 A simple parser for language involving booleans, field elements, and
 vectors.
@@ -139,7 +139,7 @@ See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
 
 
-module TinyLang.Field.UParser where
+module TinyLang.Field.Raw.Parser where
 
 import           TinyLang.Prelude hiding ( Const
                                          , option

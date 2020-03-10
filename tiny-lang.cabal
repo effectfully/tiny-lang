@@ -34,10 +34,10 @@ library
         TinyLang.Field.Generator
         TinyLang.Field.NamedType
         TinyLang.Field.Parser
-        TinyLang.Field.UParser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
+        TinyLang.Field.Raw.Parser
     build-depends:
         base >= 4.7 && < 5,
         transformers,
