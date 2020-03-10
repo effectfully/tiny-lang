@@ -311,10 +311,9 @@ binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 operatorTable :: [[Comb.Operator Parser Expr]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
-      , unary  (keyword "neq0")   $ Neq0
-      , unary  (keyword "neg")    $ Neg
+      ]
+    , [ unary  (keyword "neg")    $ Neg
       , unary  (keyword "inv")    $ Inv
-      , unary  (keyword "unpack") $ Unp
       ]
     , [ binary (symbol  "*")      $ Mul
       , binary (symbol  "/")      $ Div
@@ -327,10 +326,13 @@ operatorTable =
       , binary (symbol  "<")      $ FLt
       , binary (symbol  ">=")     $ FGe
       , binary (symbol  ">")      $ FGt
+      , unary  (keyword "neq0")   $ Neq0
       ]
-    , [ binary (keyword "and")    $ And
+    , [ binary (keyword "xor")    $ Xor
+      , binary (keyword "and")    $ And
       , binary (keyword "or")     $ Or
-      , binary (keyword "xor")    $ Xor
+      ]
+    , [ unary  (keyword "unpack") $ Unp
       ]
     ]
 
