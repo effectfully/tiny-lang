@@ -347,12 +347,11 @@ pTerm =
     , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     , parens pExpr
     , EVar          <$> pVar
-    , EAppBinOp BAt <$> pExpr  <*> brackets pExpr
     ]
 
 pStatement :: forall f. Parser (Statement f)
 pStatement =
-    dbg "statement" $ choice
+    choice
     [ keyword "let"    $> ELet    <*> pVar <* symbol "=" <*> pExpr
     , keyword "assert" $> EAssert <*> pExpr
     ]
