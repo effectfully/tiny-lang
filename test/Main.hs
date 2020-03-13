@@ -3,7 +3,7 @@ module Main where
 -- import qualified Boolean.Textual as Boolean (test_printerParserRoundtrip)
 -- import qualified Field.Axioms    as Field (test_axiomsExamples)
 -- import qualified Field.Textual   as Field (test_textual)
-import qualified Field.Parsing   as Parsing (gen_test_parsing)
+import qualified Field.Raw.Textual   as Field (gen_test_parsing)
 
 import           Test.Tasty
 
@@ -24,7 +24,7 @@ import           Test.Tasty
 main :: IO ()
 main =
     do
-        test_parsing <- Parsing.gen_test_parsing
+        test_parsing <- Field.gen_test_parsing
         
         defaultMain $ testGroup "all" [ test_parsing
                                       ]

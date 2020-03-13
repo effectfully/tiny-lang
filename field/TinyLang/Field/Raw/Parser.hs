@@ -204,6 +204,7 @@ data UnOp
 data Statement f
     = ELet    Var      (Expr f)
     | EAssert (Expr f)
+    | EFor    Var      (Expr f) (Expr f) [Statement f]
     deriving (Show)
 
 -- Lexer
@@ -344,16 +345,23 @@ pTerm :: forall f. Parser (Expr f)
 pTerm =
     choice
     [ EConst        <$> pConst
-    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     , parens pExpr
+    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
     , EVar          <$> pVar
     ]
+
+
 
 pStatement :: forall f. Parser (Statement f)
 pStatement =
     choice
     [ keyword "let"    $> ELet    <*> pVar <* symbol "=" <*> pExpr
     , keyword "assert" $> EAssert <*> pExpr
+    , keyword "for"    $> EFor    <*> pVar <* symbol "="
+                                  <*> pExpr <* keyword "to"
+                                  <*> pExpr <* keyword "do"
+                                  <*> (pStatement `sepBy` (symbol ";"))
+                                  <* keyword "end"
     ]
 
 pExpr :: forall f. Parser (Expr f)

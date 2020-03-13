@@ -1,31 +1,37 @@
 {- A simple parser test
 -}
 
-module Field.Parsing
+module Field.Raw.Textual
   ( gen_test_parsing
   ) where
 
+import Data.List (sort)
 import TinyLang.Prelude
 import TinyLang.Field.Raw.Parser
 import Test.Tasty
 import Test.Tasty.Golden
+import Test.Tasty.HUnit
 
 import System.FilePath
 import System.FilePath.Glob
+
+testDir :: FilePath
+testDir = "test" </> "Field" </> "Raw" </> "golden"
 
 gen_test_parsing :: IO TestTree
 gen_test_parsing =
     do
         files <- testFiles
-        pure $ testGroup "parsing" $ map mkGolden files
+        let checkFoundFiles =
+                testCase "test dicovery" $
+                not (null files) @? "didn't find any test cases in " ++ testDir
+        let testCases = checkFoundFiles : map mkGolden files
+        pure $ testGroup "parsing" $ testCases
 
-testDir :: FilePath
-testDir = "test" </> "Field" </> "raw"
-
+-- sorted list of test files
 testFiles :: IO [FilePath]
-testFiles = globDir1 pat testDir
+testFiles = sort <$> globDir1 pat testDir
     where pat = compile "*.field"
-
 
 parseFilePath :: FilePath -> IO String
 parseFilePath filePath =
