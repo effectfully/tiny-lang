@@ -139,7 +139,10 @@ See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
 
 
-module TinyLang.Field.Raw.Parser where
+module TinyLang.Field.Raw.Parser
+    ( parseString
+    , p
+    ) where
 
 import           TinyLang.Prelude hiding ( Const
                                          , option
@@ -208,7 +211,8 @@ data Statement f
     | EFor    Var      (Expr f) (Expr f) [Statement f]
     deriving (Show)
 
--- Lexer
+{-| == Lexer
+-}
 sc :: Parser ()
 sc = L.space space1
              (L.skipLineComment "#")
@@ -304,6 +308,9 @@ parens = between (symbol "(") (symbol ")")
 brackets :: Parser a -> Parser a
 brackets = between (symbol "[") (symbol "]")
 
+{-| == Parser
+-}
+
 unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (Expr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
@@ -347,7 +354,7 @@ pTerm =
     choice
     [ EConst        <$> pConst
     , parens pExpr
-    , EStatement    <$> pStatement <* symbol ";"  <*> pExpr
+    , EStatement    <$> pStatement <* symbol ";" <*> pExpr
     , EVar          <$> pVar
     ]
 
@@ -357,13 +364,14 @@ pStatements = many (pStatement <* symbol ";")
 pStatement :: forall f. Parser (Statement f)
 pStatement =
     choice
-    [ keyword "let"    $> ELet    <*> pVar <* symbol "=" <*> pExpr
-    , keyword "assert" $> EAssert <*> pExpr
-    , keyword "for"    $> EFor    <*> pVar <* symbol "="
-                                  <*> pExpr <* keyword "to"
-                                  <*> pExpr <* keyword "do"
-                                  <*> pStatements
-                                  <* keyword "end"
+    [ ELet    <$> (keyword "let"    *> pVar)
+              <*> (symbol  "="      *> pExpr)
+    , EAssert <$> (keyword "assert" *> pExpr)
+    , EFor    <$> (keyword "for"    *> pVar)
+              <*> (symbol  "="      *> pExpr)
+              <*> (keyword "to"     *> pExpr)
+              <*> (keyword "do"     *> pStatements)
+              <*   keyword "end"
     ]
 
 pExpr :: forall f. Parser (Expr f)
@@ -371,6 +379,9 @@ pExpr = Comb.makeExprParser pTerm operatorTable
 
 pTopLevel :: forall f. Parser (Expr f)
 pTopLevel = between sc eof pExpr
+
+{-| == Helper functions
+-}
 
 parseString :: String -> String -> String
 parseString fileName str =
