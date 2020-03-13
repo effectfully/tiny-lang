@@ -151,14 +151,12 @@ import           Data.Set ( fromList
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
-import           Text.Megaparsec.Debug
+-- import           Text.Megaparsec.Debug
 import qualified Control.Monad.Combinators.Expr as Comb
 
 type Parser = Parsec Void String
 
 type Identifier = String
-
-
 
 data Const
     = CBool  Bool
@@ -210,7 +208,9 @@ data Statement f
 
 -- Lexer
 sc :: Parser ()
-sc = L.space space1 empty empty
+sc = L.space space1
+             (L.skipLineComment "#")
+             empty
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -358,3 +358,13 @@ pStatement =
 
 pExpr :: forall f. Parser (Expr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
+
+pTopLevel :: forall f. Parser (Expr f)
+pTopLevel = between sc eof pExpr
+
+parseString :: String -> String -> String
+parseString fileName str =
+    either
+      errorBundlePretty
+      show
+      $ runParser pTopLevel fileName str

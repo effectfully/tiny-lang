@@ -90,6 +90,7 @@ test-suite tiny-lang-test
         QuickCheck-GenT,
         filepath,
         directory,
+        Glob,
         tasty,
         tasty-golden,
         tasty-quickcheck
