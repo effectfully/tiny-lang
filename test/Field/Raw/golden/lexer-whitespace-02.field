@@ -1,0 +1,16 @@
+# Testing for whitespace inside for loop
+for
+
+i
+	=
+0to
+100
+do assert T; end
+
+
+
+;
+
+
+
+T

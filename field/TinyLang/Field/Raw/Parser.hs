@@ -143,6 +143,7 @@ module TinyLang.Field.Raw.Parser where
 
 import           TinyLang.Prelude hiding ( Const
                                          , option
+                                         , many
                                          )
 -- import           TinyLang.Field.Core
 import           Data.Set ( fromList
@@ -350,7 +351,8 @@ pTerm =
     , EVar          <$> pVar
     ]
 
-
+pStatements :: forall f. Parser [Statement f]
+pStatements = many (pStatement <* symbol ";")
 
 pStatement :: forall f. Parser (Statement f)
 pStatement =
@@ -360,7 +362,7 @@ pStatement =
     , keyword "for"    $> EFor    <*> pVar <* symbol "="
                                   <*> pExpr <* keyword "to"
                                   <*> pExpr <* keyword "do"
-                                  <*> (pStatement `sepBy` (symbol ";"))
+                                  <*> pStatements
                                   <* keyword "end"
     ]
 
@@ -376,3 +378,6 @@ parseString fileName str =
       errorBundlePretty
       show
       $ runParser pTopLevel fileName str
+
+p :: String -> IO ()
+p s = putStrLn $ parseString "" s

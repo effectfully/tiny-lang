@@ -1,0 +1,1 @@
+EStatement (EFor (Var "i") (EConst (CInt 0)) (EConst (CInt 100)) [EAssert (EConst (CBool True))]) (EConst (CBool True))
