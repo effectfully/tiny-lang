@@ -1,0 +1,13 @@
+# Testing arithmetics and boolean expressions
+	  a * b
+	- c * d
+    ==
+	  e / f
+	+ g / h
+xor
+	  a * b
+	- c * d
+    >=
+	  e / f
+	+ g / h
+      

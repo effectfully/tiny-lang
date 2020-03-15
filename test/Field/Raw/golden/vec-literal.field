@@ -1,0 +1,2 @@
+# Testing vector literals
+{T, F, T, F, T, F}

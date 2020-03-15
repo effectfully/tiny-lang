@@ -1,0 +1,2 @@
+# Testing unop > binop
+(neg a and b) <= (neg (a and b))

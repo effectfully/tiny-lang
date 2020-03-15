@@ -1,4 +1,4 @@
-{- A simple parser test
+{-| A simple set of tests for the raw parser
 -}
 
 module Field.Raw.Textual
