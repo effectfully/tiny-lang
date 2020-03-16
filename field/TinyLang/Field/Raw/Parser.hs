@@ -147,6 +147,7 @@ module TinyLang.Field.Raw.Parser
 import           TinyLang.Prelude hiding ( Const
                                          , option
                                          , many
+                                         , try
                                          )
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Uni
@@ -176,7 +177,7 @@ newtype Var = Var Identifier
     deriving (Eq, Show)
 
 data Expr v f
-    = EVal       (SomeUniVal f)
+    = EConst     (SomeUniVal f)
     | EVar       v
     | EAppBinOp  BinOp           (Expr v f) (Expr v f)
     | EAppUnOp   UnOp            (Expr v f)
@@ -380,7 +381,8 @@ pVal = choice
 pTerm :: TextField f => Parser (RawExpr f)
 pTerm =
     choice
-    [ EVal          <$> pVal
+    -- This can backtrack for parentheses
+    [ try (EConst   <$> pVal)
     , parens pExpr
     , EStatement    <$> pStatement <* symbol ";" <*> pExpr
     , EVar          <$> pVar
