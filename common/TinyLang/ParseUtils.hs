@@ -56,25 +56,31 @@ makeVar name = do
             pure var
 
 -- Consume whitespace
-ws :: Parser ()
+-- ws :: Parser ()
+ws :: (MonadParsec e s m, Token s ~ Char) => m ()
 ws = L.space space1 empty empty
 -- Last two arguments are for comment delimiters.  Let's not have any comments for now.
 
 -- Parse the whole of an input stream
-top :: Parser a -> Parser a
+-- top :: Parser a -> Parser a
+top :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
 top = between ws eof
 
 -- Wrapper to consume whitespace after parsing an item using the wrapped parser
-lexeme :: Parser a -> Parser a
+-- lexeme :: Parser a -> Parser a
+lexeme :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
 lexeme = L.lexeme ws
 
 -- Parse a fixed string
-symbol :: String -> Parser String
+-- symbol :: String -> Parser String
+symbol :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => String -> m String
 symbol = L.symbol ws
 
 -- 'parens' parses something between parenthesis.
-parens :: Parser a -> Parser a
+-- parens :: Parser a -> Parser a
+parens :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
 parens = between (symbol "(") (symbol ")")
 
-signedDecimal :: Integral a => Parser a
+-- signedDecimal :: Integral a => Parser a
+signedDecimal :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char], Integral a) => m a
 signedDecimal = L.signed ws (lexeme L.decimal) <|> parens signedDecimal
