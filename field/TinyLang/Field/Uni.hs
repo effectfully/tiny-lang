@@ -52,6 +52,8 @@ data UniVar f a = UniVar
 --     , _inhabitsVal :: b
 --     }
 
+type SomeUniVal f = Some (UniVal f)
+
 -- instances
 
 deriving instance Show (Uni f a)

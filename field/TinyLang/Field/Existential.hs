@@ -20,3 +20,4 @@ instance Forget (SomeOf uni) where
 traverseSomeOf :: Functor m => (forall a. f a -> m (f a)) -> SomeOf uni f -> m (SomeOf uni f)
 traverseSomeOf f (SomeOf uni a) = SomeOf uni <$> f a
 
+

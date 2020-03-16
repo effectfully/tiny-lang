@@ -148,6 +148,7 @@ import           TinyLang.Prelude hiding ( Const
                                          , option
                                          , many
                                          )
+import           TinyLang.Field.Uni
 -- import           TinyLang.Field.Core
 import           Data.Set ( fromList
                           , member
@@ -160,16 +161,15 @@ import qualified Control.Monad.Combinators.Expr as Comb
 
 type Parser = Parsec Void String
 
-type Identifier = String
-
 data Const
     = CBool  Bool
     | CInt   Integer
     | CVec   [Bool]
     deriving (Show)
 
-data Var = Var Identifier
-    deriving (Show)
+type Identifier = String
+newtype Var = Var Identifier
+    deriving (Eq, Show)
 
 data Expr v f
     = EConst     Const
