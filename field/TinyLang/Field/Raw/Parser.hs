@@ -368,7 +368,7 @@ vVec :: forall f. Parser (SomeUniVal f)
 vVec = Some <$> (UniVal Vector) <$> pVecLiteral
 
 vField :: TextField f => Parser (SomeUniVal f)
-vField = trace "vField" $ Some <$> (UniVal Field) <$> parseField
+vField = Some <$> (UniVal Field) <$> parseField
 
 pVal :: TextField f => Parser (SomeUniVal f)
 pVal = choice

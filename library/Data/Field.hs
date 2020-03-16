@@ -121,8 +121,8 @@ newtype AField f = AField
 
 -- GHC will not derive this one automatically
 instance (Field f, TextField f) => TextField (AField f) where
-    parseField = trace "AField.parseField" $ AField <$> parseField
-    showField = trace "AField.showField" $ showField . unAField
+    parseField = AField <$> parseField
+    showField  = showField . unAField
 
 newtype ABaseField a = ABaseField
     { unABaseField :: a
