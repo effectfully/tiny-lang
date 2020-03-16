@@ -171,13 +171,13 @@ data Const
 data Var = Var Identifier
     deriving (Show)
 
-data Expr f
+data Expr v f
     = EConst     Const
-    | EVar       Var
-    | EAppBinOp  BinOp         (Expr f) (Expr f)
-    | EAppUnOp   UnOp          (Expr f)
-    | EStatement (Statement f) (Expr f)
-    | EIf        (Expr f)      (Expr f) (Expr f)
+    | EVar       v
+    | EAppBinOp  BinOp           (Expr v f) (Expr v f)
+    | EAppUnOp   UnOp            (Expr v f)
+    | EStatement (Statement v f) (Expr v f)
+    | EIf        (Expr v f)      (Expr v f) (Expr v f)
     deriving (Show)
 
 data BinOp
@@ -205,11 +205,14 @@ data UnOp
     deriving (Show)
 
 
-data Statement f
-    = ELet    Var      (Expr f)
-    | EAssert (Expr f)
-    | EFor    Var      (Expr f) (Expr f) [Statement f]
+data Statement v f
+    = ELet    v          (Expr v f)
+    | EAssert (Expr v f)
+    | EFor    v          (Expr v f) (Expr v f) [Statement v f]
     deriving (Show)
+
+type RawExpr = Expr Var
+type RawStatement = Statement Var
 
 {-| == Lexer
 -}
@@ -311,16 +314,16 @@ brackets = between (symbol "[") (symbol "]")
 {-| == Parser
 -}
 
-unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (Expr f)
+unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (RawExpr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
-binary :: forall a f.  Parser a -> BinOp -> Comb.Operator Parser (Expr f)
+binary :: forall a f.  Parser a -> BinOp -> Comb.Operator Parser (RawExpr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
-pIndex :: forall f . Parser (Expr f)
+pIndex :: forall f . Parser (RawExpr f)
 pIndex = brackets pExpr
 
-operatorTable :: forall f. [[Comb.Operator Parser (Expr f)]]
+operatorTable :: forall f. [[Comb.Operator Parser (RawExpr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
       , unary  (keyword "neg")    $ Neg
@@ -349,7 +352,7 @@ operatorTable =
       ]
     ]
 
-pTerm :: forall f. Parser (Expr f)
+pTerm :: forall f. Parser (RawExpr f)
 pTerm =
     choice
     [ EConst        <$> pConst
@@ -358,10 +361,10 @@ pTerm =
     , EVar          <$> pVar
     ]
 
-pStatements :: forall f. Parser [Statement f]
+pStatements :: forall f. Parser [RawStatement f]
 pStatements = many (pStatement <* symbol ";")
 
-pStatement :: forall f. Parser (Statement f)
+pStatement :: forall f. Parser (RawStatement f)
 pStatement =
     choice
     [ ELet    <$> (keyword "let"    *> pVar)
@@ -374,10 +377,10 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: forall f. Parser (Expr f)
+pExpr :: forall f. Parser (RawExpr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
 
-pTopLevel :: forall f. Parser (Expr f)
+pTopLevel :: forall f. Parser (RawExpr f)
 pTopLevel = between sc eof pExpr
 
 {-| == Helper functions
