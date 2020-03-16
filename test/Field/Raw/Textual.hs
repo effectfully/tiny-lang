@@ -35,7 +35,7 @@ testFiles = sort <$> globDir1 pat testDir
 
 parseFilePath :: FilePath -> IO String
 parseFilePath filePath =
-    parseString fileName <$> readFile filePath
+    parseRational fileName <$> readFile filePath
     where
         fileName = takeFileName filePath
 
