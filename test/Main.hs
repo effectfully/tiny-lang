@@ -7,21 +7,16 @@ import qualified Field.Raw.Textual as Raw (gen_test_parsing)
 
 import           Test.Tasty
 
-test_all :: TestTree
-test_all =
-    testGroup "all"
+test_all :: IO TestTree
+test_all = do
+    test_rawParsing <- Raw.gen_test_parsing
+    pure $
+        testGroup "all"
         [ Boolean.test_printerParserRoundtrip
         , Field.test_axiomsExamples
         , Field.test_textual
+        , test_rawParsing
         ]
 
 main :: IO ()
-main =
-    do  test_rawParsing <- Raw.gen_test_parsing
-        defaultMain $
-            testGroup "all"
-                [ Boolean.test_printerParserRoundtrip
-                , Field.test_axiomsExamples
-                , Field.test_textual
-                , test_rawParsing
-                ]
+main =  defaultMain =<< test_all
