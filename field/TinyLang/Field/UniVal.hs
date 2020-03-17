@@ -1,5 +1,10 @@
 module TinyLang.Field.UniVal
-    where
+    ( Uni(..)
+    , UniVal(..)
+    , SomeUniVal
+    , knownUni
+    , withGeqUni
+    ) where
 
 import Prelude                    hiding (div)
 import Data.Field
