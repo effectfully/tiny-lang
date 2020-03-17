@@ -8,6 +8,7 @@ module TinyLang.ParseUtils
     , Scope
     , Scoped (..)
     , parseBy
+    , parseString
     , makeVar
     , ws
     , lexeme
@@ -44,6 +45,16 @@ parseBy parser str =
     liftSupply $
         runStateT (runParserT (top parser) "" str) mempty <&> \(errOrRes, scope) ->
             Scoped scope $ first errorBundlePretty errOrRes
+
+parseString
+    :: (ShowErrorComponent e) =>
+       Parsec e String a ->
+       String ->
+       String ->
+       Either String a
+parseString parser fileName str =
+    first errorBundlePretty $ runParser parser fileName str
+
 
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
