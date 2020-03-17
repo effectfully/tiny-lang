@@ -1,0 +1,21 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: mstksg/setup-stack@v1
+    - name: Stack setup
+      run: |
+        stack setup
+    - name: Run tests
+      run: stack test
