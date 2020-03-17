@@ -4,17 +4,14 @@
 A simple parser for language involving booleans, field elements, and
 vectors.
 
-Given that the language is simple enough we are mixieng lexical
+Given that the language is simple enough we are mixing lexical
 analysis and grammar a bit.  To avoid any ambiguities between lexical
 analysis and grammar we will explicitly mark all lexical tokens.
 
 Please note that expressions are the designated start production for
 the parser.
 
-We are using the following convention
-
-* /tokens/ are enclosed in parentheses @""@.
-* /regular expressions/ are enclosed in square brackets @[]@.
+As convention we enclose /tokens/ in parentheses @""@.
 
 == Literals
 
