@@ -1,3 +1,2 @@
-# Testing binding of []
     a + b [c] == a + (b [c])
 and a + b [c] <= (a + b) [c]

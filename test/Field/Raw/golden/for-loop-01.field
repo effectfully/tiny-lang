@@ -1,4 +1,3 @@
-# A more complicated for loop
 for i = 1 to 2 do
     let i' = i;         
     for j = 2 to 3 do
