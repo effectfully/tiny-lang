@@ -12,7 +12,6 @@ module TinyLang.Field.Raw.Core
     ) where
 
 import TinyLang.Field.UniVal
-import Data.Field
 
 {-| = AST
 -}
@@ -30,6 +29,7 @@ data Expr v f
     | EAppUnOp   UnOp            (Expr v f)
     | EStatement (Statement v f) (Expr v f)
     | EIf        (Expr v f)      (Expr v f) (Expr v f)
+    deriving (Show)
 
 data BinOp
     = Or
@@ -45,6 +45,7 @@ data BinOp
     | Mul
     | Div
     | BAt
+    deriving (Show)
 
 data UnOp
     = Not
@@ -52,20 +53,16 @@ data UnOp
     | Neg
     | Inv
     | Unp
+    deriving (Show)
 
 data Statement v f
     = ELet    v          (Expr v f)
     | EAssert (Expr v f)
     | EFor    v          (Expr v f) (Expr v f) [Statement v f]
+    deriving (Show)
 
 {-| = Utility Type Aliases
 -}
 type RawExpr = Expr Var
 type RawStatement = Statement Var
 
-{-| = Type Instances
--}
-deriving instance (TextField f, Show v) => Show (Expr v f)
-deriving instance Show BinOp
-deriving instance Show UnOp
-deriving instance (TextField f, Show v) => Show (Statement v f)
