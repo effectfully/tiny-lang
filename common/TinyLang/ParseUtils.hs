@@ -13,6 +13,8 @@ module TinyLang.ParseUtils
     , lexeme
     , symbol
     , parens
+    , brackets
+    , top
     , signedDecimal
     ) where
 
@@ -80,6 +82,10 @@ symbol = L.symbol ws
 -- parens :: Parser a -> Parser a
 parens :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
 parens = between (symbol "(") (symbol ")")
+
+brackets :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
+-- brackets :: Parser a -> Parser a
+brackets = between (symbol "[") (symbol "]")
 
 -- signedDecimal :: Integral a => Parser a
 signedDecimal :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char], Integral a) => m a
