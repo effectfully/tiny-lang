@@ -17,8 +17,7 @@ test_all =
 
 main :: IO ()
 main =
-    do
-        test_rawParsing <- Raw.gen_test_parsing
+    do  test_rawParsing <- Raw.gen_test_parsing
         defaultMain $
             testGroup "all"
                 [ Boolean.test_printerParserRoundtrip
