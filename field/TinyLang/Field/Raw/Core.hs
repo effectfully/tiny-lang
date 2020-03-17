@@ -11,7 +11,7 @@ module TinyLang.Field.Raw.Core
     , RawStatement
     ) where
 
-import TinyLang.Field.Uni
+import TinyLang.Field.UniVal
 import Data.Field
 
 {-| = AST

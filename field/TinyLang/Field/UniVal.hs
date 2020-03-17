@@ -1,4 +1,4 @@
-module TinyLang.Field.Uni
+module TinyLang.Field.UniVal
     where
 
 import Prelude                    hiding (div)

@@ -151,7 +151,7 @@ import           TinyLang.Prelude hiding ( option
 
 import           TinyLang.Field.Raw.Core
 import           TinyLang.Field.Existential
-import           TinyLang.Field.Uni
+import           TinyLang.Field.UniVal
 import           Data.Set ( fromList
                           , member
                           )

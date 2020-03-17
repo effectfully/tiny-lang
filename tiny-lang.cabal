@@ -38,7 +38,7 @@ library
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
-        TinyLang.Field.Uni
+        TinyLang.Field.UniVal
         TinyLang.Field.Raw.Core
         TinyLang.Field.Raw.Parser
     build-depends:
