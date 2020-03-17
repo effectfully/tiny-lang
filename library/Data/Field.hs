@@ -98,7 +98,6 @@ makeDiv d x y = do
 fromDivided :: Maybe f -> f
 fromDivided = fromMaybe $ throw DivideByZero
 
--- parseFieldDefault :: Field f => Parser f
 parseFieldDefault :: (Field f, MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
 parseFieldDefault = unAField . fromInteger <$> signedDecimal
 
