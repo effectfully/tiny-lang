@@ -126,11 +126,15 @@ statements ::=
 @
 
 == Operator Precedence
-Precedence: "not" > "xor" > "and" > "or" (but use parentheses anyway).
-if-then-else has to be parenthesised unless it's at the very top.
 
-Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
-Things like "neg inv 5" are illegal: use parentheses.
+We use the following operator precedence:
+
+- unary operators,
+- vector element access ([]),
+- @*, /@,
+- @+, -@,
+- arithmetic comparison operators, and
+- boolean operators.
 
 The code is based on the tutorial at
 https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
