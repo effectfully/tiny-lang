@@ -144,96 +144,30 @@ module TinyLang.Field.Raw.Parser
     , p
     ) where
 
-import           TinyLang.Prelude hiding ( Const
-                                         , option
+import           TinyLang.Prelude hiding ( option
                                          , many
                                          , try
                                          )
+
+import           TinyLang.Field.Raw.Core
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Uni
--- import           TinyLang.Field.Core
 import           Data.Set ( fromList
                           , member
                           )
 import           Data.Field
+
+import           TinyLang.ParseUtils hiding ( Parser )
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer     as L
--- import           Text.Megaparsec.Debug
 import qualified Control.Monad.Combinators.Expr as Comb
 import qualified Data.Vector as Vector
 
 
 type Parser = Parsec Void String
 
-data Const
-    = CBool  Bool
-    | CInt   Integer
-    | CVec   [Bool]
-    deriving (Show)
-
-type Identifier = String
-newtype Var = Var Identifier
-    deriving (Eq, Show)
-
-data Expr v f
-    = EConst     (SomeUniVal f)
-    | EVar       v
-    | EAppBinOp  BinOp           (Expr v f) (Expr v f)
-    | EAppUnOp   UnOp            (Expr v f)
-    | EStatement (Statement v f) (Expr v f)
-    | EIf        (Expr v f)      (Expr v f) (Expr v f)
-
-deriving instance (TextField f, Show v) => Show (Expr v f)
-
-
-data BinOp
-    = Or
-    | And
-    | Xor
-    | FEq
-    | FLe
-    | FLt
-    | FGe
-    | FGt
-    | Add
-    | Sub
-    | Mul
-    | Div
-    | BAt
-    deriving (Show)
-
-data UnOp
-    = Not
-    | Neq0
-    | Neg
-    | Inv
-    | Unp
-    deriving (Show)
-
-
-data Statement v f
-    = ELet    v          (Expr v f)
-    | EAssert (Expr v f)
-    | EFor    v          (Expr v f) (Expr v f) [Statement v f]
-    deriving (Show)
-
-type RawExpr = Expr Var
-type RawStatement = Statement Var
-
 {-| == Lexer
 -}
-sc :: Parser ()
-sc = L.space space1
-             (L.skipLineComment "#")
-             empty
-
-lexeme :: Parser a -> Parser a
-lexeme = L.lexeme sc
-
-symbol :: String -> Parser String
-symbol = L.symbol sc
-
 
 -- Identifier Character
 isIdentifierChar :: Char -> Bool
@@ -274,8 +208,6 @@ pIdentifier =
                               isIdentifierChar
         pure $ prefix ++ identifier
 
-
-
 pBoolLiteral :: Parser Bool
 pBoolLiteral =
     lexeme $ charToBool <$> (satisfy isTF <?> "T or F")
@@ -286,10 +218,6 @@ pBoolLiteral =
         charToBool 'F' = False
         charToBool _   = error "impossible"
 
--- pIntLiteral :: Parser Integer
--- pIntLiteral =
---     lexeme $ read <$> takeWhile1P (Just "digit") isDigit
-
 pVecLiteral :: Parser (Vector Bool)
 pVecLiteral =
     lexeme $
@@ -299,14 +227,6 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
--- pConst :: Parser Const
--- pConst =
---     choice
---         [ CBool <$> pBoolLiteral
---         , CInt  <$> pIntLiteral
---         , CVec  <$> pVecLiteral
---         ]
-
 -- variable is an identifier that is not a keyword
 pVar :: Parser Var
 pVar = do
@@ -315,11 +235,6 @@ pVar = do
          (fail ("keyword " ++ show ident ++ " cannot be an identifier"))
     pure $ Var ident
 
-parens :: Parser a -> Parser a
-parens = between (symbol "(") (symbol ")")
-
-brackets :: Parser a -> Parser a
-brackets = between (symbol "[") (symbol "]")
 
 {-| == Parser
 -}
@@ -371,18 +286,18 @@ vVec = Some <$> (UniVal Vector) <$> pVecLiteral
 vField :: TextField f => Parser (SomeUniVal f)
 vField = Some <$> (UniVal Field) <$> parseField
 
-pVal :: TextField f => Parser (SomeUniVal f)
-pVal = choice
-       [ vBool
-       , vVec
-       , vField
-       ]
+pConst :: TextField f => Parser (SomeUniVal f)
+pConst = choice
+    [ vBool
+    , vVec
+    , vField
+    ]
 
 pTerm :: TextField f => Parser (RawExpr f)
 pTerm =
     choice
     -- This can backtrack for parentheses
-    [ try (EConst   <$> pVal)
+    [ try (EConst   <$> pConst)
     , parens pExpr
     , EStatement    <$> pStatement <* symbol ";" <*> pExpr
     , EVar          <$> pVar
@@ -407,8 +322,8 @@ pStatement =
 pExpr :: TextField f => Parser (RawExpr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
 
-pTopLevel :: TextField f => Parser (RawExpr f)
-pTopLevel = between sc eof pExpr
+pTop :: TextField f => Parser (RawExpr f)
+pTop = top pExpr
 
 {-| == Helper functions
 -}
@@ -418,7 +333,7 @@ parseRational fileName str =
     either
       errorBundlePretty
       show
-      $ runParser (pTopLevel @Rational) fileName str
+      $ runParser (pTop @Rational) fileName str
 
 p :: String -> IO ()
 p s = putStrLn $ parseRational "" s
