@@ -5,15 +5,19 @@ module Field.Raw.Textual
   ( gen_test_parsing
   ) where
 
-import Data.List (sort)
 import TinyLang.Prelude
+
+import TinyLang.ParseUtils
 import TinyLang.Field.Raw.Parser
+
+import Data.Bifunctor (second)
+import Data.List (sort)
+import System.FilePath
+import System.FilePath.Glob
 import Test.Tasty
 import Test.Tasty.Golden
 import Test.Tasty.HUnit
 
-import System.FilePath
-import System.FilePath.Glob
 
 testDir :: FilePath
 testDir = "test" </> "Field" </> "Raw" </> "golden"
@@ -32,6 +36,11 @@ gen_test_parsing =
 testFiles :: IO [FilePath]
 testFiles = sort <$> globDir1 pat testDir
     where pat = compile "*.field"
+
+parseRational :: String -> String -> String
+parseRational fileName str = either id id $ second show result
+    where
+        result = parseString (pTop @Rational) fileName str
 
 parseFilePath :: FilePath -> IO String
 parseFilePath filePath =

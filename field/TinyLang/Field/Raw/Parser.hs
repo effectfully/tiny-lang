@@ -141,8 +141,7 @@ See also https://markkarpov.com/megaparsec/megaparsec.html
 
 
 module TinyLang.Field.Raw.Parser
-    ( parseRational
-    , p
+    ( pTop
     ) where
 
 import           TinyLang.Prelude               hiding ( option
@@ -325,16 +324,3 @@ pExpr = Comb.makeExprParser pTerm operatorTable
 
 pTop :: TextField f => Parser (RawExpr f)
 pTop = top pExpr
-
-{-| == Helper functions
--}
-
-parseRational :: String -> String -> String
-parseRational fileName str =
-    either
-      errorBundlePretty
-      show
-      $ runParser (pTop @Rational) fileName str
-
-p :: String -> IO ()
-p s = putStrLn $ parseRational "" s
