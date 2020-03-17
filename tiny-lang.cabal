@@ -39,6 +39,7 @@ library
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
         TinyLang.Field.Uni
+        TinyLang.Field.Raw.Core
         TinyLang.Field.Raw.Parser
     build-depends:
         base >= 4.7 && < 5,
