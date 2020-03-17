@@ -13,8 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: mstksg/setup-stack@v1
-    - name: Stack setup
+    - name: Install GHC
       run: |
         stack setup
     - name: Run tests
