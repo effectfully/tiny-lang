@@ -2,6 +2,7 @@ module TinyLang.Field.UniVal
     ( Uni(..)
     , UniVal(..)
     , SomeUniVal
+    , KnownUni
     , knownUni
     , withGeqUni
     ) where
@@ -105,10 +106,14 @@ withGeqUni Bool   _      z _ = z
 withGeqUni Field  _      z _ = z
 withGeqUni Vector _      z _ = z
 
+-- This doesn't type check:
+--
+-- > UniVal _ x1 == UniVal _ x2 = x1 == x2
+--
+-- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
+-- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
+-- but then it's easier to just pattern match on universes.
 instance Eq f => Eq (UniVal f a) where
     UniVal Bool   bool1 == UniVal Bool   bool2 = bool1 == bool2
     UniVal Field  el1   == UniVal Field  el2   = el1 == el2
     UniVal Vector vec1  == UniVal Vector vec2  = vec1 == vec2
-
-instance Eq f => Eq (UniVar f a) where
-    UniVar _ v1 == UniVar _ v2 = v1 == v2
