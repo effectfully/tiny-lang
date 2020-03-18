@@ -41,6 +41,7 @@ library
         TinyLang.Field.Raw.Parser
         TinyLang.Field.Typed.Core
         TinyLang.Field.Typed.Parser
+        TinyLang.Field.Typed.TypeChecker
 
     build-depends:
         base >= 4.7 && < 5,
