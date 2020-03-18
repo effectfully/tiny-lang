@@ -8,11 +8,14 @@ module TinyLang.ParseUtils
     , Scope
     , Scoped (..)
     , parseBy
+    , parseString
     , makeVar
     , ws
     , lexeme
     , symbol
     , parens
+    , brackets
+    , top
     , signedDecimal
     ) where
 
@@ -43,6 +46,16 @@ parseBy parser str =
         runStateT (runParserT (top parser) "" str) mempty <&> \(errOrRes, scope) ->
             Scoped scope $ first errorBundlePretty errOrRes
 
+parseString
+    :: (ShowErrorComponent e) =>
+       Parsec e String a ->
+       String ->
+       String ->
+       Either String a
+parseString parser fileName str =
+    first errorBundlePretty $ runParser parser fileName str
+
+
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
 makeVar :: String -> Parser Var
@@ -56,25 +69,28 @@ makeVar name = do
             pure var
 
 -- Consume whitespace
-ws :: Parser ()
+ws :: (MonadParsec e s m, Token s ~ Char) => m ()
 ws = L.space space1 empty empty
 -- Last two arguments are for comment delimiters.  Let's not have any comments for now.
 
 -- Parse the whole of an input stream
-top :: Parser a -> Parser a
+top :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
 top = between ws eof
 
 -- Wrapper to consume whitespace after parsing an item using the wrapped parser
-lexeme :: Parser a -> Parser a
+lexeme :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
 lexeme = L.lexeme ws
 
 -- Parse a fixed string
-symbol :: String -> Parser String
+symbol :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => String -> m String
 symbol = L.symbol ws
 
 -- 'parens' parses something between parenthesis.
-parens :: Parser a -> Parser a
+parens :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
 parens = between (symbol "(") (symbol ")")
 
-signedDecimal :: Integral a => Parser a
+brackets :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
+brackets = between (symbol "[") (symbol "]")
+
+signedDecimal :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char], Integral a) => m a
 signedDecimal = L.signed ws (lexeme L.decimal) <|> parens signedDecimal

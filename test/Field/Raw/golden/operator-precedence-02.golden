@@ -1,0 +1,1 @@
+EAppBinOp And (EAppBinOp FEq (EAppBinOp Add (EVar (Var "a")) (EAppBinOp BAt (EVar (Var "b")) (EVar (Var "c")))) (EAppBinOp Add (EVar (Var "a")) (EAppBinOp BAt (EVar (Var "b")) (EVar (Var "c"))))) (EAppBinOp FLe (EAppBinOp Add (EVar (Var "a")) (EAppBinOp BAt (EVar (Var "b")) (EVar (Var "c")))) (EAppBinOp BAt (EAppBinOp Add (EVar (Var "a")) (EVar (Var "b"))) (EVar (Var "c"))))

@@ -1,0 +1,15 @@
+for
+
+i
+	=
+0to
+100
+do assert T; end
+
+
+
+;
+
+
+
+T

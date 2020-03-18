@@ -32,39 +32,29 @@ module TinyLang.Field.Core
     , uniOfExpr
     ) where
 
-import           Prelude               hiding (div)
+import           Prelude                    hiding (div)
 import           TinyLang.Prelude
 
-import           Data.Field            as Field
-import           TinyLang.Var          as Var
-import           TinyLang.Environment  as Env
-import qualified TinyLang.Boolean.Core as Boolean
+import           Data.Field                 as Field
+import           TinyLang.Var               as Var
+import           TinyLang.Environment       as Env
+import qualified TinyLang.Boolean.Core      as Boolean
+import           TinyLang.Field.Existential
 
-data Some (f :: k -> *) = forall x. Some (f x)
-data SomeOf uni (f :: k -> *) = forall x. SomeOf (uni x) (f x)
-
-class Forget some where
-    forget :: (forall x. f x -> r) -> some f -> r
-
-instance Forget Some where
-    forget f (Some a) = f a
-
-instance Forget (SomeOf uni) where
-    forget f (SomeOf _ a) = f a
-
-traverseSomeOf :: Functor m => (forall a. f a -> m (f a)) -> SomeOf uni f -> m (SomeOf uni f)
-traverseSomeOf f (SomeOf uni a) = SomeOf uni <$> f a
 
 data Uni f a where
     Bool   :: Uni f Bool
     Field  :: Uni f (AField f)
-    -- ^ We need this additional 'AField' wrapper in order to make 'Uni' a singleton.
-    -- That is, if we made it @Field :: Uni f f@, then with @f@ instantiated to @Bool@, both
-    -- @Bool@ and @Field@ would be of the same type: @Uni Bool Bool@. Since we use @Uni@ in order
-    -- to reflect types at the term level, we do want it to be a singleton.
-    -- Originally @Field@ didn't use the wrapper and we were getting annoying
-    -- "pattern matching is not exhaustive" warnings. Now @a@ uniquely determines the constructor
-    -- and we do not have such warnings.
+    -- TODO: Check for Haddock post lts-13.26
+    -- We need this additional 'AField' wrapper in order to make 'Uni'
+    -- a singleton.  That is, if we made it @Field :: Uni f f@, then
+    -- with @f@ instantiated to @Bool@, both @Bool@ and @Field@ would
+    -- be of the same type: @Uni Bool Bool@. Since we use @Uni@ in
+    -- order to reflect types at the term level, we do want it to be a
+    -- singleton.  Originally @Field@ didn't use the wrapper and we
+    -- were getting annoying "pattern matching is not exhaustive"
+    -- warnings. Now @a@ uniquely determines the constructor and we do
+    -- not have such warnings.
     Vector :: Uni f (Vector Bool)
 
 class KnownUni f a where

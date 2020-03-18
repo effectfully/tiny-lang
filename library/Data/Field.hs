@@ -98,14 +98,14 @@ makeDiv d x y = do
 fromDivided :: Maybe f -> f
 fromDivided = fromMaybe $ throw DivideByZero
 
-parseFieldDefault :: Field f => Parser f
+parseFieldDefault :: (Field f, MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
 parseFieldDefault = unAField . fromInteger <$> signedDecimal
 
 -- Note that any value produced by 'showField' must be parsable by 'parseField' even if it appears
 -- in a large expression. This is why we always pretty-print rationals in parens currently.
 class Field f => TextField f where
-    parseField :: Parser f
-    default parseField :: Parser f
+    parseField :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
+    default parseField :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
     parseField = parseFieldDefault
 
     -- TODO: use proper precedence-sensitive pretty-printing.
@@ -116,7 +116,12 @@ class Field f => TextField f where
 newtype AField f = AField
     { unAField :: f
     } deriving (Eq, Functor, Foldable, Traversable)
-      deriving newtype (Field, TextField, AsInteger, Arbitrary)
+      deriving newtype (Field, AsInteger, Arbitrary)
+
+-- GHC will not derive this one automatically
+instance (Field f, TextField f) => TextField (AField f) where
+    parseField = AField <$> parseField
+    showField  = showField . unAField
 
 newtype ABaseField a = ABaseField
     { unABaseField :: a

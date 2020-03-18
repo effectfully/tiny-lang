@@ -320,7 +320,8 @@ boundedArbitraryExprI _    size | size <= 1 = EVal <$> arbitraryValI
 boundedArbitraryExprI vars size             = frequency
     [ (1, EVal <$> arbitraryValI)
     , (0, EVar <$> chooseUniVar vars)
-      {- ^ NOTE.  If we allow variables here we won't generally know in
+      {- TODO:  Check for Haddock post lts-13.26
+         NOTE.  If we allow variables here we won't generally know in
          advance that they'll have integer values, so there
          would be a danger that our comparisons will have a
          high probability of failing.  We could fill the

@@ -31,12 +31,16 @@ library
         TinyLang.Boolean.Printer
         TinyLang.Field.Core
         TinyLang.Field.Evaluator
+        TinyLang.Field.Existential
         TinyLang.Field.Generator
         TinyLang.Field.NamedType
         TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
+        TinyLang.Field.UniVal
+        TinyLang.Field.Raw.Core
+        TinyLang.Field.Raw.Parser
     build-depends:
         base >= 4.7 && < 5,
         transformers,
@@ -78,6 +82,7 @@ test-suite tiny-lang-test
         Boolean.Textual
         Field.Textual
         Field.Axioms
+        Field.Raw.Textual
     default-language: Haskell2010
     build-depends:
         tiny-lang,
@@ -88,8 +93,10 @@ test-suite tiny-lang-test
         QuickCheck-GenT,
         filepath,
         directory,
+        Glob,
         tasty,
         tasty-golden,
+        tasty-hunit,
         tasty-quickcheck
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
