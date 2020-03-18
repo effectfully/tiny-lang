@@ -29,18 +29,19 @@ library
         TinyLang.Boolean.Generator
         TinyLang.Boolean.Parser
         TinyLang.Boolean.Printer
-        TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
         TinyLang.Field.Generator
         TinyLang.Field.NamedType
-        TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
         TinyLang.Field.UniVal
         TinyLang.Field.Raw.Core
         TinyLang.Field.Raw.Parser
+        TinyLang.Field.Typed.Core
+        TinyLang.Field.Typed.Parser
+
     build-depends:
         base >= 4.7 && < 5,
         transformers,

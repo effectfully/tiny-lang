@@ -4,7 +4,7 @@ module TinyLang.Field.Rename
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 
 renameExpr :: MonadSupply m => Expr f a -> m (Expr f a)
 renameExpr expr = do

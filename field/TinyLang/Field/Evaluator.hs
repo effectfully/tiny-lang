@@ -31,7 +31,7 @@ module TinyLang.Field.Evaluator
 import           Prelude              hiding (div)
 
 import           TinyLang.Environment
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Prelude
 
 import qualified Data.Vector          as Vector

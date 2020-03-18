@@ -24,7 +24,7 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Evaluator
 
 import qualified Data.IntMap.Strict        as IntMap

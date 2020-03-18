@@ -9,10 +9,10 @@ module Field.Textual
 
 import           Data.Field.F17
 import           Data.Field.F4913
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Generator
 import qualified TinyLang.Field.Jubjub as JJ
-import           TinyLang.Field.Parser
+import           TinyLang.Field.Typed.Parser
 import           TinyLang.Field.Printer
 import           TinyLang.Prelude
 

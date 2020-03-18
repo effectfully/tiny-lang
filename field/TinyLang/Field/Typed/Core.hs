@@ -1,4 +1,4 @@
-module TinyLang.Field.Core
+module TinyLang.Field.Typed.Core
     ( module Field
     , module Var
     , module Env

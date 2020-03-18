@@ -6,7 +6,7 @@ module TinyLang.Field.Printer
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 
 import qualified Data.Vector         as Vector
 
