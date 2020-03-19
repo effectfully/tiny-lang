@@ -21,7 +21,7 @@ data BinOp
     deriving (Show, Read, Eq)
 
 data Expr
-    = EVal Bool
+    = EConst Bool
     | EVar Var
     | EIf Expr Expr Expr
     | EAppUnOp UnOp Expr
@@ -30,7 +30,7 @@ data Expr
 
 exprVarNames :: Expr -> IntMap String
 exprVarNames = go mempty where
-    go names (EVal _)                        = names
+    go names (EConst _)                      = names
     go names (EVar (Var (Unique uniq) name)) =
         case IntMap.lookup uniq names of
             Just name'

@@ -30,9 +30,9 @@ arbitraryUnOp = elements [Not]
 arbitraryBinOp :: Gen BinOp
 arbitraryBinOp = elements [And, Xor, Or]
 
--- | Generator for atoms (expressions with no subexpressions): EVal or EVar.
+-- | Generator for atoms (expressions with no subexpressions): EConst or EVar.
 arbitraryAtom :: [Var] -> Gen Expr
-arbitraryAtom vars = oneof [EVal <$> arbitraryValue, EVar <$> (arbitraryVar vars)]
+arbitraryAtom vars = oneof [EConst <$> arbitraryValue, EVar <$> (arbitraryVar vars)]
 
 
 {-| Generate an arbiratry expression of maximum size 'size' containing
@@ -73,7 +73,7 @@ boundedAbritraryExpr vars size =
     if size <= 1 then
         arbitraryAtom vars
     else
-        frequency [ (1, EVal      <$> arbitraryValue)
+        frequency [ (1, EConst    <$> arbitraryValue)
                   , (1, EVar      <$> arbitraryVar vars)
                   , (5, EAppUnOp  <$> arbitraryUnOp <*> subexpr1)
                   , (5, EAppBinOp <$> arbitraryBinOp <*> subexpr2 <*> subexpr2)
@@ -101,7 +101,7 @@ shrinkExpr :: Expr -> [Expr]
 shrinkExpr (EAppUnOp _ e)      = [e]
 shrinkExpr (EAppBinOp _ e1 e2) = [e1, e2]
 shrinkExpr (EIf e e1 e2)       = [e,e1,e2]
-shrinkExpr (EVal _)            = []  -- Can't shrink an atom
+shrinkExpr (EConst _)          = []  -- Can't shrink an atom
 shrinkExpr (EVar _)            = []
 
 
@@ -134,14 +134,14 @@ instance Arbitrary ExprWithEnv where
 
 -- A couple of functions for checking the output of generators
 nodes :: Expr -> Int
-nodes (EVal _)            = 1
+nodes (EConst _)          = 1
 nodes (EVar _)            = 1
 nodes (EAppUnOp _ e)      = 1 + nodes e
 nodes (EAppBinOp _ e1 e2) = 1 + nodes e1 + nodes e2
 nodes (EIf e e1 e2)       = 1 + nodes e + nodes e1 + nodes e2
 
 depth :: Expr -> Int
-depth (EVal _)            = 1
+depth (EConst _)          = 1
 depth (EVar _)            = 1
 depth (EAppUnOp _ e)      = 1 + depth e
 depth (EAppBinOp _ e1 e2) = 1 + max (depth e1) (depth e2)

@@ -161,11 +161,11 @@ evalStatementUni env (EAssert expr) rest = do
 evalExprUni
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniVal f) -> Expr f a -> m (UniVal f a)
-evalExprUni _   (EVal uniVal) = normUniVal uniVal
+evalExprUni _   (EConst uniVal) = normUniVal uniVal
 evalExprUni env (EVar uniVar@(UniVar uni var)) = do
     Some uniVal@(UniVal uni' _) <- lookupVarEval var env
     let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
-    withGeqUni uni uni' err $ evalExprUni env $ EVal uniVal
+    withGeqUni uni uni' err $ evalExprUni env $ EConst uniVal
 evalExprUni env (EIf e e1 e2) = do
     eR <- evalExpr env e
     if eR
@@ -215,8 +215,8 @@ normStatement
 normStatement env (ELet (UniVar uni var) def) rest = do
     defN <- normExpr env def
     case defN of
-        EVal uniVal -> normExpr (insertVar var (Some uniVal) env) rest
-        _           -> EStatement (ELet (UniVar uni var) defN) <$> normExpr env rest
+        EConst uniVal -> normExpr (insertVar var (Some uniVal) env) rest
+        _             -> EStatement (ELet (UniVar uni var) defN) <$> normExpr env rest
 normStatement env (EAssert expr) rest = do
     exprN <- normExpr env expr
     EStatement (EAssert exprN) <$> normExpr env rest
@@ -225,32 +225,32 @@ normStatement env (EAssert expr) rest = do
 normExpr
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniVal f) -> Expr f a -> m (Expr f a)
-normExpr _   (EVal uniVal) = EVal <$> normUniVal uniVal
+normExpr _   (EConst uniVal) = EConst <$> normUniVal uniVal
 normExpr env expr@(EVar uniVar@(UniVar uni var)) =
     case lookupVar var env of
         Nothing -> return expr
         Just (Some uniVal@(UniVal uni' _)) -> do
             let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
-            withGeqUni uni uni' err $ normExpr env $ EVal uniVal
+            withGeqUni uni uni' err $ normExpr env $ EConst uniVal
 normExpr env (EIf e e1 e2) = do
     eN <- normExpr env e
     let nE1 = normExpr env e1
         nE2 = normExpr env e2
     case eN of
-        EVal (UniVal Bool b) -> if b then nE1 else nE2
-        _                    -> EIf eN <$> nE1 <*> nE2
+        EConst (UniVal Bool b) -> if b then nE1 else nE2
+        _                      -> EIf eN <$> nE1 <*> nE2
 normExpr env (EAppUnOp op e) = do
     eN <- normExpr env e
     case eN of
-        EVal (UniVal _ x) -> EVal <$> evalUnOp op x
-        _                 -> return $ EAppUnOp op eN
+        EConst (UniVal _ x) -> EConst <$> evalUnOp op x
+        _                   -> return $ EAppUnOp op eN
 normExpr env (EAppBinOp op e1 e2) = do
     e1N <- normExpr env e1
     e2N <- normExpr env e2
     case (e1N, e2N) of
-        (EVal (UniVal _ x1), EVal (UniVal _ x2)) ->
-            EVal <$> evalBinOp op x1 x2
-        _                                        ->
+        (EConst (UniVal _ x1), EConst (UniVal _ x2)) ->
+            EConst <$> evalBinOp op x1 x2
+        _                                            ->
             return $ EAppBinOp op e1N e2N
 normExpr env (EStatement stat expr) = normStatement env stat expr
 
@@ -262,13 +262,13 @@ instStatement env (EAssert expr)    = EAssert <$> instExpr env expr
 
 -- | Instantiate some of the variables of an expression with values.
 instExpr :: MonadEvalError f m => Env (SomeUniVal f) -> Expr f a -> m (Expr f a)
-instExpr _   expr@(EVal _) = return expr
+instExpr _   expr@(EConst _) = return expr
 instExpr env expr@(EVar uniVar@(UniVar uni var)) =
     case lookupVar var env of
         Nothing -> return expr
         Just (Some uniVal@(UniVal uni' _)) -> do
             let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniVal
-            withGeqUni uni uni' err $ return $ EVal uniVal
+            withGeqUni uni uni' err $ return $ EConst uniVal
 instExpr env (EIf e e1 e2) = EIf <$> instExpr env e <*> instExpr env e1 <*> instExpr env e2
 instExpr env (EAppUnOp op e) = EAppUnOp op <$> instExpr env e
 instExpr env (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr env e1 <*> instExpr env e2

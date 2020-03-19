@@ -35,7 +35,7 @@ forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
 forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
 
 forgetIDs :: Expr f a -> Expr f a
-forgetIDs (EVal uval)          = EVal uval
+forgetIDs (EConst uval)        = EConst uval
 forgetIDs (EVar uvar)          = EVar $ forgetID uvar
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)

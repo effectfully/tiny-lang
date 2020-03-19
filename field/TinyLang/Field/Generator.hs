@@ -194,7 +194,7 @@ withOneofBinOps k = case knownUni @f @c of
     Field  -> oneof [k Add, k Sub, k Mul, k Div]
     -- There are no binary operators that return a 'Vector' and hence we just generate an
     -- arbitrary constant vector here.
-    Vector -> EVal <$> arbitraryM
+    Vector -> EConst <$> arbitraryM
 
 -- | Generate a comparison operator and feed it to the continuation.
 withOneofComparisons
@@ -232,8 +232,8 @@ groundArbitraryFreqs
     :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
     => Vars f -> [(Int, m (Expr f a))]
 groundArbitraryFreqs vars =
-    [ (1, EVal <$> arbitraryM)
-    , (2, EVar <$> chooseUniVar vars)
+    [ (1, EConst <$> arbitraryM)
+    , (2, EVar   <$> chooseUniVar vars)
     ]
 
 -- | Generate an expression of a particular type from a collection of variables
@@ -316,10 +316,10 @@ boundedArbitraryComparisons vars size' =
 boundedArbitraryExprI
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f (AField f))
-boundedArbitraryExprI _    size | size <= 1 = EVal <$> arbitraryValI
+boundedArbitraryExprI _    size | size <= 1 = EConst <$> arbitraryValI
 boundedArbitraryExprI vars size             = frequency
-    [ (1, EVal <$> arbitraryValI)
-    , (0, EVar <$> chooseUniVar vars)
+    [ (1, EConst <$> arbitraryValI)
+    , (0, EVar   <$> chooseUniVar vars)
       {- TODO:  Check for Haddock post lts-13.26
          NOTE.  If we allow variables here we won't generally know in
          advance that they'll have integer values, so there
@@ -406,8 +406,8 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
 
     -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
     -- but do not forget to catch exceptions.
-    shrink (EVal uniVal) = EVal <$> shrink uniVal
-    shrink expr0         = EVal defaultUniVal : case expr0 of
+    shrink (EConst uniVal) = EConst <$> shrink uniVal
+    shrink expr0           = EConst defaultUniVal : case expr0 of
         EAppUnOp op e ->
             withUnOpUnis op $ \uni _ ->
             withKnownUni uni $
@@ -418,7 +418,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
             withKnownUni uni2 $
                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
-        EVal _ -> []
+        EConst _ -> []
         EVar _ -> []
         -- TODO: we can safely drop an assertion and we can drop a let-expression when
         -- the let-bound variable is not used in @expr@.
@@ -435,7 +435,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 withBinOpUnis op $ \uni1 uni2 _ ->
                     [SomeOf uni1 e1, SomeOf uni2 e2]
             EIf e _ _ -> [SomeOf Bool e]
-            EVal _ -> []
+            EConst _ -> []
             EVar _ -> []
             EStatement stat _ -> case stat of
                 ELet (UniVar uni _) def -> [SomeOf uni def]

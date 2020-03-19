@@ -88,7 +88,7 @@ data Statement f where
     EAssert :: Expr f Bool -> Statement f
 
 data Expr f a where
-    EVal       :: UniVal f a -> Expr f a
+    EConst     :: UniVal f a -> Expr f a
     EVar       :: UniVar f a -> Expr f a
     EIf        :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp   :: UnOp f a b -> Expr f a -> Expr f b
@@ -96,11 +96,11 @@ data Expr f a where
     EStatement :: Statement f -> Expr f a -> Expr f a
 
 instance (Field f, af ~ AField f) => Field (Expr f af) where
-    zer = EVal zer
+    zer = EConst zer
     neg = EAppUnOp Neg
     add = EAppBinOp Add
     sub = EAppBinOp Sub
-    one = EVal one
+    one = EConst one
     inv = Just . EAppUnOp Inv
     mul = EAppBinOp Mul
     div = Just .* EAppBinOp Div
@@ -144,12 +144,12 @@ withBinOpUnis BAt k = k knownUni knownUni knownUni
 
 uniOfExpr :: Expr f a -> Uni f a
 uniOfExpr = go where
-    go (EVal (UniVal uni _)) = uni
-    go (EVar (UniVar uni _)) = uni
-    go (EAppUnOp op _)       = withUnOpUnis op $ \_ resUni -> resUni
-    go (EAppBinOp op _ _)    = withBinOpUnis op $ \_ _ resUni -> resUni
-    go (EIf _ x _)           = uniOfExpr x
-    go (EStatement _ expr)   = uniOfExpr expr
+    go (EConst (UniVal uni _)) = uni
+    go (EVar (UniVar uni _))   = uni
+    go (EAppUnOp op _)         = withUnOpUnis op $ \_ resUni -> resUni
+    go (EAppBinOp op _ _)      = withBinOpUnis op $ \_ _ resUni -> resUni
+    go (EIf _ x _)             = uniOfExpr x
+    go (EStatement _ expr)     = uniOfExpr expr
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
@@ -187,7 +187,7 @@ instance Eq f => Eq (Statement f) where
     EAssert {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
-    EVal uval1         == EVal uval2         = uval1 == uval2
+    EConst uval1       == EConst uval2         = uval1 == uval2
     EVar uvar1         == EVar uvar2         = uvar1 == uvar2
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 False $ x1 == x2
@@ -197,7 +197,7 @@ instance Eq f => Eq (Expr f a) where
     -- Here we explicitly pattern match on the first argument again and always return 'False'.
     -- This way we'll get a warning when an additional constructor is added to 'Expr',
     -- instead of erroneously defaulting to 'False'.
-    EVal       {} == _ = False
+    EConst     {} == _ = False
     EVar       {} == _ = False
     EIf        {} == _ = False
     EAppUnOp   {} == _ = False
@@ -243,7 +243,7 @@ exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
     goStat signs (EAssert expr) = goExpr signs expr
 
     goExpr :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
-    goExpr signs (EVal _) = signs
+    goExpr signs (EConst _) = signs
     goExpr signs (EVar (UniVar uni (Var uniq name)))
         | tracked   = signs
         | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
@@ -273,7 +273,7 @@ embedBoolBinOp Boolean.Xor = Xor
 
 embedBoolExpr :: Boolean.Expr -> Expr f Bool
 embedBoolExpr = go where
-    go (Boolean.EVal b)           = EVal $ UniVal Bool b
+    go (Boolean.EConst b)         = EConst $ UniVal Bool b
     go (Boolean.EVar v)           = EVar $ UniVar Bool v
     go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
     go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)

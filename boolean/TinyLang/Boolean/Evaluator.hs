@@ -17,7 +17,7 @@ evalBinOp Xor = (/=)
 
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
 evalExpr :: Env Bool -> Expr -> Bool
-evalExpr _   (EVal b) = b
+evalExpr _   (EConst b) = b
 evalExpr env (EVar v) = unsafeLookupVar v env
 evalExpr env (EIf e e1 e2) = if evalExpr env e then evalExpr env e1 else evalExpr env e2
 evalExpr env (EAppUnOp op e) = evalUnOp op (evalExpr env e)

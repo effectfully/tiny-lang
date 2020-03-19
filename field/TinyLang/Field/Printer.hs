@@ -44,9 +44,9 @@ toStringBinOp BAt l r = r ++ "[" ++ l ++ "]"
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
-isSimple EVal {} = True
-isSimple EVar {} = True
-isSimple _       = False
+isSimple EConst {} = True
+isSimple EVar {}   = True
+isSimple _         = False
 
 -- Convert to string (with enclosing () if necessary)
 exprToString1 :: TextField f => PrintStyle -> Expr f a -> String
@@ -72,7 +72,7 @@ statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
-exprToString _ (EVal uv)            = toStringUniVal uv
+exprToString _ (EConst uv)          = toStringUniVal uv
 exprToString s (EVar (UniVar _ v))  = toStringVar s v
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
 exprToString s (EAppBinOp op e1 e2) = toStringBinOp op (exprToString1 s e1) (exprToString1 s e2)

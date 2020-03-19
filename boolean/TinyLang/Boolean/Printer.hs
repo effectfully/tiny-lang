@@ -26,9 +26,9 @@ toStringBinOp Xor = " xor "
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr -> Bool
-isSimple (EVal _) = True
-isSimple (EVar _) = True
-isSimple _        = False
+isSimple (EConst _) = True
+isSimple (EVar _)   = True
+isSimple _          = False
 
 -- Convert to string (with enclosing () if necessary)
 toString1 :: PrintStyle -> Expr -> String
@@ -36,7 +36,7 @@ toString1 s e = if isSimple e then toString s e else "(" ++ toString s e ++ ")"
 
 -- Main function
 toString :: PrintStyle -> Expr -> String
-toString _ (EVal b)             = if b then "T" else "F"
+toString _ (EConst b)           = if b then "T" else "F"
 toString s (EVar v)             = toStringVar s v
 toString s (EAppUnOp op e)      = toStringUnOp op ++ toString1 s e
 toString s (EAppBinOp op e1 e2) = toString1 s e1 ++ toStringBinOp op ++ toString1 s e2
