@@ -1,7 +1,7 @@
-module TinyLang.Field.UniVal
+module TinyLang.Field.UniConst
     ( Uni(..)
-    , UniVal(..)
-    , SomeUniVal
+    , UniConst(..)
+    , SomeUniConst
     , KnownUni
     , knownUni
     , withGeqUni
@@ -41,12 +41,12 @@ instance bool ~ Bool => KnownUni f (Vector bool) where
     knownUni = Vector
 
 -- Needed for the sake of deriving.
-data UniVal f a = UniVal
-    { _uniValUni :: Uni f a
-    , _uniValVal :: a
+data UniConst f a = UniConst
+    { _uniConstUni :: Uni f a
+    , _uniConstVal :: a
     }
 
--- Needed for the sake of symmetry with 'UniVal'.
+-- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
     { _uniVarUni :: Uni f a
     , _uniVarVar :: Var
@@ -58,7 +58,7 @@ data UniVar f a = UniVar
 --     , _inhabitsVal :: b
 --     }
 
-type SomeUniVal f = Some (UniVal f)
+type SomeUniConst f = Some (UniConst f)
 
 -- instances
 
@@ -66,37 +66,37 @@ deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
 deriving instance Show (UniVar f a)
 
-mapUniVal :: (a -> a) -> UniVal f a -> UniVal f a
-mapUniVal f (UniVal uni x) = UniVal uni $ f x
+mapUniConst :: (a -> a) -> UniConst f a -> UniConst f a
+mapUniConst f (UniConst uni x) = UniConst uni $ f x
 
-zipUniVal :: (a -> a -> a) -> UniVal f a -> UniVal f a -> UniVal f a
-zipUniVal f (UniVal uni x) (UniVal _ y) = UniVal uni $ f x y
+zipUniConst :: (a -> a -> a) -> UniConst f a -> UniConst f a -> UniConst f a
+zipUniConst f (UniConst uni x) (UniConst _ y) = UniConst uni $ f x y
 
-mapUniValF :: Functor g => (a -> g a) -> UniVal f a -> g (UniVal f a)
-mapUniValF f (UniVal uni x) = UniVal uni <$> f x
+mapUniConstF :: Functor g => (a -> g a) -> UniConst f a -> g (UniConst f a)
+mapUniConstF f (UniConst uni x) = UniConst uni <$> f x
 
-zipUniValF :: Functor g => (a -> a -> g a) -> UniVal f a -> UniVal f a -> g (UniVal f a)
-zipUniValF f (UniVal uni x) (UniVal _ y) = UniVal uni <$> f x y
+zipUniConstF :: Functor g => (a -> a -> g a) -> UniConst f a -> UniConst f a -> g (UniConst f a)
+zipUniConstF f (UniConst uni x) (UniConst _ y) = UniConst uni <$> f x y
 
-instance (Field f, af ~ AField f) => Field (UniVal f af) where
-    zer = UniVal Field zer
-    neg = mapUniVal  neg
-    add = zipUniVal  add
-    sub = zipUniVal  sub
-    one = UniVal Field one
-    inv = mapUniValF inv
-    mul = zipUniVal  mul
-    div = zipUniValF div
+instance (Field f, af ~ AField f) => Field (UniConst f af) where
+    zer = UniConst Field zer
+    neg = mapUniConst  neg
+    add = zipUniConst  add
+    sub = zipUniConst  sub
+    one = UniConst Field one
+    inv = mapUniConstF inv
+    mul = zipUniConst  mul
+    div = zipUniConstF div
 
-deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Num        (UniVal f af)
-deriving via AField (UniVal f af) instance (Field f, af ~ AField f) => Fractional (UniVal f af)
+deriving via AField (UniConst f af) instance (Field f, af ~ AField f) => Num        (UniConst f af)
+deriving via AField (UniConst f af) instance (Field f, af ~ AField f) => Fractional (UniConst f af)
 
-instance TextField f => Show (UniVal f a) where
-    show (UniVal Bool   b) = "(UniVal Bool " ++ show b ++ ")"
-    show (UniVal Field  i) = showField i
-    show (UniVal Vector v) = "(UniVal Vector " ++ show v ++ ")"
+instance TextField f => Show (UniConst f a) where
+    show (UniConst Bool   b) = "(UniConst Bool " ++ show b ++ ")"
+    show (UniConst Field  i) = showField i
+    show (UniConst Vector v) = "(UniConst Vector " ++ show v ++ ")"
 
-deriving instance TextField f => Show (Some (UniVal f))
+deriving instance TextField f => Show (Some (UniConst f))
 
 withGeqUni :: Uni f a1 -> Uni f a2 -> b -> (a1 ~ a2 => b) -> b
 withGeqUni Bool   Bool   _ y = y
@@ -108,12 +108,12 @@ withGeqUni Vector _      z _ = z
 
 -- This doesn't type check:
 --
--- > UniVal _ x1 == UniVal _ x2 = x1 == x2
+-- > UniConst _ x1 == UniConst _ x2 = x1 == x2
 --
 -- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
 -- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
 -- but then it's easier to just pattern match on universes.
-instance Eq f => Eq (UniVal f a) where
-    UniVal Bool   bool1 == UniVal Bool   bool2 = bool1 == bool2
-    UniVal Field  el1   == UniVal Field  el2   = el1 == el2
-    UniVal Vector vec1  == UniVal Vector vec2  = vec1 == vec2
+instance Eq f => Eq (UniConst f a) where
+    UniConst Bool   bool1 == UniConst Bool   bool2 = bool1 == bool2
+    UniConst Field  el1   == UniConst Field  el2   = el1 == el2
+    UniConst Vector vec1  == UniConst Vector vec2  = vec1 == vec2

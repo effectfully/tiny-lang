@@ -172,9 +172,9 @@ parseBool = True <$ keyword "T" <|> False <$ keyword "F"
 parseVector :: Parser (Vector Bool)
 parseVector = fmap Vector.fromList $ symbol "{" *> parseBool `sepBy` (symbol ",") <* symbol "}"
 
-uniValPoly :: forall f a. (TextField f, KnownUni f a) => Parser (UniVal f a)
-uniValPoly =
-    UniVal uni <$> case uni of
+uniConstPoly :: forall f a. (TextField f, KnownUni f a) => Parser (UniConst f a)
+uniConstPoly =
+    UniConst uni <$> case uni of
         Bool   -> parseBool
         -- Literal constants from the field
         Field  -> parseField
@@ -236,7 +236,7 @@ expr1 = asum
     -- because concrete syntax for finite fields might be complicated
     [ parens exprPoly
     , EVar <$> uniVarPoly
-    , EVal <$> uniValPoly
+    , EConst <$> uniConstPoly
     , case knownUni @f @a of
         Bool   -> neq0Expr <|> eqExpr
         Field  -> empty

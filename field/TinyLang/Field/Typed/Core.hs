@@ -8,9 +8,9 @@ module TinyLang.Field.Typed.Core
     , traverseSomeOf
     , Uni (..)
     , KnownUni (..)
-    , UniVal (..)
+    , UniConst (..)
     , UniVar (..)
-    , SomeUniVal
+    , SomeUniConst
     , SomeUniVar
     , SomeUniExpr
     , UnOp (..)
@@ -40,10 +40,10 @@ import           TinyLang.Var               as Var
 import           TinyLang.Environment       as Env
 import qualified TinyLang.Boolean.Core      as Boolean
 import           TinyLang.Field.Existential
-import           TinyLang.Field.UniVal
+import           TinyLang.Field.UniConst
 
 
--- Needed for the sake of symmetry with 'UniVal'.
+-- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
     { _uniVarUni :: Uni f a
     , _uniVarVar :: Var
@@ -88,7 +88,7 @@ data Statement f where
     EAssert :: Expr f Bool -> Statement f
 
 data Expr f a where
-    EConst     :: UniVal f a -> Expr f a
+    EConst     :: UniConst f a -> Expr f a
     EVar       :: UniVar f a -> Expr f a
     EIf        :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp   :: UnOp f a b -> Expr f a -> Expr f b
@@ -144,12 +144,12 @@ withBinOpUnis BAt k = k knownUni knownUni knownUni
 
 uniOfExpr :: Expr f a -> Uni f a
 uniOfExpr = go where
-    go (EConst (UniVal uni _)) = uni
-    go (EVar (UniVar uni _))   = uni
-    go (EAppUnOp op _)         = withUnOpUnis op $ \_ resUni -> resUni
-    go (EAppBinOp op _ _)      = withBinOpUnis op $ \_ _ resUni -> resUni
-    go (EIf _ x _)             = uniOfExpr x
-    go (EStatement _ expr)     = uniOfExpr expr
+    go (EConst (UniConst uni _)) = uni
+    go (EVar (UniVar uni _))     = uni
+    go (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
+    go (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
+    go (EIf _ x _)               = uniOfExpr x
+    go (EStatement _ expr)       = uniOfExpr expr
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
@@ -170,7 +170,7 @@ withGeqBinOp binOp1 binOp2 z y =
 
 -- This doesn't type check:
 --
--- > UniVal _ x1 == UniVal _ x2 = x1 == x2
+-- > UniConst _ x1 == UniConst _ x2 = x1 == x2
 --
 -- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
 -- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
@@ -273,7 +273,7 @@ embedBoolBinOp Boolean.Xor = Xor
 
 embedBoolExpr :: Boolean.Expr -> Expr f Bool
 embedBoolExpr = go where
-    go (Boolean.EConst b)         = EConst $ UniVal Bool b
+    go (Boolean.EConst b)         = EConst $ UniConst Bool b
     go (Boolean.EVar v)           = EVar $ UniVar Bool v
     go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
     go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)

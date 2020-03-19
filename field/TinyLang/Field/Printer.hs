@@ -55,10 +55,10 @@ exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString
 toStringBool :: Bool -> String
 toStringBool b = if b then "T" else "F"
 
-toStringUniVal :: TextField f => UniVal f a -> String
-toStringUniVal (UniVal Bool   b) = toStringBool b
-toStringUniVal (UniVal Field  i) = showField i
-toStringUniVal (UniVal Vector v) =
+toStringUniConst :: TextField f => UniConst f a -> String
+toStringUniConst (UniConst Bool   b) = toStringBool b
+toStringUniConst (UniConst Field  i) = showField i
+toStringUniConst (UniConst Vector v) =
     "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
 statementToString :: TextField f => PrintStyle -> Statement f -> String
@@ -72,7 +72,7 @@ statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
-exprToString _ (EConst uv)          = toStringUniVal uv
+exprToString _ (EConst uv)          = toStringUniConst uv
 exprToString s (EVar (UniVar _ v))  = toStringVar s v
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
 exprToString s (EAppBinOp op e1 e2) = toStringBinOp op (exprToString1 s e1) (exprToString1 s e2)

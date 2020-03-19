@@ -151,7 +151,7 @@ import           TinyLang.Prelude               hiding ( option
 
 import           TinyLang.Field.Raw.Core
 import           TinyLang.Field.Existential
-import           TinyLang.Field.UniVal
+import           TinyLang.Field.UniConst
 import           TinyLang.ParseUtils            hiding ( Parser )
 import           Data.Field
 
@@ -277,16 +277,16 @@ operatorTable =
       ]
     ]
 
-vBool :: forall f. Parser (SomeUniVal f)
-vBool = Some <$> (UniVal Bool) <$> pBoolLiteral
+vBool :: forall f. Parser (SomeUniConst f)
+vBool = Some <$> (UniConst Bool) <$> pBoolLiteral
 
-vVec :: forall f. Parser (SomeUniVal f)
-vVec = Some <$> (UniVal Vector) <$> pVecLiteral
+vVec :: forall f. Parser (SomeUniConst f)
+vVec = Some <$> (UniConst Vector) <$> pVecLiteral
 
-vField :: TextField f => Parser (SomeUniVal f)
-vField = Some <$> (UniVal Field) <$> parseField
+vField :: TextField f => Parser (SomeUniConst f)
+vField = Some <$> (UniConst Field) <$> parseField
 
-pConst :: TextField f => Parser (SomeUniVal f)
+pConst :: TextField f => Parser (SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec

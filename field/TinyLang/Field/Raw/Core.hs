@@ -11,7 +11,7 @@ module TinyLang.Field.Raw.Core
     , RawStatement
     ) where
 
-import TinyLang.Field.UniVal
+import TinyLang.Field.UniConst
 
 {-| = AST
 -}
@@ -23,7 +23,7 @@ newtype Var = Var Identifier
 {-| @Expr v f@ is parameterised by the type of variable @v@.
 -}
 data Expr v f
-    = EConst     (SomeUniVal f)
+    = EConst     (SomeUniConst f)
     | EVar       v
     | EAppBinOp  BinOp           (Expr v f) (Expr v f)
     | EAppUnOp   UnOp            (Expr v f)
