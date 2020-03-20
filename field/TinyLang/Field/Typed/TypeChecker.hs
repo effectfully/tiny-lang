@@ -3,13 +3,6 @@
 Potential resources:
 * https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf
 * http://www.cse.chalmers.se/~ulfn/papers/afp08/tutorial.pdf
-* 
--}
-
-{-
-
-Recap the language:
-
 
 -}
 
@@ -87,8 +80,30 @@ typeExpr (R.EConst (Some uniConst@(UniConst uni _))) =
                 "universe mismatch"
                 (T.EConst uniConst)    
 typeExpr (R.EVar var) = T.EVar <$> typeUniVar var
-typeExpr (R.EAppBinOp binOp m n) = undefined
-typeExpr (R.EAppUnOp unOp m) = undefined
+typeExpr (R.EAppBinOp binOp m n) =
+    case binOp of
+        R.Or  -> undefined
+        R.And -> undefined
+        R.Xor -> undefined
+        R.FEq -> undefined
+        R.FLe -> undefined
+        R.FLt -> undefined
+        R.FGe -> undefined
+        R.FGt -> undefined
+        R.Add -> undefined
+        R.Sub -> undefined
+        R.Mul -> undefined
+        R.Div -> undefined
+        R.BAt -> undefined
+
+typeExpr (R.EAppUnOp unOp m) =
+    case unOp of
+        R.Not  -> undefined
+        R.Neq0 -> undefined
+        R.Neg  -> undefined
+        R.Inv  -> undefined
+        R.Unp  -> undefined
+        
 typeExpr (R.EStatement s m) =
     flip (foldr T.EStatement) <$> typeStatement s
                               <*> typeExpr m
