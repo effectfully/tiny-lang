@@ -27,6 +27,8 @@ type MonadTypeCheck m = ( MonadSupply m
                         , MonadTypeError m
                         )
 
+type SomeUni f = Some (Uni f)
+
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool   = id
 withKnownUni Field  = id
@@ -71,6 +73,32 @@ typeUniVar var = mkUniVar =<< makeVar var
 
 {-|
 -}
+typeBinOp :: forall f. R.BinOp -> (SomeUni f, SomeUni f, SomeUni f)
+typeBinOp R.Or  = (Some Bool,  Some Bool,  Some Bool)
+typeBinOp R.And = (Some Bool,  Some Bool,  Some Bool)
+typeBinOp R.Xor = (Some Bool,  Some Bool,  Some Bool)
+typeBinOp R.FEq = (Some Field, Some Field, Some Bool)
+typeBinOp R.FLe = undefined
+typeBinOp R.FLt = undefined
+typeBinOp R.FGe = undefined
+typeBinOp R.FGt = undefined
+typeBinOp R.Add = undefined
+typeBinOp R.Sub = undefined
+typeBinOp R.Mul = undefined
+typeBinOp R.Div = undefined
+typeBinOp R.BAt = undefined
+
+{-|
+-}
+typeUnOp :: forall f. R.UnOp -> (SomeUni f, SomeUni f)
+typeUnOp R.Not  = undefined
+typeUnOp R.Neq0 = undefined
+typeUnOp R.Neg  = undefined
+typeUnOp R.Inv  = undefined
+typeUnOp R.Unp  = undefined
+
+{-|
+-}
 typeExpr
     :: forall m f a. (MonadTypeCheck m, TextField f, KnownUni f a)
     => R.Expr String f -> m (T.Expr f a)
@@ -80,29 +108,12 @@ typeExpr (R.EConst (Some uniConst@(UniConst uni _))) =
                 "universe mismatch"
                 (T.EConst uniConst)    
 typeExpr (R.EVar var) = T.EVar <$> typeUniVar var
-typeExpr (R.EAppBinOp binOp m n) =
-    case binOp of
-        R.Or  -> undefined
-        R.And -> undefined
-        R.Xor -> undefined
-        R.FEq -> undefined
-        R.FLe -> undefined
-        R.FLt -> undefined
-        R.FGe -> undefined
-        R.FGt -> undefined
-        R.Add -> undefined
-        R.Sub -> undefined
-        R.Mul -> undefined
-        R.Div -> undefined
-        R.BAt -> undefined
-
-typeExpr (R.EAppUnOp unOp m) =
-    case unOp of
-        R.Not  -> undefined
-        R.Neq0 -> undefined
-        R.Neg  -> undefined
-        R.Inv  -> undefined
-        R.Unp  -> undefined
+typeExpr (R.EAppBinOp binOp m n) = undefined
+    where
+        (tLeft, tRight, tResult) = typeBinOp binOp
+typeExpr (R.EAppUnOp unOp m) = undefined
+    where
+        (tLeft, tResult) = typeUnOp unOp
         
 typeExpr (R.EStatement s m) =
     flip (foldr T.EStatement) <$> typeStatement s
