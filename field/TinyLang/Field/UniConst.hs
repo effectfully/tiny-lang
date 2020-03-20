@@ -5,6 +5,7 @@ module TinyLang.Field.UniConst
     , KnownUni
     , knownUni
     , withGeqUni
+    , withGeqUniM
     ) where
 
 import Prelude                    hiding (div)
@@ -105,6 +106,14 @@ withGeqUni Vector Vector _ y = y
 withGeqUni Bool   _      z _ = z
 withGeqUni Field  _      z _ = z
 withGeqUni Vector _      z _ = z
+
+withGeqUniM :: MonadError e m => Uni f a1 -> Uni f a2 -> e -> (a1 ~ a2 => b) -> m b
+withGeqUniM Bool   Bool   _ y = pure y
+withGeqUniM Field  Field  _ y = pure y
+withGeqUniM Vector Vector _ y = pure y
+withGeqUniM Bool   _      e _ = throwError e
+withGeqUniM Field  _      e _ = throwError e
+withGeqUniM Vector _      e _ = throwError e
 
 -- This doesn't type check:
 --
