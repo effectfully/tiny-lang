@@ -1,1 +1,1 @@
-EStatement (EFor (Var "i") (EConst (Some 0)) (EConst (Some 0)) []) (EConst (Some (UniConst Bool True)))
+EStatement (EFor (Var "i") 0 0 []) (EConst (Some (UniConst Bool True)))

@@ -58,7 +58,7 @@ data UnOp
 data Statement v f
     = ELet    v          (Expr v f)
     | EAssert (Expr v f)
-    | EFor    v          (Expr v f) (Expr v f) [Statement v f]
+    | EFor    v          Integer    Integer [Statement v f]
     deriving (Show)
 
 {-| = Utility Type Aliases

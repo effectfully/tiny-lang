@@ -65,9 +65,16 @@ At the moment constants consist of literals only.
 @
 const ::=
     bool-literal
-    int-literal
+    field-literal
     vec-literal
 @
+
+Parsing rules for @field-literal@ are determined by the type class
+instance of @TextField@.
+
+In addition, we also permit @int-literals@ in for loops in statements
+below.
+
 
 == Expressions
 
@@ -116,7 +123,7 @@ expressions nor the usual statements.
 statement ::=
     "let" var "=" expr
     "assert" expr
-    "for" var "=" int "to" int "do" statements "end"
+    "for" var "=" int-literal "to" int-literal "do" statements "end"
 
 statements ::=
     (statement (";" statement)*)?
@@ -227,6 +234,9 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
+pIntLiteral :: Parser Integer
+pIntLiteral = signedDecimal
+
 -- variable is an identifier that is not a keyword
 pVar :: Parser Var
 pVar = do
@@ -278,13 +288,13 @@ operatorTable =
     ]
 
 vBool :: forall f. Parser (SomeUniConst f)
-vBool = Some <$> (UniConst Bool) <$> pBoolLiteral
+vBool  = Some . (UniConst Bool)   <$> pBoolLiteral
 
 vVec :: forall f. Parser (SomeUniConst f)
-vVec = Some <$> (UniConst Vector) <$> pVecLiteral
+vVec   = Some . (UniConst Vector) <$> pVecLiteral
 
 vField :: TextField f => Parser (SomeUniConst f)
-vField = Some <$> (UniConst Field) <$> parseField
+vField = Some . (UniConst Field)  <$> parseField
 
 pConst :: TextField f => Parser (SomeUniConst f)
 pConst = choice
@@ -313,8 +323,8 @@ pStatement =
               <*> (symbol  "="      *> pExpr)
     , EAssert <$> (keyword "assert" *> pExpr)
     , EFor    <$> (keyword "for"    *> pVar)
-              <*> (symbol  "="      *> pExpr)
-              <*> (keyword "to"     *> pExpr)
+              <*> (symbol  "="      *> pIntLiteral)
+              <*> (keyword "to"     *> pIntLiteral)
               <*> (keyword "do"     *> pStatements)
               <*   keyword "end"
     ]
