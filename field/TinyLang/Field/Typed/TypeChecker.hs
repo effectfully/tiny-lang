@@ -21,11 +21,45 @@ import           TinyLang.Field.Existential
 import qualified TinyLang.Field.Typed.Core  as T
 import qualified TinyLang.Field.Raw.Core    as R
 
-type MonadTypeError m = MonadError String m
-type MonadTypeCheck m = ( MonadSupply m
-                        , MonadScope m
-                        , MonadTypeError m
-                        )
+import           Data.Kind
+
+type MonadTypeError   m = MonadError String m
+type MonadTypeChecker m = ( MonadSupply m
+                          , MonadScope m
+                          , MonadTypeError m
+                          )
+
+{-| TypeCheckerT Transformer
+-}
+newtype TypeCheckerT e (m :: Type -> Type) a =
+    TypeChecker { runTypeCheckerT :: (ExceptT e (StateT Scope (SupplyT m))) a }
+    deriving newtype (Monad, Functor, Applicative, MonadError e, MonadSupply, MonadScope)
+
+{-|
+-}
+type TypeChecker = TypeCheckerT String Identity
+
+{-|
+-}
+runTypeChecker :: TypeChecker a -> Either String a
+runTypeChecker typeChecker =
+    runIdentity $ runSupplyT
+                $ evalStateT (runExceptT (runTypeCheckerT typeChecker))
+                             mempty
+
+{-|
+-}
+typeCheck
+    :: forall f. (TextField f)
+    => R.Expr R.Var f -> TypeChecker (T.SomeUniExpr f)
+typeCheck = inferExpr
+
+{-|
+-}
+checkType
+    :: forall f a. (TextField f, KnownUni f a)
+    => R.Expr R.Var f -> TypeChecker (T.Expr f a)
+checkType = checkExpr (knownUni @f @a)
 
 {-| 
 -}
@@ -44,7 +78,7 @@ inferUniVar = liftM mkSomeUniVar . makeVar . R.unVar
 {-|
 -}
 inferExpr
-    :: forall m f. (MonadTypeCheck m, TextField f)
+    :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Expr R.Var f -> m (T.SomeUniExpr f)
 inferExpr (R.EConst (Some c@(T.UniConst uni _))) = pure $ SomeOf uni $ T.EConst c
 inferExpr (R.EVar   v) = do
@@ -131,14 +165,14 @@ inferExpr (R.EIf l m n) = do
 {-|
 -}
 checkUniVar
-    :: forall m f a. (MonadTypeCheck m) => Uni f a -> R.Var -> m (T.UniVar f a)
+    :: forall m f a. (MonadTypeChecker m) => Uni f a -> R.Var -> m (T.UniVar f a)
 checkUniVar uni iden = do
     Some uniVar@(T.UniVar varUni _) <- inferUniVar iden
     withGeqUniM uni varUni "universe mismatch" uniVar
 
 {-|
 -}
-checkExpr :: forall m f a. (MonadTypeCheck m, TextField f) => Uni f a -> R.Expr R.Var f -> m (T.Expr f a)
+checkExpr :: forall m f a. (MonadTypeChecker m, TextField f) => Uni f a -> R.Expr R.Var f -> m (T.Expr f a)
 checkExpr uni m = do
     SomeOf mUni tM <- inferExpr m
     withGeqUniM uni mUni "universe mismatch" $ tM
@@ -146,7 +180,7 @@ checkExpr uni m = do
 {-|
 -}
 checkStatement
-    :: forall m f. (MonadTypeCheck m, TextField f) => R.Statement R.Var f -> m [T.Statement f]
+    :: forall m f. (MonadTypeChecker m, TextField f) => R.Statement R.Var f -> m [T.Statement f]
 checkStatement (R.ELet var m) = do
     Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
     tM <- checkExpr uni m
