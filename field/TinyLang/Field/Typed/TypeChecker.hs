@@ -27,21 +27,6 @@ type MonadTypeCheck m = ( MonadSupply m
                         , MonadTypeError m
                         )
 
-type SomeUni f = Some (Uni f)
-
-withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
-withKnownUni Bool   = id
-withKnownUni Field  = id
-withKnownUni Vector = id
-
-unrollLoop
-    :: TextField f => T.Var -> Integer -> Integer -> [T.Statement f] -> [T.Statement f]
-unrollLoop var lower bound stats = do
-    i <- [lower .. bound]
-    let env = insertVar var (Some $ fromInteger i) mempty
-        report err = error $ "Panic: " ++ show err
-    map (either report id . instStatement env) stats
-
 {-| 
 -}
 mkSomeUniVar :: forall f. T.Var -> T.SomeUniVar f
@@ -50,92 +35,135 @@ mkSomeUniVar var
     | '#':_ <- _varName var = Some $ T.UniVar Vector var
     | otherwise             = Some $ T.UniVar Field  var
 
-{-|
+{-| = Bidirectional Typing Rules
 -}
-mkUniVar :: forall f a m. (MonadTypeError m, KnownUni f a) => T.Var -> m (T.UniVar f a)
-mkUniVar var =
-    case mkSomeUniVar var of
-        Some uniVar@(T.UniVar uni _) ->
-            withGeqUniM uni (knownUni @f @a) "universe mismatch" uniVar
+inferUniVar
+    :: forall m f. (MonadSupply m, MonadScope m) => R.Var -> m (T.SomeUniVar f)
+inferUniVar = liftM mkSomeUniVar . makeVar . R.unVar
 
 {-|
 -}
-typeSomeUniVar
-    :: forall m f. (MonadSupply m, MonadScope m) => String -> m (T.SomeUniVar f)
-typeSomeUniVar var = mkSomeUniVar <$> makeVar var
-
-{-|
--}
-typeUniVar
-    :: forall m f a. (MonadTypeCheck m, KnownUni f a)
-    => String -> m (T.UniVar f a)
-typeUniVar var = mkUniVar =<< makeVar var
-
-{-|
--}
-typeBinOp :: forall f. R.BinOp -> (SomeUni f, SomeUni f, SomeUni f)
-typeBinOp R.Or  = (Some Bool,  Some Bool,  Some Bool)
-typeBinOp R.And = (Some Bool,  Some Bool,  Some Bool)
-typeBinOp R.Xor = (Some Bool,  Some Bool,  Some Bool)
-typeBinOp R.FEq = (Some Field, Some Field, Some Bool)
-typeBinOp R.FLe = undefined
-typeBinOp R.FLt = undefined
-typeBinOp R.FGe = undefined
-typeBinOp R.FGt = undefined
-typeBinOp R.Add = undefined
-typeBinOp R.Sub = undefined
-typeBinOp R.Mul = undefined
-typeBinOp R.Div = undefined
-typeBinOp R.BAt = undefined
-
-{-|
--}
-typeUnOp :: forall f. R.UnOp -> (SomeUni f, SomeUni f)
-typeUnOp R.Not  = undefined
-typeUnOp R.Neq0 = undefined
-typeUnOp R.Neg  = undefined
-typeUnOp R.Inv  = undefined
-typeUnOp R.Unp  = undefined
-
-{-|
--}
-typeExpr
-    :: forall m f a. (MonadTypeCheck m, TextField f, KnownUni f a)
-    => R.Expr String f -> m (T.Expr f a)
-typeExpr (R.EConst (Some uniConst@(UniConst uni _))) =
-    withGeqUniM uni
-                (knownUni @f @a)
-                "universe mismatch"
-                (T.EConst uniConst)    
-typeExpr (R.EVar var) = T.EVar <$> typeUniVar var
-typeExpr (R.EAppBinOp binOp m n) = undefined
-    where
-        (tLeft, tRight, tResult) = typeBinOp binOp
-typeExpr (R.EAppUnOp unOp m) = undefined
-    where
-        (tLeft, tResult) = typeUnOp unOp
-        
-typeExpr (R.EStatement s m) =
-    flip (foldr T.EStatement) <$> typeStatement s
-                              <*> typeExpr m
-typeExpr (R.EIf l m n) =    
-    T.EIf <$> typeExpr l
-          <*> typeExpr m
-          <*> typeExpr n
-
-{-|
--}
-typeStatement
+inferExpr
     :: forall m f. (MonadTypeCheck m, TextField f)
-    => R.Statement String f
-    -> m [T.Statement f]
-typeStatement (R.ELet var m) =
-    do
-        Some (uniVar@(T.UniVar uni _)) <- typeSomeUniVar var
-        tStmt <- withKnownUni uni $ T.ELet uniVar <$> typeExpr m
-        pure [tStmt]
-typeStatement (R.EAssert m)  = pure . T.EAssert <$> typeExpr m
-typeStatement (R.EFor var start end stmts) =
-    do
-        tVar <- makeVar var
-        (unrollLoop tVar start end) . concat <$> mapM typeStatement stmts
+    => R.Expr R.Var f -> m (T.SomeUniExpr f)
+inferExpr (R.EConst (Some c@(T.UniConst uni _))) = pure $ SomeOf uni $ T.EConst c
+inferExpr (R.EVar   v) = do
+    Some uniVar@(T.UniVar uni _) <- inferUniVar v
+    pure $ SomeOf uni $ T.EVar uniVar
+inferExpr (R.EAppBinOp R.Or l m) = do
+    tL <- checkExpr Bool l
+    tM <- checkExpr Bool m
+    pure $ SomeOf Bool $ T.EAppBinOp T.Or tL tM
+inferExpr (R.EAppBinOp R.And l m) = do
+    tL <- checkExpr Bool l
+    tM <- checkExpr Bool m
+    pure $ SomeOf Bool $ T.EAppBinOp T.And tL tM
+inferExpr (R.EAppBinOp R.Xor l m) = do
+    tL <- checkExpr Bool l
+    tM <- checkExpr Bool m
+    pure $ SomeOf Bool $ T.EAppBinOp T.Xor tL tM
+inferExpr (R.EAppBinOp R.FEq l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.FEq tL tM
+inferExpr (R.EAppBinOp R.FLt l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.FLt tL tM
+inferExpr (R.EAppBinOp R.FLe l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.FLe tL tM
+inferExpr (R.EAppBinOp R.FGe l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.FLe tL tM
+inferExpr (R.EAppBinOp R.FGt l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.FGt tL tM
+inferExpr (R.EAppBinOp R.Add l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Field $ T.EAppBinOp T.Add tL tM
+inferExpr (R.EAppBinOp R.Sub l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Field $ T.EAppBinOp T.Sub tL tM
+inferExpr (R.EAppBinOp R.Mul l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Field $ T.EAppBinOp T.Mul tL tM
+inferExpr (R.EAppBinOp R.Div l m) = do
+    tL <- checkExpr Field l
+    tM <- checkExpr Field m
+    pure $ SomeOf Field $ T.EAppBinOp T.Div tL tM
+-- WARNING:  Here the order of arguments seems to be flipped
+inferExpr (R.EAppBinOp R.BAt l m) = do
+    tL <- checkExpr Vector l
+    tM <- checkExpr Field m
+    pure $ SomeOf Bool $ T.EAppBinOp T.BAt tM tL
+inferExpr (R.EAppUnOp R.Not l) = do
+    tL <- checkExpr Bool l
+    pure $ SomeOf Bool $ T.EAppUnOp T.Not tL
+inferExpr (R.EAppUnOp R.Neq0 l) = do
+    tL <- checkExpr Field l
+    pure $ SomeOf Bool $ T.EAppUnOp T.Neq0 tL
+inferExpr (R.EAppUnOp R.Neg l) = do
+    tL <- checkExpr Field l
+    pure $ SomeOf Field $ T.EAppUnOp T.Neg tL
+inferExpr (R.EAppUnOp R.Inv l) = do
+    tL <- checkExpr Field l
+    pure $ SomeOf Field $ T.EAppUnOp T.Inv tL
+inferExpr (R.EAppUnOp R.Unp l) = do
+    tL <- checkExpr Field l
+    pure $ SomeOf Vector $ T.EAppUnOp T.Unp tL    
+inferExpr (R.EStatement s l) = do
+    tS <- checkStatement s
+    SomeOf uni tL <- inferExpr l
+    pure $ SomeOf uni $ flip (foldr T.EStatement) tS tL
+inferExpr (R.EIf l m n) = do
+    tL <- checkExpr Bool l
+    SomeOf uni tM <- inferExpr m
+    tN <- checkExpr uni n
+    pure $ SomeOf uni $ T.EIf tL tM tN
+
+{-|
+-}
+checkUniVar
+    :: forall m f a. (MonadTypeCheck m) => Uni f a -> R.Var -> m (T.UniVar f a)
+checkUniVar uni iden = do
+    Some uniVar@(T.UniVar varUni _) <- inferUniVar iden
+    withGeqUniM uni varUni "universe mismatch" uniVar
+
+{-|
+-}
+checkExpr :: forall m f a. (MonadTypeCheck m, TextField f) => Uni f a -> R.Expr R.Var f -> m (T.Expr f a)
+checkExpr uni m = do
+    SomeOf mUni tM <- inferExpr m
+    withGeqUniM uni mUni "universe mismatch" $ tM
+
+{-|
+-}
+checkStatement
+    :: forall m f. (MonadTypeCheck m, TextField f) => R.Statement R.Var f -> m [T.Statement f]
+checkStatement (R.ELet var m) = do
+    Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
+    tM <- checkExpr uni m
+    pure . pure $ T.ELet uniVar tM
+checkStatement (R.EAssert m) = do
+    tM <- checkExpr Bool m
+    pure . pure $ T.EAssert tM
+checkStatement (R.EFor var start end stmts) = do
+    tVar <- makeVar $ R.unVar var
+    (unrollLoop tVar start end) . concat <$> mapM checkStatement stmts
+
+{-|
+-}
+unrollLoop
+    :: forall f. (TextField f) => T.Var -> Integer -> Integer -> [T.Statement f] -> [T.Statement f]
+unrollLoop var lower bound stats = do
+    i <- [lower .. bound]
+    let env = insertVar var (Some $ fromInteger i) mempty
+        report err = error $ "Panic: " ++ show err
+    map (either report id . instStatement env) stats
