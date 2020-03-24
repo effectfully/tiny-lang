@@ -17,7 +17,7 @@ import TinyLang.Field.UniConst
 -}
 type Identifier = String
 
-newtype Var = Var Identifier
+newtype Var = Var { unVar :: Identifier }
     deriving (Eq, Show)
 
 {-| @Expr v f@ is parameterised by the type of variable @v@.
