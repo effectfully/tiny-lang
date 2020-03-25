@@ -173,6 +173,11 @@ checkUniVar uni iden = do
 {-|
 -}
 checkExpr :: forall m f a. (MonadTypeChecker m, TextField f) => Uni f a -> R.Expr R.Var f -> m (T.Expr f a)
+checkExpr uni (R.EIf l m n) = do
+    tL <- checkExpr Bool l
+    tM <- checkExpr uni  m
+    tN <- checkExpr uni  n
+    pure $ T.EIf tL tM tN
 checkExpr uni m = do
     SomeOf mUni tM <- inferExpr m
     withGeqUniM uni mUni "universe mismatch" $ tM
