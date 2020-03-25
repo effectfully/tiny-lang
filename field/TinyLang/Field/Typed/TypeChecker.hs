@@ -66,7 +66,7 @@ typeCheck = runTypeChecker . inferExpr
 checkType
     :: forall f a. (TextField f, KnownUni f a)
     => R.Expr R.Var f -> Either TypeCheckError (T.Expr f a)
-checkType = runTypeChecker . checkExpr (knownUni @f @a)
+checkType = runTypeChecker . checkExpr
 
 {-| 
 -}
@@ -91,82 +91,38 @@ inferExpr (R.EConst (Some c@(T.UniConst uni _))) = pure $ SomeOf uni $ T.EConst 
 inferExpr (R.EVar   v) = do
     Some uniVar@(T.UniVar uni _) <- inferUniVar v
     pure $ SomeOf uni $ T.EVar uniVar
-inferExpr (R.EAppBinOp R.Or l m) = do
-    tL <- checkExpr Bool l
-    tM <- checkExpr Bool m
-    pure $ SomeOf Bool $ T.EAppBinOp T.Or tL tM
-inferExpr (R.EAppBinOp R.And l m) = do
-    tL <- checkExpr Bool l
-    tM <- checkExpr Bool m
-    pure $ SomeOf Bool $ T.EAppBinOp T.And tL tM
-inferExpr (R.EAppBinOp R.Xor l m) = do
-    tL <- checkExpr Bool l
-    tM <- checkExpr Bool m
-    pure $ SomeOf Bool $ T.EAppBinOp T.Xor tL tM
-inferExpr (R.EAppBinOp R.FEq l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.FEq tL tM
-inferExpr (R.EAppBinOp R.FLt l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.FLt tL tM
-inferExpr (R.EAppBinOp R.FLe l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.FLe tL tM
-inferExpr (R.EAppBinOp R.FGe l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.FLe tL tM
-inferExpr (R.EAppBinOp R.FGt l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.FGt tL tM
-inferExpr (R.EAppBinOp R.Add l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Field $ T.EAppBinOp T.Add tL tM
-inferExpr (R.EAppBinOp R.Sub l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Field $ T.EAppBinOp T.Sub tL tM
-inferExpr (R.EAppBinOp R.Mul l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Field $ T.EAppBinOp T.Mul tL tM
-inferExpr (R.EAppBinOp R.Div l m) = do
-    tL <- checkExpr Field l
-    tM <- checkExpr Field m
-    pure $ SomeOf Field $ T.EAppBinOp T.Div tL tM
-inferExpr (R.EAppBinOp R.BAt l m) = do
-    tL <- checkExpr Field  l
-    tM <- checkExpr Vector m
-    pure $ SomeOf Bool $ T.EAppBinOp T.BAt tL tM
-inferExpr (R.EAppUnOp R.Not l) = do
-    tL <- checkExpr Bool l
-    pure $ SomeOf Bool $ T.EAppUnOp T.Not tL
-inferExpr (R.EAppUnOp R.Neq0 l) = do
-    tL <- checkExpr Field l
-    pure $ SomeOf Bool $ T.EAppUnOp T.Neq0 tL
-inferExpr (R.EAppUnOp R.Neg l) = do
-    tL <- checkExpr Field l
-    pure $ SomeOf Field $ T.EAppUnOp T.Neg tL
-inferExpr (R.EAppUnOp R.Inv l) = do
-    tL <- checkExpr Field l
-    pure $ SomeOf Field $ T.EAppUnOp T.Inv tL
-inferExpr (R.EAppUnOp R.Unp l) = do
-    tL <- checkExpr Field l
-    pure $ SomeOf Vector $ T.EAppUnOp T.Unp tL    
+inferExpr (R.EAppBinOp R.Or  l m) = SomeOf knownUni <$> (T.EAppBinOp T.Or  <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.And l m) = SomeOf knownUni <$> (T.EAppBinOp T.And <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.Xor l m) = SomeOf knownUni <$> (T.EAppBinOp T.Xor <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.FEq l m) = SomeOf knownUni <$> (T.EAppBinOp T.FEq <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.FLt l m) = SomeOf knownUni <$> (T.EAppBinOp T.FLt <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.FLe l m) = SomeOf knownUni <$> (T.EAppBinOp T.FLe <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.FGe l m) = SomeOf knownUni <$> (T.EAppBinOp T.FGe <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.FGt l m) = SomeOf knownUni <$> (T.EAppBinOp T.FGt <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.Add l m) = SomeOf knownUni <$> (T.EAppBinOp T.Add <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.Sub l m) = SomeOf knownUni <$> (T.EAppBinOp T.Sub <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.Mul l m) = SomeOf knownUni <$> (T.EAppBinOp T.Mul <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.Div l m) = SomeOf knownUni <$> (T.EAppBinOp T.Div <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppBinOp R.BAt l m) = SomeOf knownUni <$> (T.EAppBinOp T.BAt <$> checkExpr l <*> checkExpr m)
+inferExpr (R.EAppUnOp R.Not  l) = SomeOf knownUni <$> (T.EAppUnOp T.Not  <$> checkExpr l)
+inferExpr (R.EAppUnOp R.Neq0 l) = SomeOf knownUni <$> (T.EAppUnOp T.Neq0 <$> checkExpr l)
+inferExpr (R.EAppUnOp R.Neg  l) = SomeOf knownUni <$> (T.EAppUnOp T.Neg  <$> checkExpr l)
+inferExpr (R.EAppUnOp R.Inv  l) = SomeOf knownUni <$> (T.EAppUnOp T.Inv  <$> checkExpr l)
+inferExpr (R.EAppUnOp R.Unp  l) = SomeOf knownUni <$> (T.EAppUnOp T.Unp  <$> checkExpr l)
 inferExpr (R.EStatement s l) = do
     tS <- checkStatement s
     SomeOf uni tL <- inferExpr l
     pure $ SomeOf uni $ flip (foldr T.EStatement) tS tL
 inferExpr (R.EIf l m n) = do
-    tL <- checkExpr Bool l
+    tL <- checkExpr l
     SomeOf uni tM <- inferExpr m
-    tN <- checkExpr uni n
+    tN <- T.withKnownUni uni $ checkExpr n
     pure $ SomeOf uni $ T.EIf tL tM tN
+-- inferExpr (R.EAppBinOp rBinOp l m) =
+--     withTypedBinOp rBinOp $ \tBinOp ->
+--                                 SomeOf knownUni <$> (T.EAppBinOp tBinOp <$> checkExpr l <*> checkExpr m)
+
+    
 
 {-|
 -}
@@ -179,14 +135,11 @@ checkUniVar uni iden = do
 
 {-|
 -}
-checkExpr :: forall m f a. (MonadTypeChecker m, TextField f) => Uni f a -> R.Expr R.Var f -> m (T.Expr f a)
-checkExpr uni (R.EIf l m n) = do
-    tL <- checkExpr Bool l
-    tM <- checkExpr uni  m
-    tN <- checkExpr uni  n
-    pure $ T.EIf tL tM tN
-checkExpr uni m = do
+checkExpr :: forall m f a. (MonadTypeChecker m, TextField f, KnownUni f a) => R.Expr R.Var f -> m (T.Expr f a)
+checkExpr (R.EIf l m n) = T.EIf <$> checkExpr l <*> checkExpr m <*> checkExpr n
+checkExpr m = do
     SomeOf mUni tM <- inferExpr m
+    let uni = knownUni @f @a
     let uniMismatch = typeMismatch tM uni mUni
     withGeqUniM uni mUni uniMismatch $ tM
 
@@ -196,10 +149,10 @@ checkStatement
     :: forall m f. (MonadTypeChecker m, TextField f) => R.Statement R.Var f -> m [T.Statement f]
 checkStatement (R.ELet var m) = do
     Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
-    tM <- checkExpr uni m
+    tM <- T.withKnownUni uni $ checkExpr m
     pure . pure $ T.ELet uniVar tM
 checkStatement (R.EAssert m) = do
-    tM <- checkExpr Bool m
+    tM <- checkExpr m
     pure . pure $ T.EAssert tM
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
