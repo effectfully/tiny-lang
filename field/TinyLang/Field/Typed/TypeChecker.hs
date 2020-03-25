@@ -218,7 +218,9 @@ unrollLoop var lower bound stats = do
 
 {-|
 -}
-
 typeMismatch :: forall a b c. (Show a, Show b, Show c)  => a -> b -> c -> TypeCheckError
 typeMismatch expr expected found =
-    [QQ.i|error:  Universe mismatch for expression #{show expr}\n  Expected:  #{show expected}\n    Found:  #{show found}|]
+    [QQ.i|error: Universe mismatch for expression:
+           #{show expr}
+         Expected: #{show expected}
+         Found:    #{show found}|]
