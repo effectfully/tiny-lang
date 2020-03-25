@@ -143,13 +143,12 @@ withBinOpUnis Div k = k knownUni knownUni knownUni
 withBinOpUnis BAt k = k knownUni knownUni knownUni
 
 uniOfExpr :: Expr f a -> Uni f a
-uniOfExpr = go where
-    go (EConst (UniConst uni _)) = uni
-    go (EVar (UniVar uni _))     = uni
-    go (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
-    go (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
-    go (EIf _ x _)               = uniOfExpr x
-    go (EStatement _ expr)       = uniOfExpr expr
+uniOfExpr (EConst (UniConst uni _)) = uni
+uniOfExpr (EVar (UniVar uni _))     = uni
+uniOfExpr (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
+uniOfExpr (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
+uniOfExpr (EIf _ x _)               = uniOfExpr x
+uniOfExpr (EStatement _ expr)       = uniOfExpr expr
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
