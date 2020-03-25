@@ -267,7 +267,7 @@ operatorTable =
       , unary  (keyword "unpack") $ Unp
       ]
       -- expr [ expr ]
-    , [ Comb.Postfix (flip (EAppBinOp BAt) <$> pIndex)
+    , [ Comb.Postfix (EAppBinOp BAt <$> pIndex)
       ]
     , [ binary (symbol  "*")      $ Mul
       , binary (symbol  "/")      $ Div

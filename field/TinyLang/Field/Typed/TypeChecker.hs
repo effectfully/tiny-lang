@@ -139,11 +139,10 @@ inferExpr (R.EAppBinOp R.Div l m) = do
     tL <- checkExpr Field l
     tM <- checkExpr Field m
     pure $ SomeOf Field $ T.EAppBinOp T.Div tL tM
--- WARNING:  Here the order of arguments seems to be flipped
 inferExpr (R.EAppBinOp R.BAt l m) = do
-    tL <- checkExpr Vector l
-    tM <- checkExpr Field m
-    pure $ SomeOf Bool $ T.EAppBinOp T.BAt tM tL
+    tL <- checkExpr Field  l
+    tM <- checkExpr Vector m
+    pure $ SomeOf Bool $ T.EAppBinOp T.BAt tL tM
 inferExpr (R.EAppUnOp R.Not l) = do
     tL <- checkExpr Bool l
     pure $ SomeOf Bool $ T.EAppUnOp T.Not tL
