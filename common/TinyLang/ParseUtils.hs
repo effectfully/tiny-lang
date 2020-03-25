@@ -60,7 +60,7 @@ parseString parser fileName str =
 
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
-makeVar :: (MonadSupply m, MonadState Scope m) => String -> m Var
+makeVar :: (MonadSupply m, MonadScope m) => String -> m Var
 makeVar name = do
     vars <- get
     case Map.lookup name vars of
