@@ -13,12 +13,18 @@ module TinyLang.Field.Raw.Core
 
 import TinyLang.Field.UniConst
 
+import GHC.Generics
+import Quiet
+
 {-| = AST
 -}
 type Identifier = String
 
 newtype Var = Var { unVar :: Identifier }
-    deriving (Eq, Show)
+    deriving (Eq, Generic)
+    deriving (Show) via (Quiet Var)
+
+
 
 {-| @Expr v f@ is parameterised by the type of variable @v@.
 -}

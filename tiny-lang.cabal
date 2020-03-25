@@ -59,7 +59,8 @@ library
         interpolate,
         QuickCheck,
         QuickCheck-GenT,
-        quickcheck-instances
+        quickcheck-instances,
+        quiet
     default-language: Haskell2010
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
