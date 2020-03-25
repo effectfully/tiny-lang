@@ -13,18 +13,28 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    - uses: actions/cache@v1
+      name: Cache ~/.stack
+      path: ~/.stack
+      key:  ${{ runner.os }}-stack-root
+
     - name: Install GHC
       run: |
         stack setup
+
     - name: Build Dependencies
       run: |
         stack build --only-dependencies
+
     - name: Build code
       run: |
         stack build
+
     - name: Build tests
       run: |
         stack test --no-run-tests
+
     - name: Run tests
       run: |
         stack test
