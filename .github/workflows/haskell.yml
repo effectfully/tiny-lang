@@ -16,8 +16,9 @@ jobs:
 
     - uses: actions/cache@v1
       name: Cache ~/.stack
-      path: ~/.stack
-      key:  ${{ runner.os }}-stack-root
+      with:
+        path: ~/.stack
+        key:  ${{ runner.os }}-stack-root
 
     - name: Install GHC
       run: |
