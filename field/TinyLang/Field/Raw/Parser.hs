@@ -197,10 +197,11 @@ keywords =
     [ "T", "F"
     , "not", "and", "or", "xor"
     , "neq0", "neg", "inv"
-    , "let"
-    , "if", "then", "else"
-    , "for", "do", "end"
     , "unpack"
+    , "let"
+    , "assert"
+    , "for", "do", "end"
+    , "if", "then", "else"
     ]
 
 isKeyword :: String -> Bool
@@ -308,9 +309,14 @@ pTerm =
     choice
     -- This can backtrack for parentheses
     [ try (EConst   <$> pConst)
+    -- This can backtrack for keywords
+    , try (EVar     <$> pVar)
+    , EStatement    <$> (pStatement     <* symbol ";")
+                    <*> pExpr
+    , EIf           <$> (keyword "if"   *> pExpr)
+                    <*> (keyword "then" *> pExpr)
+                    <*> (keyword "else" *> pExpr)
     , parens pExpr
-    , EStatement    <$> pStatement <* symbol ";" <*> pExpr
-    , EVar          <$> pVar
     ]
 
 pStatements :: TextField f => Parser [RawStatement f]
@@ -319,7 +325,9 @@ pStatements = many (pStatement <* symbol ";")
 pStatement :: TextField f => Parser (RawStatement f)
 pStatement =
     choice
-    [ ELet    <$> (keyword "let"    *> pVar)
+    -- This can backtrack for expr starting with a "("
+    [ try (parens pStatement)
+    , ELet    <$> (keyword "let"    *> pVar)
               <*> (symbol  "="      *> pExpr)
     , EAssert <$> (keyword "assert" *> pExpr)
     , EFor    <$> (keyword "for"    *> pVar)
