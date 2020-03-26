@@ -1,0 +1,1 @@
+SomeOf Bool (EAppUnOp Neq0 (EConst 1))

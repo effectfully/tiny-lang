@@ -1,0 +1,1 @@
+SomeOf Bool (EStatement (EAssert (EConst (UniConst Bool True))) (EConst (UniConst Bool True)))
