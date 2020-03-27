@@ -4,9 +4,13 @@
 We provide a simple bidirectional typechecker
 
 Potential resources:
+
 * https://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf
+
 * http://www.cse.chalmers.se/~ulfn/papers/afp08/tutorial.pdf
+
 * http://www.davidchristiansen.dk/tutorials/bidirectional.pdf
+
 -}
 
 module TinyLang.Field.Typed.TypeChecker
@@ -40,8 +44,9 @@ import qualified TinyLang.Field.Raw.Core    as R
 import           Data.Kind
 import qualified Data.String.Interpolate    as QQ
 
-{-| Utility Type Aliases or Constraints
+{-| == Utility Type Aliases or Constraints
 -}
+
 type TypeCheckError     = String
 type MonadTypeError   m = MonadError TypeCheckError m
 type MonadTypeChecker m = ( MonadSupply m
@@ -49,7 +54,7 @@ type MonadTypeChecker m = ( MonadSupply m
                           , MonadTypeError m
                           )
 
-{-| TypeCheckerT Transformer
+{-| @TypeChecker@ Transformer
 -}
 newtype TypeCheckerT e (m :: Type -> Type) a =
     TypeChecker { runTypeCheckerT :: (ExceptT e (StateT Scope (SupplyT m))) a }
@@ -88,73 +93,6 @@ checkType
 checkType = runTypeChecker . checkExpr
 
 
-{-| = Bidirectional Typing Rules
-
-Here is a quick recap of our current syntax of the language
-
-@
-identifiers         i
-variables           x       ::= i | ?i | #i
-boolean constants   B       ::= T | F
-field constants     F       ::= /determined by the choice of field/
-vector constants    V       ::= { B+ }
-integer constants   I
-constants           c       ::= B | F | V
-universes           U       ::= Bool | Field | Vector
-statements          S, T    ::= let x = M | assert M
-                              | for var = I to I do S* end
-expressions         L, M, N ::= c | x | L binOp M | unOp L | L [ M ] | S ; L
-                              | if L then M else N
-binary operations   binOp   ::= or | ...
-unary operations    unOp    ::= not | ...
-@
-
-We assume the followin metafunctions:
-
-* tyConst(c), which returns the type of a constant,
-
-* tyVar(x), which returns the type of a variable,
-
-* tyLeft(binOp), which returns the type of the first argument of binOp,
-
-* tyRight(binOp), which returns the type of the second argument of binOp,
-
-* tyResult(binOp), which returns the type of the result of binOp,
-
-* tyArg(unOp), which returns the type of the argument of unOp,
-
-* tyResult(unOp), which returns the type of the result of unOp.
-
-We split the type-checking into the following judgements:
-
-* Type checking judgement which checks the type of expression, for
-  which both the expression @M@ and the universe @U@ are inputs:
-  @ M^+ <= U^+ @
-
-* Type synthesis (inference) judgement which infers the type of the
-  expression, for which the expression @M@ is an input and the
-  universe @U@ is an output:
-  @ M^+ => U^- @
-
-* Type equality judgement which checks wether two universes match, for
-  which both the universe @U1@ and @U2@ are inputs:
-  @ U1^+ = U2^+ @
-
-We can switch from type checking judgement to type inference judgement
-using type equality
-
-@
-M => U2
-U2 = U1
--------
-M <= U1
-@
-
-Please note that at the moment we lack type ascriptions and for
-convenience we add type inference rule for if-then-else expressions.
-
--}
-
 mkSomeUniVar :: forall f. T.Var -> T.SomeUniVar f
 mkSomeUniVar var
     | '?':_ <- _varName var = Some $ T.UniVar Bool   var
@@ -168,74 +106,25 @@ inferUniVar
 inferUniVar = liftM mkSomeUniVar . makeVar . R.unVar
 
 {-| Type inference for expressions
-@
-M => U
-@
 -}
 inferExpr
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Expr R.Var f -> m (T.SomeUniExpr f)
-{-|
-@
----------------
-c => tyConst(c)
-@
--}
 inferExpr (R.EConst (Some c@(T.UniConst uni _))) =
     pure $ SomeOf uni $ T.EConst c
-{-|
-@
--------------
-x => tyVar(x)
-@
--}    
 inferExpr (R.EVar   v) = do
     Some uniVar@(T.UniVar uni _) <- inferUniVar v
     pure $ SomeOf uni $ T.EVar uniVar
-{-|
-@
-L <= tyLeft(binOp)
-M <= tyRight(binOp)
-----------------------------
-L binOp M => tyResult(binOp)
-@
--}    
 inferExpr (R.EAppBinOp rBinOp l m) =
-    withTypedBinOp rBinOp $
-    \tBinOp ->
+    withTypedBinOp rBinOp $ \tBinOp ->
         SomeOf knownUni <$> (T.EAppBinOp tBinOp <$> checkExpr l <*> checkExpr m)
-{-|
-@
-L <= tyArg(unOp)
-------------------------
-unOp L => tyResult(unOp)
-@
--}        
 inferExpr (R.EAppUnOp rUnOp l) =
-    withTypedUnOp rUnOp $
-    \tUnOp ->
+    withTypedUnOp rUnOp $ \tUnOp ->
         SomeOf knownUni <$> (T.EAppUnOp tUnOp <$> checkExpr l)
-{-|
-@
-|- S
-L => U
-----------
-S ; L => U
-@
--}        
 inferExpr (R.EStatement s l) = do
     tS <- checkStatement s
     SomeOf uni tL <- inferExpr l
-    pure $ SomeOf uni $ flip (foldr T.EStatement) tS tL
-{-|
-@
-|- L <= Bool
-|- M => U
-|- N <= U
---------------------------
-|- if L then M else N => U
-@
--}    
+    pure $ SomeOf uni $ (foldr T.EStatement) tL tS
 inferExpr (R.EIf l m n) = do
     tL <- checkExpr l
     SomeOf uni tM <- inferExpr m
@@ -288,32 +177,12 @@ checkUniVar uni iden = do
     let uniMismatch = typeMismatch uniVar uni varUni
     withGeqUniM uni varUni uniMismatch uniVar
 
-{-| Type checking for expressions of the form
-@
-|- M <= U
-@
+{-| Type checking for expressions
 -}
 checkExpr
     :: forall m f a. (MonadTypeChecker m, TextField f, KnownUni f a)
     => R.Expr R.Var f -> m (T.Expr f a)
-{-|
-@
-L <= Bool
-M <= U
-N <= U
---------------------------
-if L then M else N <= U
-@
--}
 checkExpr (R.EIf l m n) = T.EIf <$> checkExpr l <*> checkExpr m <*> checkExpr n
-{-|
-@
-M => U2
-U1 = U2
--------
-M <= U1
-@
--}
 checkExpr m = do
     SomeOf mUni tM <- inferExpr m
     let uni = knownUni @f @a
@@ -321,41 +190,15 @@ checkExpr m = do
     withGeqUniM uni mUni uniMismatch $ tM
 
 {-| Type checking judgement for statements of form
-@
-|- S
-@
 -}
 checkStatement
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Statement R.Var f -> m [T.Statement f]
-{-|
-@
-M <= tyVar(x)
--------------
-|- let x = M
-@
--}
 checkStatement (R.ELet var m) = do
     Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
-    tM <- T.withKnownUni uni $ checkExpr m
-    pure . pure $ T.ELet uniVar tM
-{-|
-@
-M <= Bool
------------
-|- assert M
-@
--}
+    T.withKnownUni uni $ pure . (T.ELet uniVar) <$> checkExpr m
 checkStatement (R.EAssert m) = do
-    tM <- checkExpr m
-    pure . pure $ T.EAssert tM
-{-|
-@
-|- \vec{S}
-----------------------------------
-|- for var = I to I do \vec{S} end
-@
--}
+    pure . T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
     (unrollLoop tVar start end) . concat <$> mapM checkStatement stmts
