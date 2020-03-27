@@ -25,7 +25,7 @@ jobs:
 
     - name: Build Dependencies
       run: |
-        stack build --only-dependencies
+        stack test --only-dependencies
 
     - name: Build Code & Tests
       run: |

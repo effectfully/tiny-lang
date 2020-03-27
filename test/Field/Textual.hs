@@ -9,10 +9,10 @@ module Field.Textual
 
 import           Data.Field.F17
 import           Data.Field.F4913
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Generator
 import qualified TinyLang.Field.Jubjub as JJ
-import           TinyLang.Field.Parser
+import           TinyLang.Field.Typed.Parser
 import           TinyLang.Field.Printer
 import           TinyLang.Prelude
 
@@ -35,7 +35,7 @@ forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
 forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
 
 forgetIDs :: Expr f a -> Expr f a
-forgetIDs (EVal uval)          = EVal uval
+forgetIDs (EConst uval)        = EConst uval
 forgetIDs (EVar uvar)          = EVar $ forgetID uvar
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)

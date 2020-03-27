@@ -103,10 +103,10 @@ identifier =  (lexeme . try) (p >>= check)
 
 -- Constants T and F
 trueExpr :: Parser Expr
-trueExpr =  EVal True <$ keyword "T"
+trueExpr =  EConst True <$ keyword "T"
 
 falseExpr :: Parser Expr
-falseExpr = EVal False <$ keyword "F"
+falseExpr = EConst False <$ keyword "F"
 
 valExpr :: Parser Expr
 valExpr = trueExpr <|> falseExpr

@@ -1,0 +1,1 @@
+SomeOf Bool (EAppBinOp FGe (EConst 1) (EConst 0))

@@ -11,19 +11,25 @@ module TinyLang.Field.Raw.Core
     , RawStatement
     ) where
 
-import TinyLang.Field.UniVal
+import TinyLang.Field.UniConst
+
+import GHC.Generics
+import Quiet
 
 {-| = AST
 -}
 type Identifier = String
 
-newtype Var = Var Identifier
-    deriving (Eq, Show)
+newtype Var = Var { unVar :: Identifier }
+    deriving (Eq, Generic)
+    deriving (Show) via (Quiet Var)
+
+
 
 {-| @Expr v f@ is parameterised by the type of variable @v@.
 -}
 data Expr v f
-    = EConst     (SomeUniVal f)
+    = EConst     (SomeUniConst f)
     | EVar       v
     | EAppBinOp  BinOp           (Expr v f) (Expr v f)
     | EAppUnOp   UnOp            (Expr v f)
@@ -58,7 +64,7 @@ data UnOp
 data Statement v f
     = ELet    v          (Expr v f)
     | EAssert (Expr v f)
-    | EFor    v          (Expr v f) (Expr v f) [Statement v f]
+    | EFor    v          Integer    Integer [Statement v f]
     deriving (Show)
 
 {-| = Utility Type Aliases

@@ -6,6 +6,7 @@
 module TinyLang.ParseUtils
     ( Parser
     , Scope
+    , MonadScope
     , Scoped (..)
     , parseBy
     , parseString
@@ -29,6 +30,7 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 -- | 'Scope' maps names onto 'Var's.
 type Scope = Map String Var
+type MonadScope = MonadState Scope
 
 data Scoped a = Scoped
     { _scopedScope :: Map String Var
@@ -58,7 +60,7 @@ parseString parser fileName str =
 
 -- | Look up a variable name. If we've already seen it, return the corresponding Var;
 -- otherwise, increase the Unique counter and use it to construct a new Var.
-makeVar :: String -> Parser Var
+makeVar :: (MonadSupply m, MonadScope m) => String -> m Var
 makeVar name = do
     vars <- get
     case Map.lookup name vars of

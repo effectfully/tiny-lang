@@ -65,7 +65,7 @@
 
 -- FIXME: do we want to allow == on booleans?  Eg, T==F or (1==2)==(3==4)
 
-module TinyLang.Field.Parser
+module TinyLang.Field.Typed.Parser
     ( parseBy
     , parseScopedExpr
     , parseExpr
@@ -73,7 +73,7 @@ module TinyLang.Field.Parser
 
 import           TinyLang.Prelude               hiding (many, some, try, option)
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Rename
 import           TinyLang.Field.Evaluator
 import           TinyLang.ParseUtils
@@ -82,7 +82,7 @@ import           Control.Monad.Combinators.Expr as Comb
 import qualified Data.IntMap.Strict             as IntMap
 import qualified Data.IntSet                    as IntSet
 import qualified Data.Map.Strict                as Map
-import qualified Data.Vector as Vector
+import qualified Data.Vector                    as Vector
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
@@ -172,9 +172,9 @@ parseBool = True <$ keyword "T" <|> False <$ keyword "F"
 parseVector :: Parser (Vector Bool)
 parseVector = fmap Vector.fromList $ symbol "{" *> parseBool `sepBy` (symbol ",") <* symbol "}"
 
-uniValPoly :: forall f a. (TextField f, KnownUni f a) => Parser (UniVal f a)
-uniValPoly =
-    UniVal uni <$> case uni of
+uniConstPoly :: forall f a. (TextField f, KnownUni f a) => Parser (UniConst f a)
+uniConstPoly =
+    UniConst uni <$> case uni of
         Bool   -> parseBool
         -- Literal constants from the field
         Field  -> parseField
@@ -236,7 +236,7 @@ expr1 = asum
     -- because concrete syntax for finite fields might be complicated
     [ parens exprPoly
     , EVar <$> uniVarPoly
-    , EVal <$> uniValPoly
+    , EConst <$> uniConstPoly
     , case knownUni @f @a of
         Bool   -> neq0Expr <|> eqExpr
         Field  -> empty

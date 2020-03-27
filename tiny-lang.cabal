@@ -29,18 +29,20 @@ library
         TinyLang.Boolean.Generator
         TinyLang.Boolean.Parser
         TinyLang.Boolean.Printer
-        TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
         TinyLang.Field.Generator
         TinyLang.Field.NamedType
-        TinyLang.Field.Parser
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
-        TinyLang.Field.UniVal
+        TinyLang.Field.UniConst
         TinyLang.Field.Raw.Core
         TinyLang.Field.Raw.Parser
+        TinyLang.Field.Typed.Core
+        TinyLang.Field.Typed.Parser
+        TinyLang.Field.Typed.TypeChecker
+
     build-depends:
         base >= 4.7 && < 5,
         transformers,
@@ -57,7 +59,8 @@ library
         interpolate,
         QuickCheck,
         QuickCheck-GenT,
-        quickcheck-instances
+        quickcheck-instances,
+        quiet
     default-language: Haskell2010
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
@@ -83,6 +86,8 @@ test-suite tiny-lang-test
         Field.Textual
         Field.Axioms
         Field.Raw.Textual
+        Field.TestUtils
+        Field.Typed.Textual
     default-language: Haskell2010
     build-depends:
         tiny-lang,

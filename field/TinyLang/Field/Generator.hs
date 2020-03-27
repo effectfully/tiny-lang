@@ -24,7 +24,7 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Evaluator
 
 import qualified Data.IntMap.Strict        as IntMap
@@ -124,19 +124,19 @@ instance KnownUni f a => Arbitrary (DefaultUniVar f a) where
 withOneofUnis :: MonadGen m => (forall a. KnownUni f a => Uni f a -> m b) -> m b
 withOneofUnis k = oneof [k Bool, k Field]
 
--- We define this as a separate function, because the @Arbitrary@ instance of @UniVal@ requires
+-- We define this as a separate function, because the @Arbitrary@ instance of @UniConst@ requires
 -- @KnownUni f a@ and we do not need this constraint in the shrinker, which we reuse in the
--- @Arbitrary@ isntance of @SomeUniVal@.
--- | Shrink a 'UniVal'.
-shrinkUniVal :: Arbitrary f => UniVal f a -> [UniVal f a]
-shrinkUniVal (UniVal uni x) = map (UniVal uni) $ case uni of
+-- @Arbitrary@ isntance of @SomeUniConst@.
+-- | Shrink a 'UniConst'.
+shrinkUniConst :: Arbitrary f => UniConst f a -> [UniConst f a]
+shrinkUniConst (UniConst uni x) = map (UniConst uni) $ case uni of
     Bool   -> shrink x
     Field  -> shrink x
     Vector -> shrink x
 
-instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniVal f a) where
+instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniConst f a) where
     arbitrary =
-        UniVal uni <$> case uni of
+        UniConst uni <$> case uni of
             Bool   -> arbitrary
             Field  -> frequency
                 [ (1, fromIntegral <$> arbitrary @Int)
@@ -147,12 +147,12 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniVal f a) where
         where
             uni = knownUni @f @a
 
-    shrink = shrinkUniVal
+    shrink = shrinkUniConst
 
-instance (Field f, Arbitrary f) => Arbitrary (SomeUniVal f) where
-    arbitrary = withOneofUnis $ \(_ :: Uni f a) -> Some <$> arbitrary @(UniVal f a)
+instance (Field f, Arbitrary f) => Arbitrary (SomeUniConst f) where
+    arbitrary = withOneofUnis $ \(_ :: Uni f a) -> Some <$> arbitrary @(UniConst f a)
 
-    shrink (Some uniVal) = Some <$> shrinkUniVal uniVal
+    shrink (Some uniConst) = Some <$> shrinkUniConst uniConst
 
 {- When we've generated a fresh variable v for an expression let v =
    e1 in e2, we allow the textual name of v to be equal to the textual name of
@@ -194,7 +194,7 @@ withOneofBinOps k = case knownUni @f @c of
     Field  -> oneof [k Add, k Sub, k Mul, k Div]
     -- There are no binary operators that return a 'Vector' and hence we just generate an
     -- arbitrary constant vector here.
-    Vector -> EVal <$> arbitraryM
+    Vector -> EConst <$> arbitraryM
 
 -- | Generate a comparison operator and feed it to the continuation.
 withOneofComparisons
@@ -209,8 +209,8 @@ withOneofBinAsserts
 withOneofBinAsserts k = oneof [k Or, k And, k Xor, k FEq, k FLt, k FLe, k FGe, k FGt]
 
 -- | An arbitrary integer value (for use in comparisons)
-arbitraryValI :: (Field f, MonadGen m) => m (UniVal f (AField f))
-arbitraryValI = UniVal Field . fromInteger <$> arbitraryM
+arbitraryValI :: (Field f, MonadGen m) => m (UniConst f (AField f))
+arbitraryValI = UniConst Field . fromInteger <$> arbitraryM
 
 -- | Arbitrary unary operation for generating integer-valued
 -- expressions.  We're disallowing Inv, so we only have negation.  Inv
@@ -232,8 +232,8 @@ groundArbitraryFreqs
     :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
     => Vars f -> [(Int, m (Expr f a))]
 groundArbitraryFreqs vars =
-    [ (1, EVal <$> arbitraryM)
-    , (2, EVar <$> chooseUniVar vars)
+    [ (1, EConst <$> arbitraryM)
+    , (2, EVar   <$> chooseUniVar vars)
     ]
 
 -- | Generate an expression of a particular type from a collection of variables
@@ -316,10 +316,10 @@ boundedArbitraryComparisons vars size' =
 boundedArbitraryExprI
     :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f (AField f))
-boundedArbitraryExprI _    size | size <= 1 = EVal <$> arbitraryValI
+boundedArbitraryExprI _    size | size <= 1 = EConst <$> arbitraryValI
 boundedArbitraryExprI vars size             = frequency
-    [ (1, EVal <$> arbitraryValI)
-    , (0, EVar <$> chooseUniVar vars)
+    [ (1, EConst <$> arbitraryValI)
+    , (0, EVar   <$> chooseUniVar vars)
       {- TODO:  Check for Haddock post lts-13.26
          NOTE.  If we allow variables here we won't generally know in
          advance that they'll have integer values, so there
@@ -375,9 +375,9 @@ shrinking is type-preserving, we let the type-preserving shrinker do it.
 
 -- We can shrink any expression to just a hardcoded ground value (except we shouldn't shrink other
 -- ground values to hardcoded ground values to prevent looping).
-defaultUniVal :: forall f a. (KnownUni f a, Field f) => UniVal f a
-defaultUniVal =
-    UniVal uni $ case uni of
+defaultUniConst :: forall f a. (KnownUni f a, Field f) => UniConst f a
+defaultUniConst =
+    UniConst uni $ case uni of
         Bool   -> True
         Field  -> fromInteger 101
         Vector -> Vector.fromList [False, True, True, True, False, False, True]
@@ -406,8 +406,8 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
 
     -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
     -- but do not forget to catch exceptions.
-    shrink (EVal uniVal) = EVal <$> shrink uniVal
-    shrink expr0         = EVal defaultUniVal : case expr0 of
+    shrink (EConst uniConst) = EConst <$> shrink uniConst
+    shrink expr0             = EConst defaultUniConst : case expr0 of
         EAppUnOp op e ->
             withUnOpUnis op $ \uni _ ->
             withKnownUni uni $
@@ -418,7 +418,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
             withKnownUni uni2 $
                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
-        EVal _ -> []
+        EConst _ -> []
         EVar _ -> []
         -- TODO: we can safely drop an assertion and we can drop a let-expression when
         -- the let-bound variable is not used in @expr@.
@@ -435,16 +435,16 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 withBinOpUnis op $ \uni1 uni2 _ ->
                     [SomeOf uni1 e1, SomeOf uni2 e2]
             EIf e _ _ -> [SomeOf Bool e]
-            EVal _ -> []
+            EConst _ -> []
             EVar _ -> []
             EStatement stat _ -> case stat of
                 ELet (UniVar uni _) def -> [SomeOf uni def]
                 EAssert e               -> [SomeOf Bool e]
 
-genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniVal f))
+genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniConst f))
 genEnvFromVarSigns =
     traverse $ \(VarSign _ (uni :: Uni f a)) ->
-        Some <$> withKnownUni uni (arbitrary :: Gen (UniVal f a))
+        Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
 -- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get

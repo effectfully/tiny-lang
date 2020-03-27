@@ -65,9 +65,16 @@ At the moment constants consist of literals only.
 @
 const ::=
     bool-literal
-    int-literal
+    field-literal
     vec-literal
 @
+
+Parsing rules for @field-literal@ are determined by the type class
+instance of @TextField@.
+
+In addition, we also permit @int-literals@ in for loops in statements
+below.
+
 
 == Expressions
 
@@ -116,7 +123,7 @@ expressions nor the usual statements.
 statement ::=
     "let" var "=" expr
     "assert" expr
-    "for" var "=" int "to" int "do" statements "end"
+    "for" var "=" int-literal "to" int-literal "do" statements "end"
 
 statements ::=
     (statement (";" statement)*)?
@@ -151,7 +158,7 @@ import           TinyLang.Prelude               hiding ( option
 
 import           TinyLang.Field.Raw.Core
 import           TinyLang.Field.Existential
-import           TinyLang.Field.UniVal
+import           TinyLang.Field.UniConst
 import           TinyLang.ParseUtils            hiding ( Parser )
 import           Data.Field
 
@@ -190,10 +197,11 @@ keywords =
     [ "T", "F"
     , "not", "and", "or", "xor"
     , "neq0", "neg", "inv"
-    , "let"
-    , "if", "then", "else"
-    , "for", "do", "end"
     , "unpack"
+    , "let"
+    , "assert"
+    , "for", "do", "end"
+    , "if", "then", "else"
     ]
 
 isKeyword :: String -> Bool
@@ -227,6 +235,9 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
+pIntLiteral :: Parser Integer
+pIntLiteral = signedDecimal
+
 -- variable is an identifier that is not a keyword
 pVar :: Parser Var
 pVar = do
@@ -257,7 +268,7 @@ operatorTable =
       , unary  (keyword "unpack") $ Unp
       ]
       -- expr [ expr ]
-    , [ Comb.Postfix (flip (EAppBinOp BAt) <$> pIndex)
+    , [ Comb.Postfix (EAppBinOp BAt <$> pIndex)
       ]
     , [ binary (symbol  "*")      $ Mul
       , binary (symbol  "/")      $ Div
@@ -277,16 +288,16 @@ operatorTable =
       ]
     ]
 
-vBool :: forall f. Parser (SomeUniVal f)
-vBool = Some <$> (UniVal Bool) <$> pBoolLiteral
+vBool :: forall f. Parser (SomeUniConst f)
+vBool  = Some . (UniConst Bool)   <$> pBoolLiteral
 
-vVec :: forall f. Parser (SomeUniVal f)
-vVec = Some <$> (UniVal Vector) <$> pVecLiteral
+vVec :: forall f. Parser (SomeUniConst f)
+vVec   = Some . (UniConst Vector) <$> pVecLiteral
 
-vField :: TextField f => Parser (SomeUniVal f)
-vField = Some <$> (UniVal Field) <$> parseField
+vField :: TextField f => Parser (SomeUniConst f)
+vField = Some . (UniConst Field)  <$> parseField
 
-pConst :: TextField f => Parser (SomeUniVal f)
+pConst :: TextField f => Parser (SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec
@@ -298,9 +309,14 @@ pTerm =
     choice
     -- This can backtrack for parentheses
     [ try (EConst   <$> pConst)
+    -- This can backtrack for keywords
+    , try (EVar     <$> pVar)
+    , EStatement    <$> (pStatement     <* symbol ";")
+                    <*> pExpr
+    , EIf           <$> (keyword "if"   *> pExpr)
+                    <*> (keyword "then" *> pExpr)
+                    <*> (keyword "else" *> pExpr)
     , parens pExpr
-    , EStatement    <$> pStatement <* symbol ";" <*> pExpr
-    , EVar          <$> pVar
     ]
 
 pStatements :: TextField f => Parser [RawStatement f]
@@ -309,12 +325,14 @@ pStatements = many (pStatement <* symbol ";")
 pStatement :: TextField f => Parser (RawStatement f)
 pStatement =
     choice
-    [ ELet    <$> (keyword "let"    *> pVar)
+    -- This can backtrack for expr starting with a "("
+    [ try (parens pStatement)
+    , ELet    <$> (keyword "let"    *> pVar)
               <*> (symbol  "="      *> pExpr)
     , EAssert <$> (keyword "assert" *> pExpr)
     , EFor    <$> (keyword "for"    *> pVar)
-              <*> (symbol  "="      *> pExpr)
-              <*> (keyword "to"     *> pExpr)
+              <*> (symbol  "="      *> pIntLiteral)
+              <*> (keyword "to"     *> pIntLiteral)
               <*> (keyword "do"     *> pStatements)
               <*   keyword "end"
     ]

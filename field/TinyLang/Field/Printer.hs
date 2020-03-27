@@ -6,7 +6,7 @@ module TinyLang.Field.Printer
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Core
+import           TinyLang.Field.Typed.Core
 
 import qualified Data.Vector         as Vector
 
@@ -44,9 +44,9 @@ toStringBinOp BAt l r = r ++ "[" ++ l ++ "]"
 
 -- Do we want () round something when printing it inside some other expression?
 isSimple :: Expr f a -> Bool
-isSimple EVal {} = True
-isSimple EVar {} = True
-isSimple _       = False
+isSimple EConst {} = True
+isSimple EVar {}   = True
+isSimple _         = False
 
 -- Convert to string (with enclosing () if necessary)
 exprToString1 :: TextField f => PrintStyle -> Expr f a -> String
@@ -55,10 +55,10 @@ exprToString1 s e = if isSimple e then exprToString s e else "(" ++ exprToString
 toStringBool :: Bool -> String
 toStringBool b = if b then "T" else "F"
 
-toStringUniVal :: TextField f => UniVal f a -> String
-toStringUniVal (UniVal Bool   b) = toStringBool b
-toStringUniVal (UniVal Field  i) = showField i
-toStringUniVal (UniVal Vector v) =
+toStringUniConst :: TextField f => UniConst f a -> String
+toStringUniConst (UniConst Bool   b) = toStringBool b
+toStringUniConst (UniConst Field  i) = showField i
+toStringUniConst (UniConst Vector v) =
     "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
 statementToString :: TextField f => PrintStyle -> Statement f -> String
@@ -72,7 +72,7 @@ statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
-exprToString _ (EVal uv)            = toStringUniVal uv
+exprToString _ (EConst uv)          = toStringUniConst uv
 exprToString s (EVar (UniVar _ v))  = toStringVar s v
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
 exprToString s (EAppBinOp op e1 e2) = toStringBinOp op (exprToString1 s e1) (exprToString1 s e2)

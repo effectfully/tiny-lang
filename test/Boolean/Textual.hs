@@ -25,7 +25,7 @@ forgetID :: Var -> Var
 forgetID v = Var (Unique 0) (_varName v)
 
 forgetIDs :: Expr -> Expr
-forgetIDs (EVal b)             = EVal b
+forgetIDs (EConst b)             = EConst b
 forgetIDs (EVar v)             = EVar (forgetID v)
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
