@@ -249,10 +249,10 @@ pVar = do
 {-| == Parser
 -}
 
-unary :: forall a f m.  Parser' m a -> UnOp -> Comb.Operator (Parser' m) (RawExpr f)
+unary :: Parser' m a -> UnOp -> Comb.Operator (Parser' m) (RawExpr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
-binary :: forall a f m.  Parser' m a -> BinOp -> Comb.Operator (Parser' m) (RawExpr f)
+binary :: Parser' m a -> BinOp -> Comb.Operator (Parser' m) (RawExpr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
 pIndex :: TextField f => Parser' m (RawExpr f)
