@@ -155,7 +155,6 @@ import           TinyLang.Prelude               hiding ( option
                                                        , many
                                                        , try
                                                        )
-
 import           TinyLang.Field.Raw.Core
 import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
@@ -171,7 +170,7 @@ import           Data.Set ( fromList
                           , member
                           )
 
-type Parser = Parsec Void String
+type Parser' = ParsecT Void String
 
 {-| == Lexer
 -}
@@ -188,7 +187,7 @@ identifierCharLabel = "identifier character [a-z0-9_']"
 identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identifierChar = satisfy isIdentifierChar <?> identifierCharLabel
 
-keyword :: String -> Parser ()
+keyword :: String -> Parser' m ()
 keyword kwd = lexeme (string kwd *> notFollowedBy identifierChar)
 
 keywords :: Set String
@@ -207,7 +206,7 @@ keywords =
 isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
-pIdentifier :: Parser Identifier
+pIdentifier :: Parser' m Identifier
 pIdentifier =
     lexeme $ do
         prefix     <- option "" (string "?" <|> string "#")
@@ -216,7 +215,7 @@ pIdentifier =
                               isIdentifierChar
         pure $ prefix ++ identifier
 
-pBoolLiteral :: Parser Bool
+pBoolLiteral :: Parser' m Bool
 pBoolLiteral =
     lexeme $ charToBool <$> (satisfy isTF <?> "T or F")
     where
@@ -226,7 +225,7 @@ pBoolLiteral =
         charToBool 'F' = False
         charToBool _   = error "impossible"
 
-pVecLiteral :: Parser (Vector Bool)
+pVecLiteral :: Parser' m (Vector Bool)
 pVecLiteral =
     lexeme $
         Vector.fromList <$>
@@ -235,11 +234,11 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
-pIntLiteral :: Parser Integer
+pIntLiteral :: Parser' m Integer
 pIntLiteral = signedDecimal
 
 -- variable is an identifier that is not a keyword
-pVar :: Parser Var
+pVar :: Parser' m Var
 pVar = do
     ident <- pIdentifier
     when (isKeyword ident)
@@ -250,16 +249,16 @@ pVar = do
 {-| == Parser
 -}
 
-unary :: forall a f.  Parser a -> UnOp -> Comb.Operator Parser (RawExpr f)
+unary :: forall a f m.  Parser' m a -> UnOp -> Comb.Operator (Parser' m) (RawExpr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
-binary :: forall a f.  Parser a -> BinOp -> Comb.Operator Parser (RawExpr f)
+binary :: forall a f m.  Parser' m a -> BinOp -> Comb.Operator (Parser' m) (RawExpr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
-pIndex :: TextField f => Parser (RawExpr f)
+pIndex :: TextField f => Parser' m (RawExpr f)
 pIndex = brackets pExpr
 
-operatorTable :: TextField f => [[Comb.Operator Parser (RawExpr f)]]
+operatorTable :: TextField f => [[Comb.Operator (Parser' m) (RawExpr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
       , unary  (keyword "neg")    $ Neg
@@ -288,23 +287,23 @@ operatorTable =
       ]
     ]
 
-vBool :: forall f. Parser (SomeUniConst f)
+vBool :: Parser' m (SomeUniConst f)
 vBool  = Some . (UniConst Bool)   <$> pBoolLiteral
 
-vVec :: forall f. Parser (SomeUniConst f)
+vVec :: Parser' m (SomeUniConst f)
 vVec   = Some . (UniConst Vector) <$> pVecLiteral
 
-vField :: TextField f => Parser (SomeUniConst f)
+vField :: TextField f => Parser' m (SomeUniConst f)
 vField = Some . (UniConst Field)  <$> parseField
 
-pConst :: TextField f => Parser (SomeUniConst f)
+pConst :: TextField f => Parser' m (SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec
     , vField
     ]
 
-pTerm :: TextField f => Parser (RawExpr f)
+pTerm :: TextField f => Parser' m (RawExpr f)
 pTerm =
     choice
     -- This can backtrack for parentheses
@@ -319,10 +318,10 @@ pTerm =
     , parens pExpr
     ]
 
-pStatements :: TextField f => Parser [RawStatement f]
+pStatements :: TextField f => Parser' m [RawStatement f]
 pStatements = many (pStatement <* symbol ";")
 
-pStatement :: TextField f => Parser (RawStatement f)
+pStatement :: TextField f => Parser' m (RawStatement f)
 pStatement =
     choice
     -- This can backtrack for expr starting with a "("
@@ -337,8 +336,8 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: TextField f => Parser (RawExpr f)
+pExpr :: TextField f => Parser' m (RawExpr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
 
-pTop :: TextField f => Parser (RawExpr f)
+pTop :: TextField f => Parser' m (RawExpr f)
 pTop = top pExpr
