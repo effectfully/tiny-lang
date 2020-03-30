@@ -44,7 +44,8 @@ parseScopedExpr str = do
     case errorOrSomeUniExpr of
         Left err -> return . Scoped totalScope $ Left err
         Right rawExpr -> do
-            case typeCheck rawExpr of
+            typed <- runExceptT (typeCheck rawExpr)
+            case typed of
                 Left err' -> return . Scoped totalScope $ Left err'
                 Right (SomeOf uni e) -> do
                     eRen <- renameExpr e
