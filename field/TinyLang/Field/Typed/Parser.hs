@@ -1,70 +1,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-| A parser for a tiny language involving booleans and field elements.
-  The concrete syntax is as follows:
+{-| Typed Parser.
 
-  val ::= T | F
-  fvar ::= [a-z][a-z0-9_]*
-  bvar ::=  '?'[a-z][a-z0-9_]*
+This module exposes the old API of the Typed Parser.
 
-  Note that boolean variable names must begin with '?' so that
-  the parser knows what the type is.  We'd need environments
-  or type annotations or something to avoid this.
+For the new API please refer to "TinyLang.Field.Raw.Parser".
 
-  assertion ::=
-      'assert' expr
-
-  statements ::=
-      null
-      statement; statements
-
-  statement ::=
-      'let' var = expr
-      assertion
-      'for' var = int 'to' int 'do' statements 'end'
-
-  expr ::=
-      val
-      fvar
-      bvar
-      'not' expr
-      'neq0' expr
-      'neg' expr
-      'inv' expr
-      expr 'and' expr
-      expr 'or'  expr
-      expr 'xor' expr
-      expr == expr
-      expr < expr
-      expr <= expr
-      expr >= expr
-      expr > expr
-      expr + expr
-      expr - expr
-      expr * expr
-      expr / expr
-      'unp' expr
-      expr [expr]
-      'if' expr 'then' expr 'else' expr
-      statement; expr
-      (expr)
-
-  Things like 'and' denote keywords.
-
-  Precedence: 'not' > 'xor' > 'and' > 'or'  (but use parentheses anyway).
-  if-then-else has to be parenthesised unless it's at the very top.
-
-  Precedence for numeric operators is standard:  {neg,inv} > {*,/} > {+,- }.
-  Things like "neg inv 5" are illegal: use parentheses.
-
-  The code is based on the tutorial at
-  https://markkarpov.com/megaparsec/parsing-simple-imperative-language.html
-
-  See also https://markkarpov.com/megaparsec/megaparsec.html
 -}
-
--- FIXME: do we want to allow == on booleans?  Eg, T==F or (1==2)==(3==4)
-
 module TinyLang.Field.Typed.Parser
     ( parseBy
     , parseScopedExpr
