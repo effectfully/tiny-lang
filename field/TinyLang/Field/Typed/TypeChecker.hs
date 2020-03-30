@@ -130,6 +130,9 @@ inferExpr (R.EIf l m n) = do
     SomeOf uni tM <- inferExpr m
     tN <- T.withKnownUni uni $ checkExpr n
     pure $ SomeOf uni $ T.EIf tL tM tN
+inferExpr (R.EAnn u m) = do
+    case u of
+        Some uni -> T.withKnownUni uni $ SomeOf uni <$> checkExpr m
 
 {-| Mapping from Raw UnOp to Typed UnOp
 -}

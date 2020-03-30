@@ -35,6 +35,7 @@ data Expr v f
     | EAppUnOp   UnOp            (Expr v f)
     | EStatement (Statement v f) (Expr v f)
     | EIf        (Expr v f)      (Expr v f) (Expr v f)
+    | EAnn       (SomeUni f)     (Expr v f)
     deriving (Show)
 
 data BinOp

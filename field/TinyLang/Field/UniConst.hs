@@ -2,6 +2,7 @@ module TinyLang.Field.UniConst
     ( Uni(..)
     , UniConst(..)
     , SomeUniConst
+    , SomeUni
     , KnownUni
     , knownUni
     , withGeqUni
@@ -60,6 +61,8 @@ data UniVar f a = UniVar
 --     }
 
 type SomeUniConst f = Some (UniConst f)
+type SomeUni f = Some (Uni f)
+
 
 -- instances
 
@@ -98,6 +101,7 @@ instance TextField f => Show (UniConst f a) where
     show (UniConst Vector v) = "(UniConst Vector " ++ show v ++ ")"
 
 deriving instance TextField f => Show (Some (UniConst f))
+deriving instance TextField f => Show (Some (Uni f))
 
 withGeqUni :: Uni f a1 -> Uni f a2 -> b -> (a1 ~ a2 => b) -> b
 withGeqUni Bool   Bool   _ y = y

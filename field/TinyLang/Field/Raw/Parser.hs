@@ -201,6 +201,7 @@ keywords =
     , "assert"
     , "for", "do", "end"
     , "if", "then", "else"
+    , "bool", "field", "vector"
     ]
 
 isKeyword :: String -> Bool
@@ -285,6 +286,9 @@ operatorTable =
       , binary (keyword "and")    $ And
       , binary (keyword "or")     $ Or
       ]
+      -- : uni
+    , [ Comb.Postfix (EAnn <$> pAnn)
+      ]
     ]
 
 vBool :: ParserT m (SomeUniConst f)
@@ -301,6 +305,17 @@ pConst = choice
     [ vBool
     , vVec
     , vField
+    ]
+
+
+pAnn :: ParserT m (SomeUni f)
+pAnn = symbol ":" *> pSomeUni
+
+pSomeUni :: ParserT m (SomeUni f)
+pSomeUni = choice
+    [ pure (Some Bool)   <* keyword "bool"
+    , pure (Some Field)  <* keyword "field"
+    , pure (Some Vector) <* keyword "vector"
     ]
 
 pTerm :: TextField f => ParserT m (RawExpr f)
