@@ -170,7 +170,7 @@ import           Data.Set ( fromList
                           , member
                           )
 
-type Parser' = ParsecT Void String
+type ParserT = ParsecT Void String
 
 {-| == Lexer
 -}
@@ -187,7 +187,7 @@ identifierCharLabel = "identifier character [a-z0-9_']"
 identifierChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identifierChar = satisfy isIdentifierChar <?> identifierCharLabel
 
-keyword :: String -> Parser' m ()
+keyword :: String -> ParserT m ()
 keyword kwd = lexeme (string kwd *> notFollowedBy identifierChar)
 
 keywords :: Set String
@@ -206,7 +206,7 @@ keywords =
 isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
-pIdentifier :: Parser' m Identifier
+pIdentifier :: ParserT m Identifier
 pIdentifier =
     lexeme $ do
         prefix     <- option "" (string "?" <|> string "#")
@@ -215,7 +215,7 @@ pIdentifier =
                               isIdentifierChar
         pure $ prefix ++ identifier
 
-pBoolLiteral :: Parser' m Bool
+pBoolLiteral :: ParserT m Bool
 pBoolLiteral =
     lexeme $ charToBool <$> (satisfy isTF <?> "T or F")
     where
@@ -225,7 +225,7 @@ pBoolLiteral =
         charToBool 'F' = False
         charToBool _   = error "impossible"
 
-pVecLiteral :: Parser' m (Vector Bool)
+pVecLiteral :: ParserT m (Vector Bool)
 pVecLiteral =
     lexeme $
         Vector.fromList <$>
@@ -234,11 +234,11 @@ pVecLiteral =
             (symbol "}")
             (pBoolLiteral `sepBy` (symbol ","))
 
-pIntLiteral :: Parser' m Integer
+pIntLiteral :: ParserT m Integer
 pIntLiteral = signedDecimal
 
 -- variable is an identifier that is not a keyword
-pVar :: Parser' m Var
+pVar :: ParserT m Var
 pVar = do
     ident <- pIdentifier
     when (isKeyword ident)
@@ -249,16 +249,16 @@ pVar = do
 {-| == Parser
 -}
 
-unary :: Parser' m a -> UnOp -> Comb.Operator (Parser' m) (RawExpr f)
+unary :: ParserT m a -> UnOp -> Comb.Operator (ParserT m) (RawExpr f)
 unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 
-binary :: Parser' m a -> BinOp -> Comb.Operator (Parser' m) (RawExpr f)
+binary :: ParserT m a -> BinOp -> Comb.Operator (ParserT m) (RawExpr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
-pIndex :: TextField f => Parser' m (RawExpr f)
+pIndex :: TextField f => ParserT m (RawExpr f)
 pIndex = brackets pExpr
 
-operatorTable :: TextField f => [[Comb.Operator (Parser' m) (RawExpr f)]]
+operatorTable :: TextField f => [[Comb.Operator (ParserT m) (RawExpr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
       , unary  (keyword "neg")    $ Neg
@@ -287,23 +287,23 @@ operatorTable =
       ]
     ]
 
-vBool :: Parser' m (SomeUniConst f)
+vBool :: ParserT m (SomeUniConst f)
 vBool  = Some . (UniConst Bool)   <$> pBoolLiteral
 
-vVec :: Parser' m (SomeUniConst f)
+vVec :: ParserT m (SomeUniConst f)
 vVec   = Some . (UniConst Vector) <$> pVecLiteral
 
-vField :: TextField f => Parser' m (SomeUniConst f)
+vField :: TextField f => ParserT m (SomeUniConst f)
 vField = Some . (UniConst Field)  <$> parseField
 
-pConst :: TextField f => Parser' m (SomeUniConst f)
+pConst :: TextField f => ParserT m (SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec
     , vField
     ]
 
-pTerm :: TextField f => Parser' m (RawExpr f)
+pTerm :: TextField f => ParserT m (RawExpr f)
 pTerm =
     choice
     -- This can backtrack for parentheses
@@ -318,10 +318,10 @@ pTerm =
     , parens pExpr
     ]
 
-pStatements :: TextField f => Parser' m [RawStatement f]
+pStatements :: TextField f => ParserT m [RawStatement f]
 pStatements = many (pStatement <* symbol ";")
 
-pStatement :: TextField f => Parser' m (RawStatement f)
+pStatement :: TextField f => ParserT m (RawStatement f)
 pStatement =
     choice
     -- This can backtrack for expr starting with a "("
@@ -336,8 +336,8 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: TextField f => Parser' m (RawExpr f)
+pExpr :: TextField f => ParserT m (RawExpr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
 
-pTop :: TextField f => Parser' m (RawExpr f)
+pTop :: TextField f => ParserT m (RawExpr f)
 pTop = top pExpr
