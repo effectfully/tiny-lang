@@ -45,6 +45,26 @@ keyword ::=
     "to"
     "unpack"
     "xor"
+    "field"
+    "bool"
+    "vector"
+@
+
+== Types/Universes
+
+Currently we only support 3 types/universes:
+
+* booleans,
+* fields, and
+* vectors.
+
+We use them to annotate expressions with their desired type.
+
+@
+uni ::=
+    "bool"
+    "field"
+    "vector"
 @
 
 == Identifiers
@@ -91,6 +111,7 @@ expr ::=
     expr "[" expr "]"
     statement ";" expr
     "if" expr "then" expr "else" expr
+    expr ":" uni
 
 infix-op ::=
     "and"
@@ -201,6 +222,7 @@ keywords =
     , "assert"
     , "for", "do", "end"
     , "if", "then", "else"
+    , "bool", "field", "vector"
     ]
 
 isKeyword :: String -> Bool
@@ -285,6 +307,9 @@ operatorTable =
       , binary (keyword "and")    $ And
       , binary (keyword "or")     $ Or
       ]
+      -- : uni
+    , [ Comb.Postfix (ETypeAnn <$> pAnn)
+      ]
     ]
 
 vBool :: ParserT m (SomeUniConst f)
@@ -301,6 +326,17 @@ pConst = choice
     [ vBool
     , vVec
     , vField
+    ]
+
+
+pAnn :: ParserT m (SomeUni f)
+pAnn = symbol ":" *> pSomeUni
+
+pSomeUni :: ParserT m (SomeUni f)
+pSomeUni = choice
+    [ Some Bool   <$ keyword "bool"
+    , Some Field  <$ keyword "field"
+    , Some Vector <$ keyword "vector"
     ]
 
 pTerm :: TextField f => ParserT m (RawExpr f)

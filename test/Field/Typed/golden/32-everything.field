@@ -26,4 +26,7 @@ let ?let = let i = 3; T;
 let ?assert = assert T; T;
 let ?for = for j = 0 to 2 do end; T;
 let ?if = if T then T else T;
+let asf = 1 : field;
+let ?as = T : bool;
+let #as = { T } : vector;
 T
