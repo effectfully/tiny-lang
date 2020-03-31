@@ -259,8 +259,9 @@ exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
 
 supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
-supplyFromAtLeastFree expr = supplyFromAtLeast . freeUniqueIntMap . unEnv $ free <> bound where
-    ScopedVarSigns free bound = exprVarSigns expr
+supplyFromAtLeastFree =
+    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSignsFree . exprVarSigns
+
 
 embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
 embedBoolUnOp Boolean.Not = Not

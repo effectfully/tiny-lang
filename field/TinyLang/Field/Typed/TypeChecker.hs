@@ -72,24 +72,24 @@ type TypeChecker = TypeCheckerT TypeCheckError Identity
 
 {-|
 -}
-runTypeChecker :: TypeChecker a -> Either TypeCheckError a
-runTypeChecker typeChecker =
-    runIdentity $ runSupplyT
-                $ evalStateT (runExceptT (runTypeCheckerT typeChecker))
-                             mempty
+runTypeChecker :: (MonadError TypeCheckError m, MonadSupply m) => TypeChecker a -> m a
+runTypeChecker typeChecker = do
+    (liftSupply (evalStateT (runExceptT (runTypeCheckerT typeChecker)) mempty))
+    >>= liftEither
 
 {-|
 -}
 typeCheck
-    :: forall f. (TextField f)
-    => R.Expr R.Var f -> Either TypeCheckError (T.SomeUniExpr f)
+    :: (MonadError TypeCheckError m, MonadSupply m, TextField f)
+    => R.Expr R.Var f -> m (T.SomeUniExpr f)
 typeCheck = runTypeChecker . inferExpr
+
 
 {-|
 -}
 checkType
-    :: forall f a. (TextField f, KnownUni f a)
-    => R.Expr R.Var f -> Either TypeCheckError (T.Expr f a)
+    :: (MonadError TypeCheckError m, MonadSupply m, TextField f, KnownUni f a)
+    => R.Expr R.Var f -> m (T.Expr f a)
 checkType = runTypeChecker . checkExpr
 
 
