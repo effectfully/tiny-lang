@@ -287,7 +287,7 @@ operatorTable =
       , binary (keyword "or")     $ Or
       ]
       -- : uni
-    , [ Comb.Postfix (EAnn <$> pAnn)
+    , [ Comb.Postfix (ETypeAnn <$> pAnn)
       ]
     ]
 
