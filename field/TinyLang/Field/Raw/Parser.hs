@@ -313,9 +313,9 @@ pAnn = symbol ":" *> pSomeUni
 
 pSomeUni :: ParserT m (SomeUni f)
 pSomeUni = choice
-    [ pure (Some Bool)   <* keyword "bool"
-    , pure (Some Field)  <* keyword "field"
-    , pure (Some Vector) <* keyword "vector"
+    [ Some Bool   <$ keyword "bool"
+    , Some Field  <$ keyword "field"
+    , Some Vector <$ keyword "vector"
     ]
 
 pTerm :: TextField f => ParserT m (RawExpr f)
