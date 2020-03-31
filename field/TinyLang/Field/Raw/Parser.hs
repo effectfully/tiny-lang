@@ -45,6 +45,26 @@ keyword ::=
     "to"
     "unpack"
     "xor"
+    "field"
+    "bool"
+    "vector"
+@
+
+== Types/Universes
+
+Currently we only support 3 types/universes:
+
+* booleans,
+* fields, and
+* vectors.
+
+We use them to annotate expressions with their desired type.
+
+@
+uni ::=
+    "bool"
+    "field"
+    "vector"
 @
 
 == Identifiers
@@ -91,6 +111,7 @@ expr ::=
     expr "[" expr "]"
     statement ";" expr
     "if" expr "then" expr "else" expr
+    expr ":" uni
 
 infix-op ::=
     "and"
