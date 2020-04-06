@@ -2,15 +2,15 @@ module Field.Typed.Textual
     ( gen_test_typechecking
     ) where
 
-import TinyLang.Var
-import TinyLang.Field.Typed.Core (SomeUniExpr)
-import TinyLang.Field.Typed.TypeChecker
-import Field.TestUtils
+import           Field.TestUtils
+import           TinyLang.Field.Typed.Core        (SomeUniExpr)
+import           TinyLang.Field.Typed.TypeChecker
+import           TinyLang.Var
 
-import Data.String
-import System.FilePath
-import Test.Tasty
-import Test.Tasty.Golden
+import           Data.String
+import           System.FilePath
+import           Test.Tasty
+import           Test.Tasty.Golden
 
 testDir :: FilePath
 testDir = "test" </> "Field" </> "Typed" </> "golden"
@@ -18,8 +18,8 @@ testDir = "test" </> "Field" </> "Typed" </> "golden"
 typeCheckFilePath :: FilePath -> IO (Either String (SomeUniExpr Rational))
 typeCheckFilePath filePath = do
     parsed <- parseFilePath filePath
-    pure $ runSupplyT . typeCheck =<< parsed
-    
+    pure $ runSupplyT . fmap _scopedValue . typeCheck =<< parsed
+
 genTest :: FilePath -> TestTree
 genTest filePath = goldenVsString name golden action
     where name = takeBaseName filePath
