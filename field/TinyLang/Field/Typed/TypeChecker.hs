@@ -32,20 +32,20 @@ module TinyLang.Field.Typed.TypeChecker
     )
     where
 
-import           TinyLang.Prelude hiding (TypeError)
+import           TinyLang.Prelude           hiding (TypeError)
 
 import           Data.Field
 import           TinyLang.Environment
-import           TinyLang.Var
 import           TinyLang.Field.Evaluator
-import           TinyLang.Field.UniConst
 import           TinyLang.Field.Existential
-import qualified TinyLang.Field.Typed.Core  as T
 import qualified TinyLang.Field.Raw.Core    as R
+import qualified TinyLang.Field.Typed.Core  as T
+import           TinyLang.Field.UniConst
+import           TinyLang.Var
 
 import           Data.Kind
-import qualified Data.String.Interpolate    as QQ
 import qualified Data.Map.Strict            as Map
+import qualified Data.String.Interpolate    as QQ
 
 -- | 'Scope' maps names onto 'Var's.
 type Scope = Map String Var

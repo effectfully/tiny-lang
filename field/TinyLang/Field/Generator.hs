@@ -24,14 +24,14 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Evaluator
+import           TinyLang.Field.Typed.Core
 
-import qualified Data.IntMap.Strict        as IntMap
-import qualified Data.Vector               as Vector
+import qualified Data.IntMap.Strict               as IntMap
+import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
-import           Test.QuickCheck           hiding (elements, frequency, oneof,
-                                                   sized)
+import           Test.QuickCheck                  hiding (elements, frequency,
+                                                   oneof, sized)
 import           Test.QuickCheck.Instances.Vector ()
 
 -- Our generators all run in such an @m@ that @MonadGen m@ and

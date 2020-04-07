@@ -9,21 +9,21 @@ module Data.Field
     , two
     ) where
 
-import           Prelude          hiding (div)
-import qualified Prelude          (div)
+import           Prelude             hiding (div)
+import qualified Prelude             (div)
 
 import           TinyLang.ParseUtils
 
-import           Control.Exception (throw, ArithException (..))
-import           Control.Monad     (guard)
-import           Data.Maybe        (fromMaybe)
+import           Control.Exception   (ArithException (..), throw)
+import           Control.Monad       (guard)
+import qualified Data.Field.Galois   as GF
+import           Data.Foldable       (asum)
+import           Data.Maybe          (fromMaybe)
 import           Data.Proxy
 import           Data.Ratio
-import           Data.Foldable     (asum)
-import qualified Data.Field.Galois as GF
 import           GHC.TypeLits
-import           Text.Megaparsec
 import           Test.QuickCheck
+import           Text.Megaparsec
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
@@ -164,11 +164,11 @@ instance Field f => Num (AField f) where
         | n0 >= 0   = go n0
         | otherwise = neg $ go (- n0)
         where
-            go 0          = zer
-            go 1          = one
-            go 2          = two
+            go 0 = zer
+            go 1 = one
+            go 2 = two
             go n | even n = two `mul` fromInteger (n `Prelude.div` 2)
-            go n          = one `add` fromInteger (n - 1)
+            go n = one `add` fromInteger (n - 1)
 
 instance Field f => Fractional (AField f) where
     x / y = fromDivided $ x `div` y

@@ -28,14 +28,14 @@ module TinyLang.Field.Evaluator
     , instExpr
     ) where
 
-import           Prelude              hiding (div)
+import           Prelude                          hiding (div)
 
 import           TinyLang.Environment
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Prelude
 
-import qualified Data.Vector          as Vector
 import qualified Data.String.Interpolate.IsString as QQ
+import qualified Data.Vector                      as Vector
 
 data TypeMismatch f = forall a b. TypeMismatch (UniVar f a) (UniConst f b)
 
@@ -238,12 +238,12 @@ normExpr env (EIf e e1 e2) = do
         nE2 = normExpr env e2
     case eN of
         EConst (UniConst Bool b) -> if b then nE1 else nE2
-        _                      -> EIf eN <$> nE1 <*> nE2
+        _                        -> EIf eN <$> nE1 <*> nE2
 normExpr env (EAppUnOp op e) = do
     eN <- normExpr env e
     case eN of
         EConst (UniConst _ x) -> EConst <$> evalUnOp op x
-        _                   -> return $ EAppUnOp op eN
+        _                     -> return $ EAppUnOp op eN
 normExpr env (EAppBinOp op e1 e2) = do
     e1N <- normExpr env e1
     e2N <- normExpr env e2

@@ -11,10 +11,10 @@ module TinyLang.Field.Raw.Core
     , RawStatement
     ) where
 
-import TinyLang.Field.UniConst
+import           TinyLang.Field.UniConst
 
-import GHC.Generics
-import Quiet
+import           GHC.Generics
+import           Quiet
 
 {-| = AST
 -}

@@ -6,16 +6,16 @@ module Field.TestUtils
     , discoverTests
     ) where
 
-import TinyLang.Prelude
+import           TinyLang.Prelude
 
-import TinyLang.ParseUtils
-import TinyLang.Field.Raw.Core (RawExpr)
-import TinyLang.Field.Raw.Parser
+import           TinyLang.Field.Raw.Core   (RawExpr)
+import           TinyLang.Field.Raw.Parser
+import           TinyLang.ParseUtils
 
-import System.FilePath
-import System.FilePath.Glob
-import Test.Tasty
-import Test.Tasty.HUnit
+import           System.FilePath
+import           System.FilePath.Glob
+import           Test.Tasty
+import           Test.Tasty.HUnit
 
 testFileExt :: String
 testFileExt = ".field"
@@ -43,5 +43,5 @@ discoverTests groupName testDir genTest = do
             testCase "test discovery" $
             not (null files) @? "didn't find any " ++ testFileExt ++  " files in " ++ testDir
     let testCases = testFoundAnyFiles : map genTest files
-    pure $ testGroup groupName $ testCases 
-    
+    pure $ testGroup groupName $ testCases
+
