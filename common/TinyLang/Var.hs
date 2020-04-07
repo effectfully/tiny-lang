@@ -19,7 +19,7 @@ module TinyLang.Var
 import           TinyLang.Prelude
 
 import           Control.Monad.Morph
-import qualified Data.IntMap.Strict as IntMap
+import qualified Data.IntMap.Strict  as IntMap
 
 -- TODO: Use a library.
 newtype Unique = Unique

@@ -8,7 +8,7 @@ import           TinyLang.Prelude
 
 import           TinyLang.Field.Typed.Core
 
-import qualified Data.Vector         as Vector
+import qualified Data.Vector               as Vector
 
 -- | Variable names are equipped with Unique identifiers.  The
 -- PrintStyle type determines whether printed variable names include

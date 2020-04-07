@@ -9,11 +9,11 @@ module TinyLang.Field.UniConst
     , withGeqUniM
     ) where
 
-import Prelude                    hiding (div)
-import Data.Field
-import TinyLang.Prelude
-import TinyLang.Var
-import TinyLang.Field.Existential
+import           Data.Field
+import           Prelude                    hiding (div)
+import           TinyLang.Field.Existential
+import           TinyLang.Prelude
+import           TinyLang.Var
 
 data Uni f a where
     Bool   :: Uni f Bool

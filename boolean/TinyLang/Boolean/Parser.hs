@@ -30,7 +30,7 @@ import           TinyLang.Boolean.Core
 import           TinyLang.Prelude               hiding (many, try)
 import           TinyLang.Var
 
-import           Control.Applicative (pure)
+import           Control.Applicative            (pure)
 import           Control.Monad.Combinators.Expr as E
 import qualified Data.Map                       as M
 import           Text.Megaparsec

@@ -12,18 +12,19 @@ module TinyLang.Field.Typed.Parser
     , parseExpr
     ) where
 
-import           TinyLang.Prelude               hiding (many, some, try, option)
+import           TinyLang.Prelude                 hiding (many, option, some,
+                                                   try)
 
 import           Data.Field
 import           TinyLang.Field.Raw.Parser
+import           TinyLang.Field.Rename
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Typed.TypeChecker
-import           TinyLang.Field.Rename
 import           TinyLang.ParseUtils
 
-import qualified Data.IntMap.Strict             as IntMap
-import qualified Data.IntSet                    as IntSet
-import qualified Data.Map.Strict                as Map
+import qualified Data.IntMap.Strict               as IntMap
+import qualified Data.IntSet                      as IntSet
+import qualified Data.Map.Strict                  as Map
 
 -- TODO: use a proper @newtype@.
 instance TextField f => IsString (Scoped (Some (Expr f))) where

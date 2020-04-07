@@ -9,19 +9,19 @@ module Field.Textual
 
 import           Data.Field.F17
 import           Data.Field.F4913
-import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Generator
-import qualified TinyLang.Field.Jubjub as JJ
-import           TinyLang.Field.Typed.Parser
+import qualified TinyLang.Field.Jubjub       as JJ
 import           TinyLang.Field.Printer
+import           TinyLang.Field.Typed.Core
+import           TinyLang.Field.Typed.Parser
 import           TinyLang.Prelude
 
+import           System.Directory
+import           System.FilePath
 import           Test.QuickCheck
 import           Test.Tasty
-import           Test.Tasty.QuickCheck
 import           Test.Tasty.Golden
-import           System.FilePath
-import           System.Directory
+import           Test.Tasty.QuickCheck
 
 -- TODO: we shouldn't forget uniques, because we ignore name shadowing problems in
 -- generators. I.e. we should implement alpha-equality (but it is kind of weird to change

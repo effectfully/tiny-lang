@@ -2,8 +2,8 @@ module Main where
 
 import qualified Boolean.Textual     as Boolean (test_printerParserRoundtrip)
 import qualified Field.Axioms        as Field (test_axiomsExamples)
-import qualified Field.Textual       as Field (test_textual)
 import qualified Field.Raw.Textual   as Raw (gen_test_parsing)
+import qualified Field.Textual       as Field (test_textual)
 import qualified Field.Typed.Textual as Field (gen_test_typechecking)
 
 import           Test.Tasty

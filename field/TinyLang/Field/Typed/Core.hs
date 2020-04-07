@@ -36,11 +36,11 @@ import           Prelude                    hiding (div)
 import           TinyLang.Prelude
 
 import           Data.Field                 as Field
-import           TinyLang.Var               as Var
-import           TinyLang.Environment       as Env
 import qualified TinyLang.Boolean.Core      as Boolean
+import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
+import           TinyLang.Var               as Var
 
 
 -- Needed for the sake of symmetry with 'UniConst'.
