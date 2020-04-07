@@ -7,7 +7,7 @@ module Field.Textual
     ( test_textual
     ) where
 
-import           Data.Field.F17
+-- import           Data.Field.F17
 import           Data.Field.F4913
 import           TinyLang.Field.Generator
 import qualified TinyLang.Field.Jubjub       as JJ
@@ -30,9 +30,9 @@ import           Test.Tasty.QuickCheck
 forgetID :: UniVar f a -> UniVar f a
 forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 
-forgetStatementIDs :: Statement f -> Statement f
-forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
-forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
+-- forgetStatementIDs :: Statement f -> Statement f
+-- forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
+-- forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
 
 forgetIDs :: Expr f a -> Expr f a
 forgetIDs (EConst uval)        = EConst uval
