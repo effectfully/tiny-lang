@@ -14,7 +14,10 @@ Potential resources:
 -}
 
 module TinyLang.Field.Typed.TypeChecker
-    ( TypeCheckError
+    ( Scope
+    , MonadScope
+    , Scoped (..)
+    , TypeCheckError
     , MonadTypeError
     , MonadTypeChecker
     , TypeCheckerT(..)
@@ -34,7 +37,6 @@ import           TinyLang.Prelude hiding (TypeError)
 import           Data.Field
 import           TinyLang.Environment
 import           TinyLang.Var
-import           TinyLang.ParseUtils
 import           TinyLang.Field.Evaluator
 import           TinyLang.Field.UniConst
 import           TinyLang.Field.Existential
@@ -43,6 +45,16 @@ import qualified TinyLang.Field.Raw.Core    as R
 
 import           Data.Kind
 import qualified Data.String.Interpolate    as QQ
+import qualified Data.Map.Strict            as Map
+
+-- | 'Scope' maps names onto 'Var's.
+type Scope = Map String Var
+type MonadScope = MonadState Scope
+
+data Scoped a = Scoped
+    { _scopedScope :: Map String Var
+    , _scopedValue :: a
+    } deriving (Functor, Foldable, Traversable)
 
 {-| == Utility Type Aliases or Constraints
 -}
@@ -70,28 +82,40 @@ newtype TypeCheckerT e (m :: Type -> Type) a =
 -}
 type TypeChecker = TypeCheckerT TypeCheckError Identity
 
-{-|
+{-| Run a type checker function. Note that if there are several variables with the same textual name
+then the resulting scope will only contain the last one.
 -}
-runTypeChecker :: (MonadError TypeCheckError m, MonadSupply m) => TypeChecker a -> m a
-runTypeChecker typeChecker = do
-    (liftSupply (evalStateT (runExceptT (runTypeCheckerT typeChecker)) mempty))
-    >>= liftEither
+runTypeChecker :: (MonadError TypeCheckError m, MonadSupply m) => TypeChecker a -> m (Scoped a)
+runTypeChecker typeChecker =
+    liftSupply (runStateT (runExceptT $ runTypeCheckerT typeChecker) mempty)
+        >>= \(errOrRes, scope) -> Scoped scope <$> liftEither errOrRes
 
 {-|
 -}
 typeCheck
     :: (MonadError TypeCheckError m, MonadSupply m, TextField f)
-    => R.Expr R.Var f -> m (T.SomeUniExpr f)
+    => R.Expr R.Var f -> m (Scoped (T.SomeUniExpr f))
 typeCheck = runTypeChecker . inferExpr
-
 
 {-|
 -}
 checkType
     :: (MonadError TypeCheckError m, MonadSupply m, TextField f, KnownUni f a)
-    => R.Expr R.Var f -> m (T.Expr f a)
+    => R.Expr R.Var f -> m (Scoped (T.Expr f a))
 checkType = runTypeChecker . checkExpr
 
+{-| Look up a variable name. If we've already seen it, return the corresponding Var;
+otherwise, increase the Unique counter and use it to construct a new Var.
+-}
+makeVar :: (MonadSupply m, MonadScope m) => String -> m Var
+makeVar name = do
+    vars <- get
+    case Map.lookup name vars of
+        Just var -> pure var
+        Nothing  -> do
+            var <- freshVar name
+            put $ Map.insert name var vars
+            pure var
 
 mkSomeUniVar :: forall f. T.Var -> T.SomeUniVar f
 mkSomeUniVar var

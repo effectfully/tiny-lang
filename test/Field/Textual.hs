@@ -50,7 +50,7 @@ forgetIDs (EStatement stat e)  = EStatement (forgetStatementIDs stat) (forgetIDs
 
 prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
 prop_Ftest (SomeOf uni expr) = do
-    SomeOf uni' expr' <- runSupply $ parseExpr (exprToString NoIDs expr)
+    SomeOf uni' expr' <- runSupplyT $ parseExpr (exprToString NoIDs expr)
     let checkResult expr'' =
             when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
                 [ exprToString NoIDs expr
@@ -108,7 +108,7 @@ test_printerParserRoundtrip =
 parsePrint :: String -> String
 parsePrint
     = either id (forget $ exprToString WithIDs)
-    . runSupply
+    . runSupplyT
     . parseExpr @Rational
 
 parsePrintGolden :: String -> String -> TestTree

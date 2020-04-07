@@ -172,24 +172,19 @@ module TinyLang.Field.Raw.Parser
     ( pTop
     ) where
 
-import           TinyLang.Prelude               hiding ( option
-                                                       , many
-                                                       , try
-                                                       )
-import           TinyLang.Field.Raw.Core
-import           TinyLang.Field.Existential
-import           TinyLang.Field.UniConst
-import           TinyLang.ParseUtils            hiding ( Parser )
+import           TinyLang.Prelude               hiding (many, option, try)
+
 import           Data.Field
+import           TinyLang.Field.Existential
+import           TinyLang.Field.Raw.Core
+import           TinyLang.Field.UniConst
+import           TinyLang.ParseUtils
 
-
+import qualified Control.Monad.Combinators.Expr as Comb
+import           Data.Set                       (fromList, member)
+import qualified Data.Vector                    as Vector
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Control.Monad.Combinators.Expr as Comb
-import qualified Data.Vector                    as Vector
-import           Data.Set ( fromList
-                          , member
-                          )
 
 type ParserT = ParsecT Void String
 
