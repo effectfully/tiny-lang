@@ -121,6 +121,5 @@ test_axiomsExamples :: TestTree
 test_axiomsExamples =
     testGroup "axiomsExamples"
         [ test_axioms f17
-        , test_axioms f4913
         , test_axioms rational
         ]
