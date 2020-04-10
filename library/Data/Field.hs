@@ -5,7 +5,6 @@ module Data.Field
     , ToField (..)
     , TextField (..)
     , AsInteger (..)
-    , IsNegative (..)
     , two
     ) where
 
@@ -211,12 +210,9 @@ instance Field f => ToField f Bool where
 instance Field f => ToField f Rational where
     toField = unAField . fromRational
 
-{- | We're dealing with fields in which certain elements can be regarded
- as integers, and we're only supposed to carry out comparisons on such
- elements.  In the case of a finite field, these are probably elements
- of the prime subfield.  The AsInteger class adds an operation which
- returns the actual integer corresponding to such an element, if there
- is such an integer.
+{- | We're dealing with fields in which elements can be regarded as integers,
+and we carry out comparisons via integers. The @AsInteger@ class adds an operation
+which returns the integer corresponding to a field element.
 -}
 class AsInteger f where
     asInteger :: f -> Maybe Integer
@@ -230,16 +226,6 @@ instance AsInteger Rational where
         guard $ denominator r == 1
         Just $ numerator r
 
--- | The 'IsNegative' class adds an operation that allows to check whether a field element is
--- negative. The class is currently used only for pretty-printing and its semantics allows for
--- treating an element of a finite field as being negative.
-class IsNegative f where
-    isNegative :: f -> Bool
-    default isNegative :: (Ord f, Num f) => f -> Bool
-    isNegative x = x < 0
-
-instance IsNegative Rational
-
 -- | Various instances making Data.Field.Galois.Prime fit our type
 -- classes for fields.  Most of these would generalise to non-prime
 -- fields quite easily, but parsing and printing would require some
@@ -248,18 +234,14 @@ instance IsNegative Rational
 deriving via ABaseField (GF.Prime p) instance KnownNat p => Field (GF.Prime p)
 
 instance KnownNat p => AsInteger (GF.Prime p) where
-    asInteger = Just . GF.fromP
-
-instance KnownNat p => IsNegative (GF.Prime p) where
-    isNegative f = i > p `Prelude.div` 2 where
-        p = natVal @p Proxy
-        i = GF.fromP f
+    asInteger x
+        | i < p `Prelude.div` 2 = Just i
+        | otherwise             = Just (- GF.fromP (neg x))
+        where
+            p = natVal @p Proxy
+            i = GF.fromP x
 
 instance KnownNat p => TextField (GF.Prime p) where
     parseField = GF.toP <$> signedDecimal
-    showField f
-        | isNegative f = show $ i - p
-        | otherwise    = show i
-        where
-            p = natVal @p Proxy
-            i = GF.fromP f
+    -- 'asInteger' must always return a 'Just' for a 'GF.Prime'.
+    showField = maybe (error "Panic: not an integer") show . asInteger

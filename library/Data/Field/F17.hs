@@ -54,9 +54,6 @@ instance Field F17 where
 instance AsInteger F17 where
     asInteger = Just . fromIntegral . unF17
 
-instance IsNegative F17 where
-    isNegative _ = False
-
 -- | Choose a random element uniformly. If you use this in
 -- randomly-generated expressions there's a good chance that you'll
 -- get division by zero (-> undefined).

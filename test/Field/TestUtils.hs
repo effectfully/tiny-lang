@@ -44,4 +44,3 @@ discoverTests groupName testDir genTest = do
             not (null files) @? "didn't find any " ++ testFileExt ++  " files in " ++ testDir
     let testCases = testFoundAnyFiles : map genTest files
     pure $ testGroup groupName $ testCases
-
