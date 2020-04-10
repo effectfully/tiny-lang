@@ -16,6 +16,9 @@ u :: Integer
 u = -0xd201000000010000
 
 -- This is the long number from the above. Would be nice to statically test they're equal somehow.
+-- | The characteristic of the 'F' field.
+-- >>> toInteger (GF.char (undefined :: F)) == r
+-- True
 r :: Integer
 r = let u2 = u*u in u2*u2 - u2 + 1
 

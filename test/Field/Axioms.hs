@@ -1,15 +1,17 @@
 -- | QuickCheck tests for classes claiming to implement 'Field'
 
 module Field.Axioms
-    ( test_axiomsExamples
+    ( test_fields
     ) where
 
 import           TinyLang.Prelude
 
 import           Data.Field
+import qualified TinyLang.Field.Jubjub    as Jubjub
 import           TinyLang.Field.NamedType
 
 import           Test.Tasty
+import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck
 
 {- Note [Arbitrary AField]
@@ -102,24 +104,52 @@ test_mulDistributive _ =
 
 -- Other properties like  0.x == 0  and  x /= 0 => (xa == xb => a == b)  follow from the axioms.
 
-test_axioms :: TestableField f => NamedType f -> TestTree
-test_axioms namedType =
-    testGroup (coerce namedType)
-        [ test_addAssociative            namedType
-        , test_addCommutative            namedType
-        , test_zerAdditiveIdentity       namedType
-        , test_additiveInverse           namedType
-        , test_mulAssociative            namedType
-        , test_mulCommutative            namedType
-        , test_oneMultiplicativeIdentity namedType
-        , test_nonZeroInverse            namedType
-        , test_mulDistributive           namedType
+-- | Test that any 'Int' can be converted to a field element and back, resulting in the same @Int@.
+test_fromToInteger :: forall f proxy. (Field f, AsInteger f) => proxy f -> TestTree
+test_fromToInteger _ =
+    testPropertyHard "fromToInteger" $ \(i :: Large Int) ->
+        let i' = fromIntegral i in asInteger (fromInteger i' :: AField f) == Just i'
+
+test_fromToIntegerJubjubBounds :: TestTree
+test_fromToIntegerJubjubBounds =
+    testCase "fromToIntegerJubjubBounds" $ do
+        let mid = Jubjub.r `Prelude.div` 2
+        for_ ([0, mid, -mid] >>= \i -> [i-1, i, i+1]) $ \i -> do
+            -- Account for under/overflows.
+            let res
+                    | i < - (mid + 1) = i + Jubjub.r - 1
+                    | i < mid         = i
+                    | otherwise       = i - Jubjub.r
+            asInteger (fromInteger i :: AField Jubjub.F) @?= Just res
+
+test_axioms :: TestableField f => proxy f -> TestTree
+test_axioms proxy =
+    testGroup "axioms"
+        [ test_addAssociative            proxy
+        , test_addCommutative            proxy
+        , test_zerAdditiveIdentity       proxy
+        , test_additiveInverse           proxy
+        , test_mulAssociative            proxy
+        , test_mulCommutative            proxy
+        , test_oneMultiplicativeIdentity proxy
+        , test_nonZeroInverse            proxy
+        , test_mulDistributive           proxy
         ]
 
 -- | Test all of our favourite fields
-test_axiomsExamples :: TestTree
-test_axiomsExamples =
-    testGroup "axiomsExamples"
-        [ test_axioms f17
-        , test_axioms rational
+test_fields :: TestTree
+test_fields =
+    testGroup "fields"
+        [ testGroup "F17"
+            [ test_axioms f17
+            ]
+        , testGroup "Rational"
+            [ test_axioms rational
+            , test_fromToInteger rational
+            ]
+        , testGroup "Jubjub.F"
+            [ test_axioms jubjubF
+            , test_fromToInteger jubjubF
+            , test_fromToIntegerJubjubBounds
+            ]
         ]

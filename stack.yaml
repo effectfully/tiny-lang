@@ -10,4 +10,4 @@ extra-deps:
 - galois-field-1.0.1
 - bitvec-1.0.2.0
 - vector-algorithms-0.8.0.3
-- quiet-0.2@sha256:60bb3cb8dd4a225557351b6d622147a4e541f1564847e05a81621365a155ad6c,1413
+- quiet-0.2

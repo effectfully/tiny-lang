@@ -52,7 +52,7 @@ packages:
       size: 416
       sha256: c64a9ec9827f140768c01f1d9df1ed9ec9de2d70682a3822061bbe52cf85006c
   original:
-    hackage: quiet-0.2@sha256:60bb3cb8dd4a225557351b6d622147a4e541f1564847e05a81621365a155ad6c,1413
+    hackage: quiet-0.2
 snapshots:
 - completed:
     size: 499889
