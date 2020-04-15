@@ -14,7 +14,7 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-    hs-source-dirs: library common boolean field
+    hs-source-dirs: library common field
     exposed-modules:
         Data.Field
         Data.Field.F17
@@ -23,11 +23,6 @@ library
         TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var
-        TinyLang.Boolean.Core
-        TinyLang.Boolean.Evaluator
-        TinyLang.Boolean.Generator
-        TinyLang.Boolean.Parser
-        TinyLang.Boolean.Printer
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
         TinyLang.Field.Generator
@@ -81,7 +76,6 @@ test-suite tiny-lang-test
     main-is: Main.hs
     hs-source-dirs: test
     other-modules:
-        Boolean.Textual
         Field.Textual
         Field.Axioms
         Field.Raw.Textual
