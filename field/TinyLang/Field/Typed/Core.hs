@@ -26,9 +26,6 @@ module TinyLang.Field.Typed.Core
     , exprVarSigns
     , exprFreeVarSigns
     , supplyFromAtLeastFree
-    , embedBoolUnOp
-    , embedBoolBinOp
-    , embedBoolExpr
     , uniOfExpr
     ) where
 
@@ -36,7 +33,6 @@ import           Prelude                    hiding (div)
 import           TinyLang.Prelude
 
 import           Data.Field                 as Field
-import qualified TinyLang.Boolean.Core      as Boolean
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
@@ -261,20 +257,3 @@ exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
 supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
 supplyFromAtLeastFree =
     supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSignsFree . exprVarSigns
-
-
-embedBoolUnOp :: Boolean.UnOp -> UnOp f Bool Bool
-embedBoolUnOp Boolean.Not = Not
-
-embedBoolBinOp :: Boolean.BinOp -> BinOp f Bool Bool Bool
-embedBoolBinOp Boolean.Or  = Or
-embedBoolBinOp Boolean.And = And
-embedBoolBinOp Boolean.Xor = Xor
-
-embedBoolExpr :: Boolean.Expr -> Expr f Bool
-embedBoolExpr = go where
-    go (Boolean.EConst b)         = EConst $ UniConst Bool b
-    go (Boolean.EVar v)           = EVar $ UniVar Bool v
-    go (Boolean.EIf b x y)        = EIf (go b) (go x) (go y)
-    go (Boolean.EAppUnOp op x)    = EAppUnOp (embedBoolUnOp op) (go x)
-    go (Boolean.EAppBinOp op x y) = EAppBinOp (embedBoolBinOp op) (go x) (go y)
