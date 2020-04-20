@@ -1,1 +1,1 @@
-SomeOf Field (EConst 1)
+SomeOf Field (EAppBinOp Div (EConst 1) (EConst 1))

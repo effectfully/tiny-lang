@@ -11,18 +11,14 @@ module Data.Field
 import           Prelude             hiding (div)
 import qualified Prelude             (div)
 
-import           TinyLang.ParseUtils
-
 import           Control.Exception   (ArithException (..), throw)
 import           Control.Monad       (guard)
 import qualified Data.Field.Galois   as GF
-import           Data.Foldable       (asum)
 import           Data.Maybe          (fromMaybe)
 import           Data.Proxy
 import           Data.Ratio
 import           GHC.TypeLits
 import           Test.QuickCheck
-import           Text.Megaparsec
 
 infixl 6 `add`, `sub`
 infixl 7 `mul`, `div`
@@ -97,16 +93,7 @@ makeDiv d x y = do
 fromDivided :: Maybe f -> f
 fromDivided = fromMaybe $ throw DivideByZero
 
-parseFieldDefault :: (Field f, MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
-parseFieldDefault = unAField . fromInteger <$> signedDecimal
-
--- Note that any value produced by 'showField' must be parsable by 'parseField' even if it appears
--- in a large expression. This is why we always pretty-print rationals in parens currently.
 class Field f => TextField f where
-    parseField :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
-    default parseField :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m f
-    parseField = parseFieldDefault
-
     -- TODO: use proper precedence-sensitive pretty-printing.
     showField :: f -> String
     default showField :: Show f => f -> String
@@ -119,7 +106,6 @@ newtype AField f = AField
 
 -- GHC will not derive this one automatically
 instance (Field f, TextField f) => TextField (AField f) where
-    parseField = AField <$> parseField
     showField  = showField . unAField
 
 newtype ABaseField a = ABaseField
@@ -178,18 +164,6 @@ instance TextField f => Show (AField f) where
     show = showField . unAField
 
 instance TextField Rational where
-    parseField = asum
-        [ try $ do
-              num <- parseFieldDefault
-              _ <- symbol "/"
-              den <- parseFieldDefault
-              case num `div` den of
-                  Just res -> pure res
-                  Nothing  -> fail $ show num ++ "/" ++ show den ++ " is not a valid Rational"
-        , parseFieldDefault
-        , parens parseField
-        ]
-
     showField r
         | denominator r == 1 = show $ numerator r
         | otherwise          = "(" ++ show (numerator r) ++ " / " ++ show (denominator r) ++ ")"
@@ -242,6 +216,5 @@ instance KnownNat p => AsInteger (GF.Prime p) where
             i = GF.fromP x
 
 instance KnownNat p => TextField (GF.Prime p) where
-    parseField = GF.toP <$> signedDecimal
     -- 'asInteger' must always return a 'Just' for a 'GF.Prime'.
     showField = maybe (error "Panic: not an integer") show . asInteger

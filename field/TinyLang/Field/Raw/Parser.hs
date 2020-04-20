@@ -85,16 +85,11 @@ At the moment constants consist of literals only.
 @
 const ::=
     bool-literal
-    field-literal
+    int-literal
     vec-literal
 @
 
-Parsing rules for @field-literal@ are determined by the type class
-instance of @TextField@.
-
-In addition, we also permit @int-literals@ in for loops in statements
-below.
-
+An @int-literal@ is converted to a field element via 'fromInteger'.
 
 == Expressions
 
@@ -272,10 +267,10 @@ unary pName op = Comb.Prefix (EAppUnOp op <$ pName)
 binary :: ParserT m a -> BinOp -> Comb.Operator (ParserT m) (RawExpr f)
 binary pName op = Comb.InfixL (EAppBinOp op <$ pName)
 
-pIndex :: TextField f => ParserT m (RawExpr f)
+pIndex :: Field f => ParserT m (RawExpr f)
 pIndex = brackets pExpr
 
-operatorTable :: TextField f => [[Comb.Operator (ParserT m) (RawExpr f)]]
+operatorTable :: Field f => [[Comb.Operator (ParserT m) (RawExpr f)]]
 operatorTable =
     [ [ unary  (keyword "not")    $ Not
       , unary  (keyword "neg")    $ Neg
@@ -308,15 +303,15 @@ operatorTable =
     ]
 
 vBool :: ParserT m (SomeUniConst f)
-vBool  = Some . (UniConst Bool)   <$> pBoolLiteral
+vBool  = Some . UniConst Bool <$> pBoolLiteral
 
 vVec :: ParserT m (SomeUniConst f)
-vVec   = Some . (UniConst Vector) <$> pVecLiteral
+vVec   = Some . UniConst Vector <$> pVecLiteral
 
-vField :: TextField f => ParserT m (SomeUniConst f)
-vField = Some . (UniConst Field)  <$> parseField
+vField :: Field f => ParserT m (SomeUniConst f)
+vField = Some . UniConst Field . fromInteger <$> signedDecimal
 
-pConst :: TextField f => ParserT m (SomeUniConst f)
+pConst :: Field f => ParserT m (SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec
@@ -334,7 +329,7 @@ pSomeUni = choice
     , Some Vector <$ keyword "vector"
     ]
 
-pTerm :: TextField f => ParserT m (RawExpr f)
+pTerm :: Field f => ParserT m (RawExpr f)
 pTerm =
     choice
     -- This can backtrack for parentheses
@@ -349,10 +344,10 @@ pTerm =
     , parens pExpr
     ]
 
-pStatements :: TextField f => ParserT m [RawStatement f]
+pStatements :: Field f => ParserT m [RawStatement f]
 pStatements = many (pStatement <* symbol ";")
 
-pStatement :: TextField f => ParserT m (RawStatement f)
+pStatement :: Field f => ParserT m (RawStatement f)
 pStatement =
     choice
     -- This can backtrack for expr starting with a "("
@@ -367,8 +362,8 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: TextField f => ParserT m (RawExpr f)
+pExpr :: Field f => ParserT m (RawExpr f)
 pExpr = Comb.makeExprParser pTerm operatorTable
 
-pTop :: TextField f => ParserT m (RawExpr f)
+pTop :: Field f => ParserT m (RawExpr f)
 pTop = top pExpr
