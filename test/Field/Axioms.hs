@@ -108,7 +108,25 @@ test_mulDistributive _ =
 test_fromToInteger :: forall f proxy. (Field f, AsInteger f) => proxy f -> TestTree
 test_fromToInteger _ =
     testPropertyHard "fromToInteger" $ \(i :: Large Int) ->
-        let i' = fromIntegral i in asInteger (fromInteger i' :: AField f) == Just i'
+        let i' = fromIntegral i
+        in asInteger (fromInteger i' :: AField f) == Just i'
+
+-- | Test that multiplying two numbers in the field aligns with integer multiplication.
+test_multiply :: forall f proxy. (Field f, AsInteger f) => proxy f -> TestTree
+test_multiply _ =
+    testPropertyHard "multiply" $ \(i :: Large Int, j :: Large Int) ->
+         let i' = fromIntegral i
+             j' = fromIntegral j
+         in asInteger (fromInteger i' * fromInteger j' :: AField f) == Just (i' * j')
+
+-- | Test that dividing by a number and then multiplying by the same number is identity.
+test_divideMultiply :: forall f proxy. (Field f, AsInteger f) => proxy f -> TestTree
+test_divideMultiply _ =
+    testPropertyHard "divideMultiply" $ \(i :: Large Int, j :: Large Int) ->
+         let i' = fromIntegral i
+             j' = fromIntegral j
+             x = fromInteger i' / fromInteger j' * fromInteger j' :: AField f
+         in j' == 0 || asInteger x == Just i'
 
 test_fromToIntegerJubjubBounds :: TestTree
 test_fromToIntegerJubjubBounds =
@@ -146,10 +164,14 @@ test_fields =
         , testGroup "Rational"
             [ test_axioms rational
             , test_fromToInteger rational
+            , test_multiply rational
+            , test_divideMultiply rational
             ]
         , testGroup "Jubjub.F"
             [ test_axioms jubjubF
             , test_fromToInteger jubjubF
+            , test_multiply jubjubF
+            , test_divideMultiply jubjubF
             , test_fromToIntegerJubjubBounds
             ]
         ]
