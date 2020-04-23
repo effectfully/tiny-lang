@@ -25,6 +25,7 @@ module TinyLang.Field.Typed.Core
     , ScopedVarSigns (..)
     , exprVarSigns
     , exprFreeVarSigns
+    , exprFreeVarUnis
     , supplyFromAtLeastFree
     , uniOfExpr
     ) where
@@ -253,6 +254,9 @@ exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
 
 exprFreeVarSigns :: Expr f a -> Env (VarSign f)
 exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
+
+exprFreeVarUnis :: Expr f a -> Env (Some (Uni f))
+exprFreeVarUnis = fmap (\(VarSign _ uni) -> Some uni) . exprFreeVarSigns
 
 supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
 supplyFromAtLeastFree =

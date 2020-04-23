@@ -441,9 +441,11 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 ELet (UniVar uni _) def -> [SomeOf uni def]
                 EAssert e               -> [SomeOf Bool e]
 
-genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniConst f))
-genEnvFromVarSigns =
-    traverse $ \(VarSign _ (uni :: Uni f a)) ->
+genFromVarUnis
+    :: (Field f, Arbitrary f, Traversable t)
+    => t (Some (Uni f)) -> Gen (t (SomeUniConst f))
+genFromVarUnis =
+    traverse $ \(Some (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
@@ -453,7 +455,7 @@ genEnvFromVarSigns =
 instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         someUniExpr <- arbitrary
-        vals <- forget (genEnvFromVarSigns . exprFreeVarSigns) someUniExpr
+        vals <- forget (genFromVarUnis . exprFreeVarUnis) someUniExpr
         return $ ExprWithEnv someUniExpr vals
     shrink (ExprWithEnv someUniExpr (Env vals)) =
         -- TODO: test me.
