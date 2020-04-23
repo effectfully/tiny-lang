@@ -93,10 +93,10 @@ instance Hashable a => Hashable (IntMap a) where
     hashWithSalt salt = hashWithSalt salt . IntMap.toList
 
 -- Feels so weird not to have it by default.
-instance Testable (Either String ()) where
+instance Testable (Either String a) where
     property = property . \case
         Left err -> failed { reason = err }
-        Right () -> succeeded
+        Right _  -> succeeded
 
 (.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.*) = (.) . (.)
