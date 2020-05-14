@@ -8,11 +8,11 @@ module TinyLang.Field.Raw.Core
     , UnOp(..)
     , Statement(..)
     , Program
+    , pattern C.Program
+    , C.unProgram
     , Statements
-    , mkProgram
-    , unProgram
-    , mkStatements
-    , unStatements
+    , pattern C.Statements
+    , C.unStatements
     , RawProgram
     , RawStatements
     , RawStatement
@@ -52,18 +52,6 @@ mappable over a list of statements.
 
 type Program v f    = C.Program    (Statement v f)
 type Statements v f = C.Statements (Statement v f)
-
-mkProgram :: Statements v f -> Program v f
-mkProgram = C.Program
-
-unProgram :: Program v f -> Statements v f
-unProgram = C.unProgram
-
-mkStatements :: [Statement v f] -> Statements v f
-mkStatements = C.Statements
-
-unStatements :: Statements v f -> [Statement v f]
-unStatements = C.unStatements
 
 data Statement v f
     = ELet    v          (Expr v f)

@@ -1,5 +1,4 @@
 {-# LANGUAGE QuasiQuotes  #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module TinyLang.Field.Evaluator
     ( EvalError (..)
@@ -195,7 +194,7 @@ evalProgram = flip evalStatements (pure ()) . unProgram
 -- TODO:  Verify whether it is acutally right fold
 evalStatements :: (Monad m, Eq f, Field f, AsInteger f)
     => Statements f -> EvalT f m () -> EvalT f m ()
-evalStatements (unStatements -> stmts) kont = foldr evalStatement kont stmts
+evalStatements (Statements stmts) kont = foldr evalStatement kont stmts
 
 -- | Evaluate a single statement that continue as @kont@
 evalStatement :: (Monad m, Eq f, Field f, AsInteger f)
@@ -215,7 +214,7 @@ evalStatement (EFor uniVar start end body) kont
         let stmts = [ ELet uniVar $ fromIntegral start ] ++
                     unStatements body ++
                     [ EFor uniVar (start + 1) end body ]
-        in evalStatements (mkStatements stmts) kont
+        in evalStatements (Statements stmts) kont
     | otherwise =
         let actualEnd = max start end in
             evalStatement (ELet uniVar $ EConst $ fromIntegral actualEnd) kont
@@ -270,11 +269,11 @@ denoteExpr = fmap denoteUniConst . evalExprUni
 -- | A recursive normalizer for programs.
 normProgram :: (Monad m, Eq f, Field f, AsInteger f)
     => Program f -> EvalT f m (Program f)
-normProgram = fmap mkProgram . normStatements . unProgram
+normProgram = fmap Program . normStatements . unProgram
 
 normStatements :: (Monad m, Eq f, Field f, AsInteger f)
     => Statements f -> EvalT f m (Statements f)
-normStatements = fmap mkStatements . go . unStatements where
+normStatements = fmap Statements . go . unStatements where
     go :: (Monad m, Eq f, Field f, AsInteger f)
        => [Statement f] -> EvalT f m [Statement f]
     go []            = pure []
@@ -285,7 +284,7 @@ normStatements = fmap mkStatements . go . unStatements where
                 local (insertVar var (Some uniConst)) $
                     go rest
             -- Drop for loop with an empty body
-            EFor (UniVar _ var) start end (unStatements -> []) ->
+            EFor (UniVar _ var) start end (Statements []) ->
                 let actualEnd = max start end in
                 local (insertVar var (Some $ fromInteger actualEnd)) $
                     go rest
@@ -357,4 +356,3 @@ instExpr expr@(EVar uniVar@(UniVar uni var)) = do
 instExpr (EIf e e1 e2) = EIf <$> instExpr e <*> instExpr e1 <*> instExpr e2
 instExpr (EAppUnOp op e) = EAppUnOp op <$> instExpr e
 instExpr (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr e1 <*> instExpr e2
-

@@ -81,7 +81,7 @@ instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
 prop_nested_let
     :: forall f. (Eq f, TextField f)
     => [Binding f] -> Either String ()
-prop_nested_let bindings = prop_prog_roundtrip $ mkProgram $ mkStatements $ map bind bindings where
+prop_nested_let bindings = prop_prog_roundtrip $ Program $ Statements $ map bind bindings where
     bind :: Binding f -> Statement f
     bind (Binding uniVar body) = ELet uniVar body
 

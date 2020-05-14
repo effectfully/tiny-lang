@@ -1,5 +1,3 @@
-{-# LANGUAGE ViewPatterns #-}
-
 module TinyLang.Field.Rename
     ( renameProgram
     ) where
@@ -11,9 +9,9 @@ import           TinyLang.Field.Typed.Core
 import           Control.Monad.Cont
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
-renameProgram prog | stmts <- unProgram prog = do
+renameProgram (Program stmts) = do
     stmtsSupplyFromAtLeastFree stmts
-    mkProgram <$> runRenameM (withRenamedStatementsM stmts pure)
+    Program <$> runRenameM (withRenamedStatementsM stmts pure)
 
 type RenameM = ReaderT (Env Unique) Supply
 
@@ -36,20 +34,19 @@ renameVarM var = do
 withRenamedStatementM :: Statement f -> (Statement f -> RenameM c) -> RenameM c
 withRenamedStatementM (ELet (UniVar uni var) def) kont = do
     defRen <- renameExprM def
-    -- var is not in scope in def
+    -- Note that @var@ is not in scope in @def@.
     withFreshenedVar var $ \varFr -> kont $ ELet (UniVar uni varFr) defRen
 withRenamedStatementM (EAssert expr) kont = renameExprM expr >>= kont . EAssert
 withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont =
     withFreshenedVar var $ \varFr ->
         withRenamedStatementsM stmts $ \stmtsRen ->
-        -- NOTE: The language is imperative and we do not have lexical scoping,
-        -- therefore kont is called inside @withRenamedStatementsM@.
+            -- NOTE: The language is imperative and we do not have lexical scoping,
+            -- therefore kont is called inside @withRenamedStatementsM@.
             kont $ EFor (UniVar uni varFr) start end stmtsRen
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
-withRenamedStatementsM (unStatements -> stmts) kont =
-    runContT (traverse (ContT . withRenamedStatementM) stmts) $ kont . mkStatements
-
+withRenamedStatementsM (Statements stmts) kont =
+    runContT (traverse (ContT . withRenamedStatementM) stmts) $ kont . Statements
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EConst uniConst)            = pure $ EConst uniConst
@@ -58,4 +55,3 @@ renameExprM (EIf cond expr1 expr2)       =
     EIf <$> renameExprM cond <*> renameExprM expr1 <*> renameExprM expr2
 renameExprM (EAppUnOp op expr)           = EAppUnOp op <$> renameExprM expr
 renameExprM (EAppBinOp op expr1 expr2)   = EAppBinOp op <$> renameExprM expr1 <*> renameExprM expr2
-

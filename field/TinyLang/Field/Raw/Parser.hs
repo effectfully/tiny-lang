@@ -372,12 +372,11 @@ pStatements =
     choice
     -- This can backtrack for statement starting with a "("
     [ try (parens pStatements)
-    , mkStatements <$> many (pStatement <* symbol ";")
+    , Statements <$> many (pStatement <* symbol ";")
     ]
 
 pProgram :: Field f => ParserT m (RawProgram f)
-pProgram = mkProgram <$> pStatements
+pProgram = Program <$> pStatements
 
 pTop :: Field f => ParserT m (RawProgram f)
 pTop = top pProgram
-

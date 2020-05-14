@@ -1,5 +1,4 @@
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns         #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- | NOTE: comparisons.
@@ -267,7 +266,7 @@ runSGen vars = fmap runIdentity . runSGenT vars
 boundedArbitraryStmts :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
     => Int -> m (Statements f)
 boundedArbitraryStmts size =
-    mkStatements <$> frequency [ (1, pure [])
+    Statements <$> frequency [ (1, pure [])
                                , (10, arbStmts)
                                ]
     where
@@ -427,8 +426,8 @@ defaultUniConst =
         uni = knownUni @f @a
 
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
-    arbitrary = mkProgram <$> arbitrary
-    shrink    = fmap mkProgram . shrink . unProgram
+    arbitrary = Program <$> arbitrary
+    shrink    = fmap Program . shrink . unProgram
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
     arbitrary = runSGen vars stmtsGen where
@@ -437,22 +436,22 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
             adjustUniquesForVars vars
             boundedArbitraryStmts size
 
-    shrink stmts = mkStatements <$> concat [shrunkEmpty, shrunkNorm, shrunkPreserving, shrunkNonPreserving] where
-        stmts' :: [Statement f]
-        stmts' = unStatements stmts
+    shrink (Statements stmts) =
+            Statements <$> concat
+                [shrunkEmpty, shrunkNorm, shrunkPreserving, shrunkNonPreserving] where
 
         shrunkEmpty :: [[Statement f]]
-        shrunkEmpty = case stmts' of
+        shrunkEmpty = case stmts of
             [] -> []
             _  -> [[]]
 
         -- normalisation steps when shrinking
         shrunkNorm :: [[Statement f]]
-        shrunkNorm = maybe [] pure  $ norm stmts'
+        shrunkNorm = maybe [] pure $ norm stmts
 
         -- small step "normaliser"
         norm :: [Statement f] -> Maybe [Statement f]
-        norm ((EFor forVar start end (unStatements -> [])) : restStmts) =
+        norm ((EFor forVar start end (Statements [])) : restStmts) =
                 pure $ ELet forVar (EConst (fromInteger (max start end))) : restStmts
         norm ((EAssert (EConst (UniConst _ True))) : restStmts) =
                 pure restStmts
@@ -462,10 +461,10 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
 
         -- preserves the structure of statements
         shrunkPreserving :: [[Statement f]]
-        shrunkPreserving = shrinkElements shrink stmts'
+        shrunkPreserving = shrinkElements shrink stmts
         -- does not preserve the structure of statements
         shrunkNonPreserving :: [[Statement f]]
-        shrunkNonPreserving = shrinkList shrink stmts'
+        shrunkNonPreserving = shrinkList shrink stmts
 
 -- A modified shrinkList, that preserves the structure of the underlying list
 shrinkElements :: (a -> [a]) -> [a] -> [[a]]

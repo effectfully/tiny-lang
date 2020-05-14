@@ -17,11 +17,11 @@ module TinyLang.Field.Typed.Core
     , BinOp (..)
     , Statement (..)
     , Statements
-    , mkStatements
-    , unStatements
+    , pattern C.Statements
+    , C.unStatements
     , Program
-    , mkProgram
-    , unProgram
+    , pattern C.Program
+    , C.unProgram
     , Expr (..)
     , withUnOpUnis
     , withBinOpUnis
@@ -91,18 +91,6 @@ data BinOp f a b c where
 
 type Program    f = C.Program    (Statement f)
 type Statements f = C.Statements (Statement f)
-
-mkProgram :: Statements f -> Program f
-mkProgram = C.Program
-
-unProgram :: Program f -> Statements f
-unProgram = C.unProgram
-
-mkStatements :: [Statement f] -> Statements f
-mkStatements = C.Statements
-
-unStatements :: Statements f -> [Statement f]
-unStatements = C.unStatements
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -323,4 +311,3 @@ stmtsSupplyFromAtLeastFree =
     . _scopedVarSigsFree
     . execSVS
     . traverse_ stmtVS
-
