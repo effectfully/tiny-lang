@@ -1,0 +1,1 @@
+Program (Statements [ELet (Var "#one") (EConst (Some (UniConst Vector [True]))),ELet (Var "#two") (EConst (Some (UniConst Vector [True,False]))),ELet (Var "#three") (EConst (Some (UniConst Vector [True,False,True]))),ELet (Var "#four") (EConst (Some (UniConst Vector [True,False,True,False])))])

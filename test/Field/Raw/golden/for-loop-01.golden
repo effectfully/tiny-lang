@@ -1,1 +1,0 @@
-EStatement (EFor (Var "i") 1 2 [ELet (Var "i'") (EVar (Var "i")),EFor (Var "j") 2 3 [ELet (Var "k") (EAppBinOp Mul (EVar (Var "i")) (EVar (Var "j"))),EAssert (EAppBinOp FEq (EVar (Var "k")) (EAppBinOp Mul (EVar (Var "i'")) (EVar (Var "j"))))],ELet (Var "p") (EVar (Var "i")),EFor (Var "l") 1 2 [ELet (Var "p") (EAppBinOp Mul (EVar (Var "p")) (EVar (Var "l")))]]) (EVar (Var "p"))

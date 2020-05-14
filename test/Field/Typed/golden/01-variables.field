@@ -1,0 +1,3 @@
+let ?bool    = ?i;
+let field'   = i;
+let #vector  = #i;

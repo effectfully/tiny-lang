@@ -1,0 +1,3 @@
+assert
+(neg a and b) <= (neg (a and b))
+;

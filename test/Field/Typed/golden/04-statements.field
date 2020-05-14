@@ -1,0 +1,3 @@
+let x = 1;
+assert T;
+for x = 1 to 1 do end;

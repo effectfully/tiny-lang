@@ -23,6 +23,7 @@ library
         TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var
+        TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
         TinyLang.Field.Generator
@@ -71,6 +72,22 @@ library
         -Wincomplete-uni-patterns -Wincomplete-record-updates
         -Wredundant-constraints -Widentities
 
+benchmark bench-generators
+    type: exitcode-stdio-1.0
+    main-is: Main.hs
+    hs-source-dirs: bench
+    default-language: Haskell2010
+    build-depends:
+        tiny-lang,
+        base >= 4.7 && < 5,
+        QuickCheck
+    default-extensions:
+        BangPatterns
+    ghc-options:
+        -Wall
+        -Wincomplete-uni-patterns -Wincomplete-record-updates
+        -Wredundant-constraints -Widentities
+
 test-suite tiny-lang-test
     type: exitcode-stdio-1.0
     main-is: Main.hs
@@ -79,6 +96,7 @@ test-suite tiny-lang-test
         Field.Textual
         Field.Axioms
         Field.Raw.Textual
+        Field.Renaming
         Field.TestUtils
         Field.Typed.Textual
     default-language: Haskell2010
@@ -95,7 +113,8 @@ test-suite tiny-lang-test
         tasty,
         tasty-golden,
         tasty-hunit,
-        tasty-quickcheck
+        tasty-quickcheck,
+        interpolate
     default-extensions:
         MultiParamTypeClasses, FlexibleContexts, FlexibleInstances
         ScopedTypeVariables, ConstraintKinds, DefaultSignatures

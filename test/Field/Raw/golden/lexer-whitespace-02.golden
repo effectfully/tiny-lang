@@ -1,1 +1,0 @@
-EStatement (EFor (Var "i") 0 100 [EAssert (EConst (Some (UniConst Bool True)))]) (EConst (Some (UniConst Bool True)))

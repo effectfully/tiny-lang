@@ -1,0 +1,17 @@
+let ?or  = T or T;
+let ?and = T and T;
+let ?xor = T xor T;
+
+let ?feq = 0 == 0;
+let ?fle = 0 <= 1;
+let ?flt = 0 <  1;
+let ?fge = 1 >= 0;
+let ?fgt = 1 >  0;
+
+let add = 1 + 1;
+let sub = 1 - 1;
+let mul = 1 * 1;
+let div = 1 / 1;
+
+let ?bat = { T } [ 0 ];
+

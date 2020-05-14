@@ -1,1 +1,0 @@
-EAppBinOp FLe (EAppBinOp And (EAppUnOp Neg (EVar (Var "a"))) (EVar (Var "b"))) (EAppUnOp Neg (EAppBinOp And (EVar (Var "a")) (EVar (Var "b"))))

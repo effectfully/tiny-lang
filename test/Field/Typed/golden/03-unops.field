@@ -1,0 +1,7 @@
+let ?not  = not  T;
+let ?neq0 = neq0 0;
+
+let neg'  = neg 0;
+let inv'  = inv 0;
+
+let #unpack = unpack 1;
