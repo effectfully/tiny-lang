@@ -16,28 +16,40 @@ module TinyLang.Field.Typed.Core
     , UnOp (..)
     , BinOp (..)
     , Statement (..)
+    , Statements
+    , pattern C.Statements
+    , C.unStatements
+    , Program
+    , pattern C.Program
+    , C.unProgram
     , Expr (..)
     , withUnOpUnis
     , withBinOpUnis
     , withGeqUni
     , withKnownUni
-    , VarSign (..)
-    , ScopedVarSigns (..)
-    , exprVarSigns
-    , exprFreeVarSigns
-    , supplyFromAtLeastFree
+    , VarSig (..)
+    , ScopedVarSigs (..)
+    -- , stmtVarSigs
+    -- , stmtFreeVarSigs
+    -- , stmtsFreeVarSigs
+    , progFreeVarSigs
+    -- , exprVarSigs
+    -- , exprFreeVarSigs
+    -- , exprSupplyFromAtLeastFree
+    -- , stmtSupplyFromAtLeastFree
+    , stmtsSupplyFromAtLeastFree
     , uniOfExpr
     ) where
 
 import           Prelude                    hiding (div)
 import           TinyLang.Prelude
 
+import qualified TinyLang.Field.Core        as C
 import           Data.Field                 as Field
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
 import           TinyLang.Var               as Var
-
 
 -- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
@@ -76,12 +88,17 @@ data BinOp f a b c where
     Div :: BinOp f (AField f) (AField f) (AField f)
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
+
+type Program    f = C.Program    (Statement f)
+type Statements f = C.Statements (Statement f)
+
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
     -- | Things that get compiled to constraints down the pipeline.
     -- The evaluation semantics is the following: each assertion becomes a check at runtime
     -- and the if the check fails, we have evaluation failure.
     EAssert :: Expr f Bool -> Statement f
+    EFor    :: UniVar f (AField f) -> Integer -> Integer -> Statements f -> Statement f
 
 data Expr f a where
     EConst     :: UniConst f a -> Expr f a
@@ -89,7 +106,6 @@ data Expr f a where
     EIf        :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp   :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp  :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
-    EStatement :: Statement f -> Expr f a -> Expr f a
 
 instance (Field f, af ~ AField f) => Field (Expr f af) where
     zer = EConst zer
@@ -144,7 +160,6 @@ uniOfExpr (EVar (UniVar uni _))     = uni
 uniOfExpr (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
 uniOfExpr (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
 uniOfExpr (EIf _ x _)               = uniOfExpr x
-uniOfExpr (EStatement _ expr)       = uniOfExpr expr
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
@@ -176,10 +191,14 @@ instance Eq f => Eq (UniVar f a) where
 instance Eq f => Eq (Statement f) where
     ELet (UniVar u1 v1) d1 == ELet (UniVar u2 v2) d2 =
         withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
-    EAssert as1            == EAssert as2            = as1 == as2
+    EAssert as1 == EAssert as2 =
+        as1 == as2
+    EFor (UniVar u1 v1) i1 j1 stmts1 == EFor (UniVar u2 v2) i2 j2 stmts2 =
+        u1 == u2 && v1 == v2 && i1 == i2 && j1 == j2 && stmts1 == stmts2
 
     ELet    {} == _ = False
     EAssert {} == _ = False
+    EFor    {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
     EConst uval1       == EConst uval2         = uval1 == uval2
@@ -187,7 +206,6 @@ instance Eq f => Eq (Expr f a) where
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 False $ x1 == x2
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 False $ x1 == x2 && y1 == y2
-    EStatement st1 e1  == EStatement st2 e2  = st1 == st2 && e1 == e2
 
     -- Here we explicitly pattern match on the first argument again and always return 'False'.
     -- This way we'll get a warning when an additional constructor is added to 'Expr',
@@ -197,63 +215,99 @@ instance Eq f => Eq (Expr f a) where
     EIf        {} == _ = False
     EAppUnOp   {} == _ = False
     EAppBinOp  {} == _ = False
-    EStatement {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool   = id
 withKnownUni Field  = id
 withKnownUni Vector = id
 
-data VarSign f = forall a. VarSign
-    { _varSignName :: String
-    , _varSignUni  :: Uni f a
+data VarSig f = forall a. VarSig
+    { _varSigName :: String
+    , _varSigUni  :: Uni f a
     }
 
-deriving instance Show (VarSign f)
+deriving instance Show (VarSig f)
 
-instance Eq (VarSign f) where
-    VarSign name1 uni1 == VarSign name2 uni2 = withGeqUni uni1 uni2 False $ name1 == name2
+instance Eq (VarSig f) where
+    VarSig name1 uni1 == VarSig name2 uni2 = withGeqUni uni1 uni2 False $ name1 == name2
 
-data ScopedVarSigns f = ScopedVarSigns
-    { _scopedVarSignsFree  :: Env (VarSign f)
-    , _scopedVarSignsBound :: Env (VarSign f)
+data ScopedVarSigs f = ScopedVarSigs
+    { _scopedVarSigsFree  :: Env (VarSig f)
+    , _scopedVarSigsBound :: Env (VarSig f)
     } deriving (Show)
 
-isTracked :: (Eq a, Show a) => Unique -> a -> Env a -> Bool
-isTracked uniq x env =
-    case lookupUnique uniq env of
-        Just x'
-            | x == x'   -> True
-            | otherwise -> error $ concat ["panic: mismatch: '", show x, "' vs '", show x', "'"]
-        Nothing -> False
+-- | Add variable to the set of bound variables
+bindVar :: UniVar f a -> State (ScopedVarSigs f) ()
+bindVar (UniVar uni (Var uniq name)) =
+    modify $ \(ScopedVarSigs free bound) ->
+        let sig    = VarSig name uni
+            bound' = insertUnique uniq sig bound
+        in ScopedVarSigs free bound'
 
--- TODO: test me somehow.
-exprVarSigns :: Expr f a -> ScopedVarSigns f
-exprVarSigns = goExpr $ ScopedVarSigns mempty mempty where
-    goStat :: ScopedVarSigns f -> Statement f -> ScopedVarSigns f
-    goStat signs (ELet uniVar def) = ScopedVarSigns free $ insertUnique uniq sign bound where
-        UniVar uni (Var uniq name) = uniVar
-        sign = VarSign name uni
-        ScopedVarSigns free bound = goExpr signs def
-    goStat signs (EAssert expr) = goExpr signs expr
+-- | Add variable to the set of free variables
+freeVar :: UniVar f a -> State (ScopedVarSigs f) ()
+freeVar (UniVar uni (Var uniq name)) =
+    modify $ \(ScopedVarSigs free bound) ->
+        let sig   = VarSig name uni
+            free' = insertUnique uniq sig free
+        in ScopedVarSigs free' bound
 
-    goExpr :: ScopedVarSigns f -> Expr f a -> ScopedVarSigns f
-    goExpr signs (EConst _) = signs
-    goExpr signs (EVar (UniVar uni (Var uniq name)))
-        | tracked   = signs
-        | otherwise = ScopedVarSigns (insertUnique uniq sign free) bound
-        where
-            ScopedVarSigns free bound = signs
-            sign = VarSign name uni
-            tracked = isTracked uniq sign bound || isTracked uniq sign free
-    goExpr signs (EAppUnOp _ x) = goExpr signs x
-    goExpr signs (EAppBinOp _ x y) = goExpr (goExpr signs x) y
-    goExpr signs (EIf b x y) = goExpr (goExpr (goExpr signs b) x) y
-    goExpr signs (EStatement st e) = goExpr (goStat signs st) e
+-- | Check if variable is tracked in bound or free variables
+isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
+isTracked (UniVar uni (Var uniq name)) = do
+    ScopedVarSigs free bound <- get
+    pure $ isTrackedIn free || isTrackedIn bound
+    where
+        sig = VarSig name uni
+        isTrackedIn env =
+            case lookupUnique uniq env of
+                Just x'
+                    | x' == sig -> True
+                    | otherwise -> error $ concat [ "panic: mismatch: '"
+                                                  , show sig
+                                                  , "' vs '"
+                                                  , show x'
+                                                  , "'"]
+                Nothing -> False
 
-exprFreeVarSigns :: Expr f a -> Env (VarSign f)
-exprFreeVarSigns = _scopedVarSignsFree . exprVarSigns
+-- | Gather VarSigs for a statement
+stmtVS :: Statement f -> State (ScopedVarSigs f) ()
+stmtVS (EAssert expr)    = exprVS expr
+stmtVS (ELet uniVar def) = do
+    exprVS def
+    bindVar uniVar
+stmtVS (EFor uniVar _ _ stmts) = do
+    bindVar uniVar
+    traverse_ stmtVS stmts
 
-supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
-supplyFromAtLeastFree =
-    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSignsFree . exprVarSigns
+-- | Gather VarSigs for an expression
+exprVS :: Expr f a -> State (ScopedVarSigs f) ()
+exprVS (EConst _) = pure ()
+exprVS (EVar uniVar) = do
+    tracked <- isTracked uniVar
+    unless tracked $ freeVar uniVar
+exprVS (EAppUnOp _ x) = exprVS x
+exprVS (EAppBinOp _ x y) = do
+    exprVS x
+    exprVS y
+exprVS (EIf b x y) = do
+    exprVS b
+    exprVS x
+    exprVS y
+
+-- | Collect all bindings
+execSVS :: State (ScopedVarSigs f) () -> ScopedVarSigs f
+execSVS s = execState s $ ScopedVarSigs mempty mempty
+
+-- | Return free variable signatures for a given program
+progFreeVarSigs :: Program f -> Env (VarSig f)
+progFreeVarSigs = _scopedVarSigsFree . execSVS . traverse_ stmtVS
+
+stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
+stmtsSupplyFromAtLeastFree =
+    supplyFromAtLeast
+    . freeUniqueIntMap
+    . unEnv
+    . _scopedVarSigsFree
+    . execSVS
+    . traverse_ stmtVS

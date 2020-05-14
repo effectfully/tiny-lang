@@ -1,0 +1,11 @@
+for i = 1 to 2 do
+    let i' = i;
+    for j = 2 to 3 do
+        let k = i * j;
+        assert k == i' * j;
+    end;
+    let p = i;
+    for l = 1 to 2 do
+        let p = p * l;
+    end;
+end;

@@ -1,0 +1,5 @@
+let zero  = 0;
+let one   = 1;
+let two   = 2;
+let half  = 1/2;
+let third = 1/3;

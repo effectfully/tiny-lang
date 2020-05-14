@@ -1,0 +1,1 @@
+Program (Statements [ELet (Var "zero") (EConst (Some 0)),ELet (Var "one") (EConst (Some 1)),ELet (Var "two") (EConst (Some 2)),ELet (Var "half") (EAppBinOp Div (EConst (Some 1)) (EConst (Some 2))),ELet (Var "third") (EAppBinOp Div (EConst (Some 1)) (EConst (Some 3)))])

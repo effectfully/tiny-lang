@@ -1,9 +1,15 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes  #-}
 
 module TinyLang.Field.Evaluator
     ( EvalError (..)
     , MonadEvalError
-    , lookupVarEval
+    , EvalT
+    , Eval
+    , execEvalT
+    , execEval
+    , evalEvalT
+    , evalEval
+    , lookupVarM
     , invEval
     , divEval
     , atEval
@@ -14,30 +20,40 @@ module TinyLang.Field.Evaluator
     , unpackPositiveDesc
     , packPositiveAsc
     , packPositiveDesc
-    , ExprWithEnv (..)
+    , ProgramWithEnv (..)
     , evalUnOp
     , evalBinOp
     , evalExprUni
+    , evalStatements
+    , evalStatement
+    , evalProgram
+    , evalProgWithEnv
     , evalExpr
-    , evalExprWithEnv
     , denoteUniConst
     , denoteSomeUniConst
     , denoteExpr
     , normExpr
+    , normStatement
+    , normStatements
+    , normProgram
     , instStatement
     , instExpr
     ) where
 
 import           Prelude                          hiding (div)
 
-import           TinyLang.Environment
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Prelude
 
 import qualified Data.String.Interpolate.IsString as QQ
 import qualified Data.Vector                      as Vector
+import           Data.Kind (Type)
 
 data TypeMismatch f = forall a b. TypeMismatch (UniVar f a) (UniConst f b)
+
+instance TextField f => Show (TypeMismatch f) where
+    show (TypeMismatch (UniVar uniExp var) uniConstAct) =
+        [QQ.i|Variable #{var} has type #{uniExp}, but was instantiated with #{uniConstAct}|]
 
 data EvalError f
     = VariableNotInScopeEvalError Var
@@ -53,12 +69,46 @@ data EvalError f
 
 type MonadEvalError f m = MonadError (EvalError f) m
 
-instance TextField f => Show (TypeMismatch f) where
-    show (TypeMismatch (UniVar uniExp var) uniConstAct) =
-        [QQ.i|Variable #{var} has type #{uniExp}, but was instantiated with #{uniConstAct}|]
+-- | Our evaluator transformer stack
+newtype EvalT f (m :: Type -> Type) a =
+    EvalT { unEvalT :: ReaderT (Env (SomeUniConst f)) (StateT [SomeUniConst f] (ExceptT (EvalError f) m)) a }
+    deriving newtype ( Monad
+                     , Functor
+                     , Applicative
+                     , MonadError (EvalError f)
+                     , MonadState [SomeUniConst f]
+                     , MonadReader (Env (SomeUniConst f))
+                     )
 
-lookupVarEval :: MonadEvalError g m => Var -> Env f -> m f
-lookupVarEval var = fromOption (throwError $ VariableNotInScopeEvalError var) . lookupVar var
+type Eval f a = EvalT f Identity a
+
+-- NOTE: that the result of evaluation will be reversed to preserve the order
+-- | Run @EvalT@ and return its execution trace
+execEvalT :: (Monad m) => EvalT f m a -> Env (SomeUniConst f) -> m (Either (EvalError f) [SomeUniConst f])
+execEvalT ev r = do
+    result <- runExceptT $ flip execStateT mempty $ flip runReaderT r $ unEvalT ev
+    pure $ second reverse result
+-- | @execEvalT@ specialised for @Identity@
+execEval :: Eval f a -> Env (SomeUniConst f) -> Either (EvalError f) [SomeUniConst f]
+execEval ev r = runIdentity $ execEvalT ev r
+
+-- | Run @EvalT@ and discard the trace
+evalEvalT :: (Monad m) => EvalT f m a -> Env (SomeUniConst f) -> m (Either (EvalError f) a)
+evalEvalT ev r = runExceptT $ flip evalStateT mempty $ flip runReaderT r $ unEvalT ev
+
+-- | @evalEvalT@ specialised to @Identity@
+evalEval :: Eval f a -> Env (SomeUniConst f) -> Either (EvalError f) a
+evalEval ev = runIdentity . evalEvalT ev
+
+-- | lookup variable
+lookupVarM :: (Monad m) => Var -> EvalT f m (SomeUniConst f)
+lookupVarM var = do
+    env <- ask
+    fromOption (throwError $ VariableNotInScopeEvalError var) $ lookupVar var env
+
+-- | Bind a variable to @SomeUniConst@ in continuation
+withVar :: (Monad m) => Var -> SomeUniConst f -> EvalT f m a -> EvalT f m a
+withVar var uniConst = local (insertVar var uniConst)
 
 invEval :: (MonadEvalError g m, Field f) => f -> m f
 invEval = fromOption (throwError DivideByZeroEvalError) . inv
@@ -66,7 +116,7 @@ invEval = fromOption (throwError DivideByZeroEvalError) . inv
 divEval :: (MonadEvalError g m, Field f) => f -> f -> m f
 divEval = fromOption (throwError DivideByZeroEvalError) .* div
 
-atEval :: MonadEvalError g m => Int -> Vector a -> m a
+atEval :: MonadEvalError f m => Int -> Vector a -> m a
 atEval i xs = fromOption (throwError $ IndexTooLargeEvalError i) $ xs Vector.!? i
 
 asIntegerEval :: (MonadEvalError f m, AsInteger f) => AField f -> m Integer
@@ -97,29 +147,26 @@ packPositiveAsc = fst . foldl' (\(a, p) b -> (a + if b then p else 0, p * 2)) (0
 packPositiveDesc :: [Bool] -> Integer
 packPositiveDesc = packPositiveAsc . reverse
 
-normUniConst
-    :: forall f m a. (MonadEvalError f m, Field f, AsInteger f)
-    => UniConst f a -> m (UniConst f a)
+normUniConst :: forall f m a. (Monad m, Field f, AsInteger f)
+    => UniConst f a -> EvalT f m (UniConst f a)
 normUniConst (UniConst Bool   b) = return $ UniConst Bool   b
 normUniConst (UniConst Field  f) = return $ UniConst Field  f
 normUniConst (UniConst Vector v) = UniConst Vector <$> normUnpacking v where
     normUnpacking =
         asIntegerEval . toField @(AField f) . packPositiveAsc >=>
-            fmap (Vector.fromList) . unpackPositiveAsc
+            fmap Vector.fromList . unpackPositiveAsc
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
 -- If we get a non-integer or a negative integer we throw an error.
-compareIntegerValues
-    :: (MonadEvalError f m, AsInteger f)
+compareIntegerValues :: (MonadEvalError f m, AsInteger f)
     => (Integer -> Integer -> Bool) -> AField f -> AField f -> m Bool
 compareIntegerValues op a b = do
     m <- asPositiveIntegerEval a
     n <- asPositiveIntegerEval b
     return $ m `op` n
 
-evalUnOp
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalUnOp :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => UnOp f a b -> a -> m (UniConst f b)
 evalUnOp Not  = return . UniConst Bool . not
 evalUnOp Neq0 = return . UniConst Bool . (/= zer)
@@ -127,8 +174,7 @@ evalUnOp Neg  = return . UniConst Field . neg
 evalUnOp Inv  = fmap (UniConst Field) . invEval
 evalUnOp Unp  = asIntegerEval >=> fmap (UniConst Vector . Vector.fromList) . unpackPositiveAsc
 
-evalBinOp
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalBinOp :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => BinOp f a b c -> a -> b -> m (UniConst f c)
 evalBinOp Or  x y = return . UniConst Bool $ x || y
 evalBinOp And x y = return . UniConst Bool $ x && y
@@ -144,57 +190,72 @@ evalBinOp Mul x y = return . UniConst Field $ x `mul` y
 evalBinOp Div x y = UniConst Field <$> divEval x y
 evalBinOp BAt x y = asIntegerEval x >>= fmap (UniConst Bool) . flip atEval y . fromIntegral
 
-evalStatementUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Statement f -> Expr f a -> m (UniConst f a)
-evalStatementUni env (ELet (UniVar _ var) def) rest = do
-    defR <- evalExprUni env def
-    evalExprUni (insertVar var (Some defR) env) rest
-evalStatementUni env (EAssert expr) rest = do
-    exprR <- evalExpr env expr
-    if exprR
-        then evalExprUni env rest
-        else throwError $ AssertionFailedEvalError expr
+-- | Evaluate a program
+evalProgram :: (Monad m, Eq f, Field f, AsInteger f)
+    => Program f -> EvalT f m ()
+evalProgram = flip evalStatements (pure ()) . unProgram
+
+-- TODO:  Verify whether it is acutally right fold
+evalStatements :: (Monad m, Eq f, Field f, AsInteger f)
+    => Statements f -> EvalT f m () -> EvalT f m ()
+evalStatements (Statements stmts) kont = foldr evalStatement kont stmts
+
+-- | Evaluate a single statement that continue as @kont@
+evalStatement :: (Monad m, Eq f, Field f, AsInteger f)
+    => Statement f -> EvalT f m () -> EvalT f m ()
+evalStatement (ELet (UniVar _ var) def) kont = do
+    defR <- evalExprUni def
+    let someDefR = Some defR
+    modify (someDefR:)
+    withVar var someDefR kont
+evalStatement (EAssert expr) kont = do
+    exprR <- evalExpr expr
+    unless exprR $ throwError $ AssertionFailedEvalError expr
+    kont
+evalStatement (EFor uniVar@(UniVar _ var) start end body) kont
+    -- TODO:  Figure out if this is the right semantics
+    | start < end =
+        withVar var (Some $ fromIntegral start) $
+            evalStatements body $
+                evalStatement (EFor uniVar (start + 1) end body) kont
+    | otherwise =
+        let actualEnd = max start end in
+        withVar var (Some $ fromIntegral actualEnd) kont
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExprUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Expr f a -> m (UniConst f a)
-evalExprUni _   (EConst uniConst) = normUniConst uniConst
-evalExprUni env (EVar uniVar@(UniVar uni var)) = do
-    Some uniConst@(UniConst uni' _) <- lookupVarEval var env
+evalExprUni :: (Monad m, Eq f, Field f, AsInteger f)
+    => Expr f a -> EvalT f m (UniConst f a)
+evalExprUni (EConst uniConst) = normUniConst uniConst
+evalExprUni (EVar uniVar@(UniVar uni var)) = do
+    Some uniConst@(UniConst uni' _) <- lookupVarM var
     let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniConst
-    withGeqUni uni uni' err $ evalExprUni env $ EConst uniConst
-evalExprUni env (EIf e e1 e2) = do
-    eR <- evalExpr env e
+    withGeqUni uni uni' err $ evalExprUni $ EConst uniConst
+evalExprUni (EIf e e1 e2) = do
+    eR <- evalExpr e
     if eR
-        then evalExprUni env e1
-        else evalExprUni env e2
-evalExprUni env (EAppUnOp op e) = evalExpr env e >>= evalUnOp op
-evalExprUni env (EAppBinOp op e1 e2) = do
-    e1R <- evalExpr env e1
-    e2R <- evalExpr env e2
+        then evalExprUni e1
+        else evalExprUni e2
+evalExprUni (EAppUnOp op e) = evalExpr e >>= evalUnOp op
+evalExprUni (EAppBinOp op e1 e2) = do
+    e1R <- evalExpr e1
+    e2R <- evalExpr e2
     evalBinOp op e1R e2R
-evalExprUni env (EStatement stat expr) = evalStatementUni env stat expr
 
 -- | A recursive evaluator for expressions.
-evalExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Expr f a -> m a
-evalExpr env = fmap _uniConstVal . evalExprUni env
+evalExpr :: (Monad m, Eq f, Field f, AsInteger f)
+    => Expr f a -> EvalT f m a
+evalExpr = fmap _uniConstVal . evalExprUni
 
--- | A type of expressions together with environments
-data ExprWithEnv f
-    = ExprWithEnv (SomeUniExpr f) (Env (SomeUniConst f))
+data ProgramWithEnv f
+    = ProgramWithEnv (Program f) (Env (SomeUniConst f))
       deriving (Show)
 
--- | Evaluate an expression in a given environment
-evalExprWithEnv
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => ExprWithEnv f -> m (SomeUniConst f)
-evalExprWithEnv (ExprWithEnv (SomeOf uni expr) env) =
-    Some . UniConst uni <$> evalExpr env expr
+-- | Evaluate a program in a given environment
+evalProgWithEnv :: (Eq f, Field f, AsInteger f)
+    => ProgramWithEnv f -> Either (EvalError f) [SomeUniConst f]
+evalProgWithEnv (ProgramWithEnv prog env) =
+    execEval (evalProgram prog) env
 
 denoteUniConst :: Field f => UniConst f a -> f
 denoteUniConst (UniConst Bool   b) = toField b
@@ -204,72 +265,97 @@ denoteUniConst (UniConst Vector v) = unAField . fromInteger . packPositiveAsc $ 
 denoteSomeUniConst :: Field f => SomeUniConst f -> f
 denoteSomeUniConst = forget denoteUniConst
 
-denoteExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Expr f a -> m f
-denoteExpr env = fmap denoteUniConst . evalExprUni env
+denoteExpr :: (Monad m, Eq f, Field f, AsInteger f)
+    => Expr f a -> EvalT f m f
+denoteExpr = fmap denoteUniConst . evalExprUni
 
-normStatement
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Statement f -> Expr f a -> m (Expr f a)
-normStatement env (ELet (UniVar uni var) def) rest = do
-    defN <- normExpr env def
+-- | A recursive normalizer for programs.
+normProgram :: (Monad m, Eq f, Field f, AsInteger f)
+    => Program f -> EvalT f m (Program f)
+normProgram (Program stmts) = normStatements stmts (pure . Program)
+
+-- | A recursive normalizer for statements
+normStatements :: (Monad m, Eq f, Field f, AsInteger f)
+    => Statements f -> (Statements f -> EvalT f m r) -> EvalT f m r
+normStatements (Statements []) kont       = kont $ Statements []
+normStatements (Statements (s:rest)) kont = normStatement s $ \case
+          Nothing -> normStatements (Statements rest) kont
+          Just sN -> normStatements (Statements rest) $ \ (Statements restN) ->
+              kont $ Statements $ sN : restN
+
+-- | Normalise single statement
+normStatement :: (Monad m, Eq f, Field f, AsInteger f)
+    => Statement f -> (Maybe (Statement f) -> EvalT f m r) -> EvalT f m r
+normStatement (ELet uniVar@(UniVar _ var) def) kont = do
+    defN <- normExpr def
     case defN of
-        EConst uniConst -> normExpr (insertVar var (Some uniConst) env) rest
-        _             -> EStatement (ELet (UniVar uni var) defN) <$> normExpr env rest
-normStatement env (EAssert expr) rest = do
-    exprN <- normExpr env expr
-    EStatement (EAssert exprN) <$> normExpr env rest
+        EConst uniConst ->
+            withVar var (Some uniConst) $ kont Nothing
+        _ ->
+            kont . Just $ ELet uniVar defN
+normStatement (EAssert expr) kont = do
+    exprN <- normExpr expr
+    case exprN of
+      EConst (UniConst _ False) -> throwError $ AssertionFailedEvalError expr
+      EConst (UniConst _ True) -> kont Nothing
+      _ -> kont . Just $ EAssert exprN
+normStatement (EFor uniVar@(UniVar _ var) start end body) kont =
+    normStatements body $ \bodyN ->
+        let actualEnd = max start end in
+        withVar var (Some $ fromIntegral actualEnd) $ case bodyN of
+            Statements [] -> kont Nothing
+            _             -> kont . Just $ EFor uniVar start end bodyN
 
--- | A recursive normalizer for expressions.
-normExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Expr f a -> m (Expr f a)
-normExpr _   (EConst uniConst) = EConst <$> normUniConst uniConst
-normExpr env expr@(EVar uniVar@(UniVar uni var)) =
+normExpr :: (Monad m, Eq f, Field f, AsInteger f)
+    => Expr f a -> EvalT f m (Expr f a)
+normExpr (EConst uniConst) = EConst <$> normUniConst uniConst
+normExpr expr@(EVar uniVar@(UniVar uni var)) = do
+    env <- ask
     case lookupVar var env of
         Nothing -> return expr
         Just (Some uniConst@(UniConst uni' _)) -> do
             let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniConst
-            withGeqUni uni uni' err $ normExpr env $ EConst uniConst
-normExpr env (EIf e e1 e2) = do
-    eN <- normExpr env e
-    let nE1 = normExpr env e1
-        nE2 = normExpr env e2
+            withGeqUni uni uni' err $ normExpr $ EConst uniConst
+normExpr (EIf e e1 e2) = do
+    eN <- normExpr e
+    let nE1 = normExpr e1
+        nE2 = normExpr e2
     case eN of
         EConst (UniConst Bool b) -> if b then nE1 else nE2
-        _                        -> EIf eN <$> nE1 <*> nE2
-normExpr env (EAppUnOp op e) = do
-    eN <- normExpr env e
+        _ -> EIf eN <$> nE1 <*> nE2
+normExpr (EAppUnOp op e) = do
+    eN <- normExpr e
     case eN of
         EConst (UniConst _ x) -> EConst <$> evalUnOp op x
-        _                     -> return $ EAppUnOp op eN
-normExpr env (EAppBinOp op e1 e2) = do
-    e1N <- normExpr env e1
-    e2N <- normExpr env e2
+        _ -> return $ EAppUnOp op eN
+normExpr(EAppBinOp op e1 e2) = do
+    e1N <- normExpr e1
+    e2N <- normExpr e2
     case (e1N, e2N) of
         (EConst (UniConst _ x1), EConst (UniConst _ x2)) ->
             EConst <$> evalBinOp op x1 x2
-        _                                            ->
+        _ ->
             return $ EAppBinOp op e1N e2N
-normExpr env (EStatement stat expr) = normStatement env stat expr
 
 -- | Instantiate some of the variables of a statement with values.
-instStatement
-    :: MonadEvalError f m => Env (SomeUniConst f) -> Statement f -> m (Statement f)
-instStatement env (ELet uniVar def) = ELet uniVar <$> instExpr env def
-instStatement env (EAssert expr)    = EAssert <$> instExpr env expr
+instStatement :: Monad m => Statement f -> EvalT f m (Statement f)
+instStatement (ELet uniVar def)             = ELet uniVar <$> instExpr def
+instStatement (EAssert expr)                = EAssert <$> instExpr expr
+instStatement (EFor uniVar start end stmts) = EFor uniVar start end <$> instStatements stmts
+
+instStatements :: Monad m => Statements f -> EvalT f m (Statements f)
+instStatements = traverse instStatement
 
 -- | Instantiate some of the variables of an expression with values.
-instExpr :: MonadEvalError f m => Env (SomeUniConst f) -> Expr f a -> m (Expr f a)
-instExpr _   expr@(EConst _) = return expr
-instExpr env expr@(EVar uniVar@(UniVar uni var)) =
+instExpr :: Monad m => Expr f a -> EvalT f m (Expr f a)
+instExpr expr@(EConst _) = return expr
+instExpr expr@(EVar uniVar@(UniVar uni var)) = do
+    env <- ask
     case lookupVar var env of
         Nothing -> return expr
         Just (Some uniConst@(UniConst uni' _)) -> do
             let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniConst
             withGeqUni uni uni' err $ return $ EConst uniConst
-instExpr env (EIf e e1 e2) = EIf <$> instExpr env e <*> instExpr env e1 <*> instExpr env e2
-instExpr env (EAppUnOp op e) = EAppUnOp op <$> instExpr env e
-instExpr env (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr env e1 <*> instExpr env e2
-instExpr env (EStatement stat expr) = EStatement <$> instStatement env stat <*> instExpr env expr
+instExpr (EIf e e1 e2) = EIf <$> instExpr e <*> instExpr e1 <*> instExpr e2
+instExpr (EAppUnOp op e) = EAppUnOp op <$> instExpr e
+instExpr (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr e1 <*> instExpr e2

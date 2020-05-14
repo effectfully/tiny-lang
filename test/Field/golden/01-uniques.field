@@ -1,0 +1,8 @@
+let a = a;
+let a = a;
+for a = 1 to 2 do
+    let a = a;
+    let a = a;
+end;
+let a = a;
+let a = a;

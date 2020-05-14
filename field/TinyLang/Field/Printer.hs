@@ -2,6 +2,9 @@ module TinyLang.Field.Printer
     ( PrintStyle (..)
     , exprToString
     , someExprToString
+    , stmtToString
+    , stmtsToString
+    , progToString
     ) where
 
 import           TinyLang.Prelude
@@ -61,14 +64,34 @@ toStringUniConst (UniConst Field  i) = showField i
 toStringUniConst (UniConst Vector v) =
     "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
-statementToString :: TextField f => PrintStyle -> Statement f -> String
-statementToString s (ELet (UniVar _ var) def) = concat
+stmtToString :: TextField f => PrintStyle -> Statement f -> String
+stmtToString s (ELet (UniVar _ var) def) = concat
     [ "let "
     , toStringVar s var
     , " = "
     , exprToString s def
+    , ";"
     ]
-statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
+
+stmtToString s (EAssert expr)            = "assert " ++ exprToString s expr ++ ";"
+stmtToString s (EFor (UniVar _ var) start end stmts) = concat
+    [ "for "
+    , toStringVar s var
+    , " = "
+    , show start
+    , " to "
+    , show end
+    , " do\n"
+    , unlines $ map (stmtToString s) $ unStatements stmts
+    , "end"
+    , ";"
+    ]
+
+stmtsToString :: TextField f => PrintStyle -> (Statements f) -> String
+stmtsToString ps = unlines . (map (stmtToString ps)) . unStatements
+
+progToString :: TextField f => PrintStyle -> Program f -> String
+progToString ps = stmtsToString ps . unProgram
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
@@ -83,11 +106,6 @@ exprToString s (EIf e e1 e2)        = concat
     , exprToString1 s e1
     , " else "
     , exprToString1 s e2
-    ]
-exprToString s (EStatement stat e)  = concat
-    [ statementToString s stat
-    , "; "
-    , exprToString s e
     ]
 
 someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String

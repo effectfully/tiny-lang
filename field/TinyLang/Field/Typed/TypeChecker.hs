@@ -25,18 +25,19 @@ module TinyLang.Field.Typed.TypeChecker
     , runTypeChecker
     , typeCheck
     , checkType
+    , typeProgram
     , inferExpr
     , checkExpr
     , inferUniVar
     , checkUniVar
+    , checkStatement
+    , checkProgram
     )
     where
 
 import           TinyLang.Prelude           hiding (TypeError)
 
 import           Data.Field
-import           TinyLang.Environment
-import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Existential
 import qualified TinyLang.Field.Raw.Core    as R
 import qualified TinyLang.Field.Typed.Core  as T
@@ -99,6 +100,13 @@ typeCheck = runTypeChecker . inferExpr
 
 {-|
 -}
+typeProgram
+    :: (MonadError TypeCheckError m, MonadSupply m, TextField f)
+    => R.Program R.Var f -> m (Scoped (T.Program f))
+typeProgram = runTypeChecker . checkProgram
+
+{-|
+-}
 checkType
     :: (MonadError TypeCheckError m, MonadSupply m, TextField f, KnownUni f a)
     => R.Expr R.Var f -> m (Scoped (T.Expr f a))
@@ -127,7 +135,7 @@ mkSomeUniVar var
 -}
 inferUniVar
     :: forall m f. (MonadSupply m, MonadScope m) => R.Var -> m (T.SomeUniVar f)
-inferUniVar = liftM mkSomeUniVar . makeVar . R.unVar
+inferUniVar = fmap mkSomeUniVar . makeVar . R.unVar
 
 {-| Type inference for expressions
 -}
@@ -145,16 +153,12 @@ inferExpr (R.EAppBinOp rBinOp l m) =
 inferExpr (R.EAppUnOp rUnOp l) =
     withTypedUnOp rUnOp $ \tUnOp ->
         SomeOf knownUni <$> (T.EAppUnOp tUnOp <$> checkExpr l)
-inferExpr (R.EStatement s l) = do
-    tS <- checkStatement s
-    SomeOf uni tL <- inferExpr l
-    pure $ SomeOf uni $ (foldr T.EStatement) tL tS
 inferExpr (R.EIf l m n) = do
     tL <- checkExpr l
     SomeOf uni tM <- inferExpr m
     tN <- T.withKnownUni uni $ checkExpr n
     pure $ SomeOf uni $ T.EIf tL tM tN
-inferExpr (R.ETypeAnn u m) = do
+inferExpr (R.ETypeAnn u m) =
     case u of
         Some uni -> T.withKnownUni uni $ SomeOf uni <$> checkExpr m
 
@@ -214,32 +218,27 @@ checkExpr m = do
     SomeOf mUni tM <- inferExpr m
     let uni = knownUni @f @a
     let uniMismatch = typeMismatch tM uni mUni
-    withGeqUniM uni mUni uniMismatch $ tM
+    withGeqUniM uni mUni uniMismatch tM
+
+checkProgram
+    :: forall m f. (MonadTypeChecker m, TextField f)
+    => R.Program R.Var f -> m (T.Program f)
+checkProgram = traverse checkStatement
+
 
 {-| Type checking judgement for statements of form
 -}
 checkStatement
     :: forall m f. (MonadTypeChecker m, TextField f)
-    => R.Statement R.Var f -> m [T.Statement f]
+    => R.Statement R.Var f -> m (T.Statement f)
 checkStatement (R.ELet var m) = do
-    Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
-    T.withKnownUni uni $ pure . (T.ELet uniVar) <$> checkExpr m
-checkStatement (R.EAssert m) = do
-    pure . T.EAssert <$> checkExpr m
+    Some uniVar@(T.UniVar uni _) <- inferUniVar var
+    T.withKnownUni uni $ T.ELet uniVar <$> checkExpr m
+checkStatement (R.EAssert m) =
+    T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    (unrollLoop tVar start end) . concat <$> mapM checkStatement stmts
-
-{-| Statically unroll for statement loop
--}
-unrollLoop
-    :: forall f. (TextField f)
-    => T.Var -> Integer -> Integer -> [T.Statement f] -> [T.Statement f]
-unrollLoop var lower bound stats = do
-    i <- [lower .. bound]
-    let env = insertVar var (Some $ fromInteger i) mempty
-        report err = error $ "Panic: " ++ show err
-    map (either report id . instStatement env) stats
+    T.EFor (T.UniVar Field tVar) start end <$> traverse checkStatement stmts
 
 {-| Error message for a failed type equality
 -}
