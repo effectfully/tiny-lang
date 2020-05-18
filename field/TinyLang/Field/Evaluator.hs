@@ -277,11 +277,12 @@ normProgram (Program stmts) = normStatements stmts (pure . Program)
 -- | A recursive normalizer for statements
 normStatements :: (Monad m, Eq f, Field f, AsInteger f)
     => Statements f -> (Statements f -> EvalT f m r) -> EvalT f m r
-normStatements (Statements []) kont       = kont $ Statements []
-normStatements (Statements (s:rest)) kont = normStatement s $ \case
-          Nothing -> normStatements (Statements rest) kont
-          Just sN -> normStatements (Statements rest) $ \ (Statements restN) ->
-              kont $ Statements $ sN : restN
+normStatements (Statements stmts) kont0 = go stmts (kont0 . Statements) where
+    go []       kont = kont []
+    go (s:rest) kont = normStatement s $ \case
+        Nothing -> go rest kont
+        Just sN -> go rest $ \restN ->
+            kont $ sN : restN
 
 -- | Normalise single statement
 normStatement :: (Monad m, Eq f, Field f, AsInteger f)
