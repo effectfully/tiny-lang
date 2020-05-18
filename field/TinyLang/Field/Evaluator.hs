@@ -217,7 +217,7 @@ evalStatement (EFor (UniVar _ var) start end body) kont
     | otherwise =  withVar var actualEnd kont
         where
             go i fkont = withVar var (Some $ fromIntegral i) $
-                    evalStatements body fkont
+                            evalStatements body fkont
             actualEnd = Some $ fromIntegral $ max start end
 
 -- Note that we could use dependent maps, but we don't.
