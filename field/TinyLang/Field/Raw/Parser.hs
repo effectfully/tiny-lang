@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 = Raw Parser
 
@@ -132,7 +133,7 @@ prefix-op ::=
 
 == Statement
 
-Statements are a bit odd at the moment, as they are neither
+Program are a bit odd at the moment, as they are neither
 expressions nor the usual statements.
 
 @
@@ -182,6 +183,12 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
 type ParserT = ParsecT Void String
+
+{-| == IsString instances
+-}
+
+instance TextField f => IsString (RawProgram f) where
+    fromString = either error id . parseString (pTop @f) ""
 
 {-| == Lexer
 -}
@@ -336,16 +343,14 @@ pTerm =
     [ try (EConst   <$> pConst)
     -- This can backtrack for keywords
     , try (EVar     <$> pVar)
-    , EStatement    <$> (pStatement     <* symbol ";")
-                    <*> pExpr
     , EIf           <$> (keyword "if"   *> pExpr)
                     <*> (keyword "then" *> pExpr)
                     <*> (keyword "else" *> pExpr)
     , parens pExpr
     ]
 
-pStatements :: Field f => ParserT m [RawStatement f]
-pStatements = many (pStatement <* symbol ";")
+pExpr :: Field f => ParserT m (RawExpr f)
+pExpr = Comb.makeExprParser pTerm operatorTable
 
 pStatement :: Field f => ParserT m (RawStatement f)
 pStatement =
@@ -362,8 +367,16 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: Field f => ParserT m (RawExpr f)
-pExpr = Comb.makeExprParser pTerm operatorTable
+pStatements :: Field f => ParserT m (RawStatements f)
+pStatements =
+    choice
+    -- This can backtrack for statement starting with a "("
+    [ try (parens pStatements)
+    , Statements <$> many (pStatement <* symbol ";")
+    ]
 
-pTop :: Field f => ParserT m (RawExpr f)
-pTop = top pExpr
+pProgram :: Field f => ParserT m (RawProgram f)
+pProgram = Program <$> pStatements
+
+pTop :: Field f => ParserT m (RawProgram f)
+pTop = top pProgram

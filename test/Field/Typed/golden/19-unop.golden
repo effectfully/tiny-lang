@@ -1,1 +1,0 @@
-SomeOf Bool (EAppUnOp Not (EConst (UniConst Bool True)))

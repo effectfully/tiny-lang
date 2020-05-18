@@ -7,11 +7,20 @@ module TinyLang.Field.Raw.Core
     , BinOp(..)
     , UnOp(..)
     , Statement(..)
-    , RawExpr
+    , Program
+    , pattern C.Program
+    , C.unProgram
+    , Statements
+    , pattern C.Statements
+    , C.unStatements
+    , RawProgram
+    , RawStatements
     , RawStatement
+    , RawExpr
     ) where
 
 import           TinyLang.Field.UniConst
+import qualified TinyLang.Field.Core as C
 
 import           GHC.Generics
 import           Quiet
@@ -24,16 +33,37 @@ newtype Var = Var { unVar :: Identifier }
     deriving (Eq, Generic)
     deriving (Show) via (Quiet Var)
 
+{-| In our AST we have the following
 
+* @Program v f@,
 
-{-| @Expr v f@ is parameterised by the type of variable @v@.
+* @Statements v f@,
+
+* @Statement v f@ and
+
+At the moment @Program v f@ is a newtype wrapper around @Statements v f@, and
+@Statements v f@ is a newtype wrapper around @[Statement v f]@.
+
+We specify those wrappers as some operations work on the program level, some
+operations work on the statements level, and some operations work on the
+statement level; the operations acting on statement level are not necessarily
+mappable over a list of statements.
 -}
+
+type Program v f    = C.Program    (Statement v f)
+type Statements v f = C.Statements (Statement v f)
+
+data Statement v f
+    = ELet    v          (Expr v f)
+    | EAssert (Expr v f)
+    | EFor    v          Integer    Integer (Statements v f)
+    deriving (Show)
+
 data Expr v f
     = EConst     (SomeUniConst f)
     | EVar       v
     | EAppBinOp  BinOp           (Expr v f) (Expr v f)
     | EAppUnOp   UnOp            (Expr v f)
-    | EStatement (Statement v f) (Expr v f)
     | EIf        (Expr v f)      (Expr v f) (Expr v f)
     | ETypeAnn   (SomeUni f)     (Expr v f)
     deriving (Show)
@@ -62,14 +92,9 @@ data UnOp
     | Unp
     deriving (Show)
 
-data Statement v f
-    = ELet    v          (Expr v f)
-    | EAssert (Expr v f)
-    | EFor    v          Integer    Integer [Statement v f]
-    deriving (Show)
-
 {-| = Utility Type Aliases
 -}
-type RawExpr = Expr Var
-type RawStatement = Statement Var
-
+type RawProgram    f = Program Var f
+type RawStatements f = Statements Var f
+type RawStatement  f = Statement Var f
+type RawExpr       f = Expr Var f

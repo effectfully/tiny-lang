@@ -1,0 +1,11 @@
+for i_6 = 1 to 2 do
+let i'_7 = i_6;
+for j_8 = 2 to 3 do
+let k_9 = i_6 * j_8;
+assert k_9 == (i'_7 * j_8);
+end;
+let p_10 = i_6;
+for l_11 = 1 to 2 do
+let p_12 = p_10 * l_11;
+end;
+end;

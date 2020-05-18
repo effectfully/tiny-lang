@@ -1,1 +1,0 @@
-SomeOf Bool (EAppBinOp And (EConst (UniConst Bool True)) (EConst (UniConst Bool True)))
