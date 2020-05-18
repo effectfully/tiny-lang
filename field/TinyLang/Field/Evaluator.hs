@@ -212,15 +212,13 @@ evalStatement (EAssert expr) kont = do
     exprR <- evalExpr expr
     unless exprR $ throwError $ AssertionFailedEvalError expr
     kont
-evalStatement (EFor uniVar@(UniVar _ var) start end body) kont
-    -- TODO:  Figure out if this is the right semantics
-    | start < end =
-        withVar var (Some $ fromIntegral start) $
-            evalStatements body $
-                evalStatement (EFor uniVar (start + 1) end body) kont
-    | otherwise =
-        let actualEnd = max start end in
-        withVar var (Some $ fromIntegral actualEnd) kont
+evalStatement (EFor (UniVar _ var) start end body) kont
+    | start <= end = foldr go kont [start..end]
+    | otherwise =  withVar var actualEnd kont
+        where
+            go i fkont = withVar var (Some $ fromIntegral i) $
+                    evalStatements body fkont
+            actualEnd = Some $ fromIntegral $ max start end
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
