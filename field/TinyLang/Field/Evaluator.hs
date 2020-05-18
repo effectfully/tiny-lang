@@ -214,7 +214,7 @@ evalStatement (EAssert expr) kont = do
     kont
 evalStatement (EFor (UniVar _ var) start end body) kont
     | start <= end = foldr go kont [start..end]
-    | otherwise =  withVar var actualEnd kont
+    | otherwise    = withVar var actualEnd kont
         where
             go i fkont = withVar var (Some $ fromIntegral i) $
                             evalStatements body fkont
