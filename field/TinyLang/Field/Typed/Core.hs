@@ -98,7 +98,6 @@ data Statement f where
     -- The evaluation semantics is the following: each assertion becomes a check at runtime
     -- and the if the check fails, we have evaluation failure.
     EAssert :: Expr f Bool -> Statement f
-    EFor    :: UniVar f (AField f) -> Integer -> Integer -> Statements f -> Statement f
 
 data Expr f a where
     EConst     :: UniConst f a -> Expr f a
@@ -193,12 +192,9 @@ instance Eq f => Eq (Statement f) where
         withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
     EAssert as1 == EAssert as2 =
         as1 == as2
-    EFor (UniVar u1 v1) i1 j1 stmts1 == EFor (UniVar u2 v2) i2 j2 stmts2 =
-        u1 == u2 && v1 == v2 && i1 == i2 && j1 == j2 && stmts1 == stmts2
 
     ELet    {} == _ = False
     EAssert {} == _ = False
-    EFor    {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
     EConst uval1       == EConst uval2         = uval1 == uval2
@@ -276,9 +272,6 @@ stmtVS (EAssert expr)    = exprVS expr
 stmtVS (ELet uniVar def) = do
     exprVS def
     bindVar uniVar
-stmtVS (EFor uniVar _ _ stmts) = do
-    bindVar uniVar
-    traverse_ stmtVS stmts
 
 -- | Gather VarSigs for an expression
 exprVS :: Expr f a -> State (ScopedVarSigs f) ()

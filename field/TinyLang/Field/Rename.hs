@@ -37,12 +37,6 @@ withRenamedStatementM (ELet (UniVar uni var) def) kont = do
     -- Note that @var@ is not in scope in @def@.
     withFreshenedVar var $ \varFr -> kont $ ELet (UniVar uni varFr) defRen
 withRenamedStatementM (EAssert expr) kont = renameExprM expr >>= kont . EAssert
-withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont =
-    withFreshenedVar var $ \varFr ->
-        withRenamedStatementsM stmts $ \stmtsRen ->
-            -- NOTE: The language is imperative and we do not have lexical scoping,
-            -- therefore kont is called inside @withRenamedStatementsM@.
-            kont $ EFor (UniVar uni varFr) start end stmtsRen
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
 withRenamedStatementsM (Statements stmts) kont =

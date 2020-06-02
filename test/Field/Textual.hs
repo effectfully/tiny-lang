@@ -45,8 +45,7 @@ forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 forgetStatementIDs :: Statement f -> Statement f
 forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
 forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
-forgetStatementIDs (EFor uvar start end stmts) =
-    EFor (forgetID uvar) start end (forgetStatementIDs <$> stmts)
+
 forgetIDs :: Expr f a -> Expr f a
 forgetIDs (EConst uval)        = EConst uval
 forgetIDs (EVar uvar)          = EVar $ forgetID uvar

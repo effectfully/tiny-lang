@@ -15,7 +15,6 @@ stmtsNodes = sum . map stmtNodes . unStatements
 stmtNodes :: Statement f -> Int
 stmtNodes (ELet _ e)         = 1 + exprNodes e
 stmtNodes (EAssert e)        = 1 + exprNodes e
-stmtNodes (EFor _ _ _ stmts) = 1 + stmtsNodes stmts
 
 exprNodes :: Expr f a -> Int
 exprNodes (EConst _)          = 1
@@ -33,7 +32,6 @@ stmtsDepth = maximum . (0:) . map stmtDepth . unStatements
 stmtDepth :: Statement f -> Int
 stmtDepth (ELet _ e)         = 1 + exprDepth e
 stmtDepth (EAssert e)        = 1 + exprDepth e
-stmtDepth (EFor _ _ _ stmts) = 1 + stmtsDepth stmts
 
 exprDepth :: Expr f a -> Int
 exprDepth (EConst _)          = 1
