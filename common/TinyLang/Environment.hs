@@ -11,6 +11,8 @@ module TinyLang.Environment
     , fromUniques
     , fromVars
     , toUniques
+    , elems
+    , intersection
     ) where
 
 import           TinyLang.Prelude
@@ -58,3 +60,9 @@ fromVars = toEnvBy $ uncurry insertVar
 
 toUniques :: Env a -> [(Unique, a)]
 toUniques = map (first Unique) . IntMap.toList . unEnv
+
+elems :: Env a -> [a]
+elems =  IntMap.elems . unEnv
+
+intersection :: Env a -> Env b -> Env a
+intersection a b = Env $ IntMap.intersection (unEnv a) (unEnv b)

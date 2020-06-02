@@ -1,1 +1,1 @@
-Program (Statements [EFor (Var "i") 0 100 (Statements [EAssert (EConst (Some (UniConst Bool True)))]),EAssert (EConst (Some (UniConst Bool True)))])
+Program [] Statements [EFor (Var "i") 0 100 (Statements [EAssert (EConst (Some (UniConst Bool True)))]),EAssert (EConst (Some (UniConst Bool True)))]

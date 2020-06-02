@@ -10,6 +10,7 @@ module TinyLang.Field.Typed.Core
     , KnownUni (..)
     , UniConst (..)
     , UniVar (..)
+    , uniOfVar
     , SomeUniConst
     , SomeUniVar
     , SomeUniExpr
@@ -21,7 +22,8 @@ module TinyLang.Field.Typed.Core
     , C.unStatements
     , Program
     , pattern C.Program
-    , C.unProgram
+    , C._programStatements
+    , C._programExts
     , Expr (..)
     , withUnOpUnis
     , withBinOpUnis
@@ -29,15 +31,9 @@ module TinyLang.Field.Typed.Core
     , withKnownUni
     , VarSig (..)
     , ScopedVarSigs (..)
-    -- , stmtVarSigs
-    -- , stmtFreeVarSigs
-    -- , stmtsFreeVarSigs
     , progFreeVarSigs
-    -- , exprVarSigs
-    -- , exprFreeVarSigs
-    -- , exprSupplyFromAtLeastFree
-    -- , stmtSupplyFromAtLeastFree
-    , stmtsSupplyFromAtLeastFree
+    , progExtVarSigs
+    , progSupplyFromAtLeastFree
     , uniOfExpr
     ) where
 
@@ -51,19 +47,7 @@ import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
 import           TinyLang.Var               as Var
 
--- Needed for the sake of symmetry with 'UniConst'.
-data UniVar f a = UniVar
-    { _uniVarUni :: Uni f a
-    , _uniVarVar :: Var
-    } deriving (Show)
 
--- -- TODO: We can can unify the two above by the following data type. Should we do that?
--- data Inhabits f a b = Inhabits
---     { _inhabitsUni :: Uni f a
---     , _inhabitsVal :: b
---     }
-
-type SomeUniVar f = Some (UniVar f)
 type SomeUniExpr f = SomeOf (Uni f) (Expr f)
 
 data UnOp f a b where
@@ -89,8 +73,8 @@ data BinOp f a b c where
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
 
-type Program    f = C.Program    (Statement f)
-type Statements f = C.Statements (Statement f)
+type Program    f = C.Program    Var (Statement f)
+type Statements f = C.Statements     (Statement f)
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -127,7 +111,6 @@ deriving instance Eq   (BinOp f a b c)
 
 deriving instance TextField f => Show (Statement f)
 deriving instance TextField f => Show (Expr f a)
-
 
 deriving instance TextField f => Show (SomeUniExpr f)
 
@@ -177,16 +160,6 @@ withGeqBinOp binOp1 binOp2 z y =
     withGeqUni resUni1  resUni2  z $
         if binOp1 /= binOp2 then z else y
 
--- This doesn't type check:
---
--- > UniConst _ x1 == UniConst _ x2 = x1 == x2
---
--- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
--- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
--- but then it's easier to just pattern match on universes.
-instance Eq f => Eq (UniVar f a) where
-    UniVar _ v1 == UniVar _ v2 = v1 == v2
-
 instance Eq f => Eq (Statement f) where
     ELet (UniVar u1 v1) d1 == ELet (UniVar u2 v2) d2 =
         withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
@@ -233,8 +206,8 @@ data ScopedVarSigs f = ScopedVarSigs
     } deriving (Show)
 
 -- | Add variable to the set of bound variables
-bindVar :: UniVar f a -> State (ScopedVarSigs f) ()
-bindVar (UniVar uni (Var uniq name)) =
+bindUniVar :: UniVar f a -> State (ScopedVarSigs f) ()
+bindUniVar (UniVar uni (Var uniq name)) =
     modify $ \(ScopedVarSigs free bound) ->
         let sig    = VarSig name uni
             bound' = insertUnique uniq sig bound
@@ -266,12 +239,21 @@ isTracked (UniVar uni (Var uniq name)) = do
                                                   , "'"]
                 Nothing -> False
 
+progVS :: Program f -> State (ScopedVarSigs f) ()
+progVS (C.Program exts stmts) = do
+    traverse_ extVS exts
+    traverse_ stmtVS stmts
+
+extVS :: Var -> State (ScopedVarSigs f) ()
+extVS var = case mkSomeUniVar var of
+    Some uniVar -> bindUniVar uniVar
+
 -- | Gather VarSigs for a statement
 stmtVS :: Statement f -> State (ScopedVarSigs f) ()
 stmtVS (EAssert expr)    = exprVS expr
 stmtVS (ELet uniVar def) = do
     exprVS def
-    bindVar uniVar
+    bindUniVar uniVar
 
 -- | Gather VarSigs for an expression
 exprVS :: Expr f a -> State (ScopedVarSigs f) ()
@@ -296,11 +278,16 @@ execSVS s = execState s $ ScopedVarSigs mempty mempty
 progFreeVarSigs :: Program f -> Env (VarSig f)
 progFreeVarSigs = _scopedVarSigsFree . execSVS . traverse_ stmtVS
 
-stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
-stmtsSupplyFromAtLeastFree =
+-- | Return ext variable signatures for a given program
+progExtVarSigs :: Program f -> Env (VarSig f)
+progExtVarSigs (C.Program exts _) = _scopedVarSigsBound . execSVS . traverse_ extVS $ exts
+
+
+progSupplyFromAtLeastFree :: MonadSupply m => Program f -> m ()
+progSupplyFromAtLeastFree =
     supplyFromAtLeast
     . freeUniqueIntMap
     . unEnv
     . _scopedVarSigsFree
     . execSVS
-    . traverse_ stmtVS
+    . progVS

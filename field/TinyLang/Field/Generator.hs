@@ -27,6 +27,7 @@ import           TinyLang.Prelude
 
 import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Typed.Core
+import           TinyLang.Field.UniConst          (mkSomeUniVar)
 
 import qualified Data.IntMap.Strict               as IntMap
 import           Data.Kind
@@ -34,7 +35,7 @@ import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
 import           Test.QuickCheck                  (Arbitrary, Gen, arbitrary,
                                                    arbitrarySizedBoundedIntegral,
-                                                   shrink, shrinkList)
+                                                   shrink, shrinkList, sublistOf)
 import           Test.QuickCheck.Instances.Vector ()
 
 
@@ -64,10 +65,6 @@ uniVars :: forall f a. KnownUni f a => Vars f -> [UniVar f a]
 uniVars =
     mapMaybe $ forget $ \uniVar@(UniVar uni _) ->
         withGeqUni uni (knownUni @f @a) Nothing $ Just uniVar
-
--- | Choose a variable of a particular type.
-chooseUniVar :: (KnownUni f a, MonadGen m) => Vars f -> m (UniVar f a)
-chooseUniVar = elements . uniVars
 
 -- The next function is concerned with generating fresh variables
 -- for use in let-expressions.  We generate names with a prefix from a-z
@@ -106,23 +103,34 @@ adjustUniquesForVars :: MonadSupply m => Vars f -> m ()
 adjustUniquesForVars =
     supplyFromAtLeast . freeUniqueFoldable . map (forget $ _varUniq . _uniVarVar)
 
--- | The variables used by our generators by default.
-defaultVars :: Vars f
-defaultVars = runSupply $ do
-    let make uni name = Some . UniVar uni <$> freshVar name
-    fieldVars  <- traverse (make Field ) ["x", "y", "z", "p", "q", "r", "s", "t"]
-    boolVars   <- traverse (make Bool  ) ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
-    vectorVars <- traverse (make Vector) ["#q", "#r", "#s", "#t", "#u", "#v", "#w"]
-    return $ fieldVars ++ boolVars ++ vectorVars
 
 -- | A wrapper around @UniVar f a@ provided for its @Arbitrary@ instance that allows to generate
 -- variables from the default set of them.
-newtype DefaultUniVar f a = DefaultUniVar
-    { unDefaultUniVar :: UniVar f a
-    }
 
-instance KnownUni f a => Arbitrary (DefaultUniVar f a) where
-    arbitrary = DefaultUniVar <$> chooseUniVar defaultVars
+defaultIdents :: [String]
+defaultIdents = concat . transpose $ [fieldIdents, boolIdents, vectorIdents] where
+        fieldIdents   = ["x", "y", "z", "p", "q", "r", "s", "t"]
+        boolIdents    = ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
+        vectorIdents  = ["#q", "#r", "#s", "#t", "#u", "#v", "#w"]
+
+newtype Default a = Default
+    { unDefault :: a
+    }
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+-- type DefaultUniVar f a    = Default (UniVar f a)
+type DefaultVars          = Default [Var]
+type DefaultSomeUniVars f = Default (Vars f)
+
+instance Arbitrary DefaultVars where
+    arbitrary = do
+        vars <- sublistOf $ defaultIdents
+        pure . Default $ runSupply $ traverse freshVar vars
+
+instance Arbitrary (DefaultSomeUniVars f) where
+    arbitrary =  (fmap . fmap . fmap) mkSomeUniVar arbitrary
+
+
 
 -- | Generate a universe and feed it to the continuation.
 withOneOfUnis :: MonadGen m => (forall a. KnownUni f a => Uni f a -> m b) -> m b
@@ -233,9 +241,12 @@ arbitraryBinOpRing = elements [Add, Sub, Mul]
 groundArbitraryFreqs :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
     => Vars f -> [(Int, m (Expr f a))]
 groundArbitraryFreqs vars =
-    [ (1, EConst <$> arbitraryM)
-    , (2, EVar   <$> chooseUniVar vars)
-    ]
+    -- NOTE:  check if there are available variables in the context
+    case uniVars vars of
+        [] -> [(1, EConst <$> arbitraryM)]
+        uVars -> [ (1, EConst <$> arbitraryM)
+                 , (2, EVar   <$> elements uVars)
+                 ]
 
 newtype SGenT f (m :: Type -> Type) a =
     SGen { unSGenT :: GenT (SupplyT (StateT (Vars f) m)) a }
@@ -288,7 +299,7 @@ boundedArbitraryStmt size
                                let vars' = Some uniVar : vars
                                    size' = size - 1
                                put vars'
-                               ELet uniVar <$> boundedArbitraryExpr vars' size')
+                               ELet uniVar <$> boundedArbitraryExpr vars size')
                      -- Generate a completely random assertion (unlikely to hold)
                      , (1, do
                                vars <- get
@@ -311,6 +322,7 @@ boundedArbitraryStmt size
 boundedArbitraryExpr :: forall m f a. (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f a)
 boundedArbitraryExpr vars size
+    -- TODO: A case when there are no variables in context
     | size <= 1 = frequency $ groundArbitraryFreqs vars
     | otherwise = frequency everything where
         everything = groundArbitraryFreqs vars ++ expressions ++ comparisons (size `Prelude.div` 2)
@@ -358,7 +370,7 @@ boundedArbitraryExprI
 boundedArbitraryExprI _    size | size <= 1 = EConst <$> arbitraryValI
 boundedArbitraryExprI vars size             = frequency
     [ (1, EConst <$> arbitraryValI)
-    , (0, EVar   <$> chooseUniVar vars)
+    -- , (0, EVar   <$> chooseUniVar vars)
       {- TODO:  Check for Haddock post lts-13.26
          NOTE.  If we allow variables here we won't generally know in
          advance that they'll have integer values, so there
@@ -416,16 +428,35 @@ defaultUniConst =
     where
         uni = knownUni @f @a
 
+-- TODO:  Not sure how to use it effecively yet
+-- genExts :: Statements f -> [Var]
+-- genExts stmts = runSupply $ traverse (freshVar . _varSigName) sigs where
+--     sigs = elems $ progFreeVarSigs (Program mempty stmts)
+
+-- NOTE: We only create closed programs for now
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
-    arbitrary = Program <$> arbitrary
-    shrink    = fmap Program . shrink . unProgram
+    arbitrary = do
+        exts  <- unDefault <$> arbitrary
+        let someUniVars = fmap mkSomeUniVar exts
+        stmts <- runSGen someUniVars $ sized $ \size -> do
+                     adjustUniquesForVars someUniVars
+                     boundedArbitraryStmts size
+        -- NOTE: we should not use arbitrary instance for Statements f directly,
+        -- as it can generate a statement that contains free variables.
+        pure $ Program exts stmts
+
+    shrink (Program exts stmts) =
+        fmap (uncurry Program) $
+            -- [ (vars', stmts)  | vars'  <- shrinkList (const []) vars ] ++
+            [ (exts , stmts') | stmts' <- shrink stmts ]
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
-    arbitrary = runSGen vars stmtsGen where
-        vars = defaultVars
-        stmtsGen = sized $ \size -> do
-            adjustUniquesForVars vars
-            boundedArbitraryStmts size
+    arbitrary = do
+        vars <- unDefault <$> arbitrary
+        let stmtsGen = sized $ \size -> do
+                adjustUniquesForVars vars
+                boundedArbitraryStmts size
+        runSGen vars stmtsGen
 
     shrink (Statements stmts) =
             Statements <$> concat
@@ -478,7 +509,7 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
-        let vars = defaultVars
+        vars <- liftGen $ unDefault <$> arbitrary
         adjustUniquesForVars vars
         boundedArbitraryExpr vars size
 
@@ -505,6 +536,13 @@ genEnvFromVarSigs =
     traverse $ \(VarSig _ (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
+genInputEnvFromExts :: (Field f, Arbitrary f) => [Var] -> Gen (Env (SomeUniConst f))
+genInputEnvFromExts vars = fromVars . zip vars <$> consts where
+    consts = for vars $ \ tVar ->
+        case uniOfVar . _varName $ tVar of
+            Some (uni :: Uni f a) ->
+                Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
+
 -- | Generate a random ProgramWithEnv.  Note that you can say things like
 -- "generate (resize 1000 arbitrary :: Gen (ProgramWithEnv F17))" to get bigger
 -- expressions. There's no means provided to generate things over non-default
@@ -512,8 +550,8 @@ genEnvFromVarSigs =
 instance (Field f, Arbitrary f) => Arbitrary (ProgramWithEnv f) where
     arbitrary = do
         prog <- arbitrary
-        vals <- genEnvFromVarSigs . progFreeVarSigs $ prog
+        vals <- genInputEnvFromExts . _programExts $ prog
         return $ ProgramWithEnv prog vals
-    shrink (ProgramWithEnv prog (Env vals)) =
+    shrink (ProgramWithEnv prog vals) =
         flip map (shrink prog) $ \shrunk ->
-            ProgramWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ progFreeVarSigs shrunk
+            ProgramWithEnv shrunk . intersection vals $ progFreeVarSigs shrunk

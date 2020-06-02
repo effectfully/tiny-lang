@@ -78,7 +78,9 @@ stmtsToString :: TextField f => PrintStyle -> (Statements f) -> String
 stmtsToString ps = unlines . (map (stmtToString ps)) . unStatements
 
 progToString :: TextField f => PrintStyle -> Program f -> String
-progToString ps = stmtsToString ps . unProgram
+progToString ps (Program exts stmts) = unlines vars ++ stmtsToString ps stmts
+    where
+        vars = fmap (\ext -> "ext " ++ toStringVar ps ext ++ ";") exts
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String

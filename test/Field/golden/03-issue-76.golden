@@ -1,0 +1,2 @@
+ext x_2;
+let y_3 = if (0 == x_2) then 0 else 0;
