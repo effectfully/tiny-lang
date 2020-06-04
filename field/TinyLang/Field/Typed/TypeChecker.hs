@@ -245,7 +245,7 @@ checkStatement (R.EFor var start end stmts) =
               tVar <- makeVar $ R.unVar var
               let uVar = T.UniVar Field tVar
               tStmts <- foldMapA checkStatement stmts
-              pure $ T.ELet uVar (fromIntegral i) : tStmts
+              pure $ T.ELet uVar (T.EConst . fromIntegral $ i) : tStmts
 
 {-| Error message for a failed type equality
 -}
