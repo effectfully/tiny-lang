@@ -14,6 +14,6 @@ newtype Statements stmt = Statements { unStatements :: [stmt] }
     deriving (Show) via (Quiet (Statements stmt))
 
 -- | Basic wrapper of program
-newtype Program stmt = Program { unProgram :: (Statements stmt) }
+newtype Program stmt = Program { unProgram :: Statements stmt }
     deriving (Generic, Eq, Functor, Foldable, Traversable)
     deriving (Show) via (Quiet (Program stmt))
