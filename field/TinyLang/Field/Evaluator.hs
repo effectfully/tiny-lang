@@ -212,13 +212,6 @@ evalStatement (EAssert expr) kont = do
     exprR <- evalExpr expr
     unless exprR $ throwError $ AssertionFailedEvalError expr
     kont
-evalStatement (EFor (UniVar _ var) start end body) kont
-    | start <= end = foldr go kont [start..end]
-    | otherwise    = withVar var actualEnd kont
-        where
-            go i fkont = withVar var (Some $ fromIntegral i) $
-                            evalStatements body fkont
-            actualEnd = Some $ fromIntegral $ max start end
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
@@ -298,12 +291,6 @@ normStatement (EAssert expr) kont = do
       EConst (UniConst _ False) -> throwError $ AssertionFailedEvalError expr
       EConst (UniConst _ True) -> kont Nothing
       _ -> kont . Just $ EAssert exprN
-normStatement (EFor uniVar@(UniVar _ var) start end body) kont =
-    normStatements body $ \bodyN ->
-        let actualEnd = max start end in
-        withVar var (Some $ fromIntegral actualEnd) $ case bodyN of
-            Statements [] -> kont Nothing
-            _             -> kont . Just $ EFor uniVar start end bodyN
 
 normExpr :: (Monad m, Eq f, Field f, AsInteger f)
     => Expr f a -> EvalT f m (Expr f a)
@@ -340,7 +327,6 @@ normExpr(EAppBinOp op e1 e2) = do
 instStatement :: Monad m => Statement f -> EvalT f m (Statement f)
 instStatement (ELet uniVar def)             = ELet uniVar <$> instExpr def
 instStatement (EAssert expr)                = EAssert <$> instExpr expr
-instStatement (EFor uniVar start end stmts) = EFor uniVar start end <$> instStatements stmts
 
 instStatements :: Monad m => Statements f -> EvalT f m (Statements f)
 instStatements = traverse instStatement

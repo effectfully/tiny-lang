@@ -304,15 +304,6 @@ boundedArbitraryStmt size
                                vars <- get
                                x <- boundedArbitraryExpr vars size'
                                pure $ EAssert $ EAppBinOp binOp x x)
-                     -- generate a for loop
-                     , (1, do
-                               uniVar <- genFreshUniVar @f @(AField f)
-                               modify' (Some uniVar :)
-                               start <- arbitraryM
-                               let size' = size - 1
-                                   -- NOTE: we also include end < start cases
-                                   end   = choose (start - 5, start + 10)
-                               EFor uniVar start <$> end <*> boundedArbitraryStmts size')
                      ]
 
 -- | Generate an expression of a particular type from a collection of variablesf
@@ -451,8 +442,6 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
 
         -- small step "normaliser"
         norm :: [Statement f] -> Maybe [Statement f]
-        norm ((EFor forVar start end (Statements [])) : restStmts) =
-                pure $ ELet forVar (EConst (fromInteger (max start end))) : restStmts
         norm ((EAssert (EConst (UniConst _ True))) : restStmts) =
                 pure restStmts
         norm (stmt : restStmts) = (stmt :) <$> norm restStmts
@@ -486,9 +475,6 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     -- @lhs' == lhs'@ or @rhs' == rhs'@ where @lhs'@ and @rhs'@ are shrunk version of
     -- @lhs@ and @rhs@ respectively (just to have some shrinking that does not break the assertion).
     shrink (EAssert expr) = EAssert <$> shrink expr
-    -- NOTE:  Revisit different strategy for shrink end if test performance degrades
-    shrink (EFor uniVar start end stmts) =  efor <$> shrink (start, end, stmts) where
-        efor (a, b, c) = EFor uniVar a b c
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do

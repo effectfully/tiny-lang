@@ -1,11 +1,26 @@
-for i_6 = 1 to 2 do
+let i_6 = 1;
 let i'_7 = i_6;
-for j_8 = 2 to 3 do
+let j_8 = 2;
 let k_9 = i_6 * j_8;
 assert k_9 == (i'_7 * j_8);
-end;
-let p_10 = i_6;
-for l_11 = 1 to 2 do
-let p_12 = p_10 * l_11;
-end;
-end;
+let j_10 = 3;
+let k_11 = i_6 * j_10;
+assert k_11 == (i'_7 * j_10);
+let p_12 = i_6;
+let l_13 = 1;
+let p_14 = p_12 * l_13;
+let l_15 = 2;
+let p_16 = p_14 * l_15;
+let i_17 = 2;
+let i'_18 = i_17;
+let j_19 = 2;
+let k_20 = i_17 * j_19;
+assert k_20 == (i'_18 * j_19);
+let j_21 = 3;
+let k_22 = i_17 * j_21;
+assert k_22 == (i'_18 * j_21);
+let p_23 = i_17;
+let l_24 = 1;
+let p_25 = p_23 * l_24;
+let l_26 = 2;
+let p_27 = p_25 * l_26;
