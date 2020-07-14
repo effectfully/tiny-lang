@@ -7,7 +7,7 @@ import           Test.QuickCheck
 
 -- A couple of functions for checking the output of generators
 progNodes :: Program f -> Int
-progNodes = stmtsNodes . unProgram
+progNodes = stmtsNodes . _programStatements
 
 stmtsNodes :: Statements f -> Int
 stmtsNodes = sum . map stmtNodes . unStatements
@@ -24,7 +24,7 @@ exprNodes (EAppBinOp _ e1 e2) = 1 + exprNodes e1 + exprNodes e2
 exprNodes (EIf e e1 e2)       = 1 + exprNodes e + exprNodes e1 + exprNodes e2
 
 progDepth :: Program f -> Int
-progDepth = stmtsDepth . unProgram
+progDepth = stmtsDepth . _programStatements
 
 stmtsDepth :: Statements f -> Int
 stmtsDepth = maximum . (0:) . map stmtDepth . unStatements

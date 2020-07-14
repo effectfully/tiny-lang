@@ -1,3 +1,7 @@
+ext a;
+ext b;
+ext c;
+
 assert
     a + b [c] == a + (b [c])
 and a + b [c] <= (a + b) [c]

@@ -36,8 +36,6 @@ module TinyLang.Field.Evaluator
     , normStatement
     , normStatements
     , normProgram
-    , instStatement
-    , instExpr
     ) where
 
 import           Prelude                          hiding (div)
@@ -193,7 +191,7 @@ evalBinOp BAt x y = asIntegerEval x >>= fmap (UniConst Bool) . flip atEval y . f
 -- | Evaluate a program
 evalProgram :: (Monad m, Eq f, Field f, AsInteger f)
     => Program f -> EvalT f m ()
-evalProgram = flip evalStatements (pure ()) . unProgram
+evalProgram = flip evalStatements (pure ()) . _programStatements
 
 -- TODO:  Verify whether it is acutally right fold
 evalStatements :: (Monad m, Eq f, Field f, AsInteger f)
@@ -263,7 +261,7 @@ denoteExpr = fmap denoteUniConst . evalExprUni
 -- | A recursive normalizer for programs.
 normProgram :: (Monad m, Eq f, Field f, AsInteger f)
     => Program f -> EvalT f m (Program f)
-normProgram (Program stmts) = normStatements stmts (pure . Program)
+normProgram (Program exts stmts) = normStatements stmts (pure . Program exts)
 
 -- | A recursive normalizer for statements
 normStatements :: (Monad m, Eq f, Field f, AsInteger f)
@@ -314,7 +312,7 @@ normExpr (EAppUnOp op e) = do
     case eN of
         EConst (UniConst _ x) -> EConst <$> evalUnOp op x
         _ -> return $ EAppUnOp op eN
-normExpr(EAppBinOp op e1 e2) = do
+normExpr (EAppBinOp op e1 e2) = do
     e1N <- normExpr e1
     e2N <- normExpr e2
     case (e1N, e2N) of
@@ -323,24 +321,3 @@ normExpr(EAppBinOp op e1 e2) = do
         _ ->
             return $ EAppBinOp op e1N e2N
 
--- | Instantiate some of the variables of a statement with values.
-instStatement :: Monad m => Statement f -> EvalT f m (Statement f)
-instStatement (ELet uniVar def)             = ELet uniVar <$> instExpr def
-instStatement (EAssert expr)                = EAssert <$> instExpr expr
-
-instStatements :: Monad m => Statements f -> EvalT f m (Statements f)
-instStatements = traverse instStatement
-
--- | Instantiate some of the variables of an expression with values.
-instExpr :: Monad m => Expr f a -> EvalT f m (Expr f a)
-instExpr expr@(EConst _) = return expr
-instExpr expr@(EVar uniVar@(UniVar uni var)) = do
-    env <- ask
-    case lookupVar var env of
-        Nothing -> return expr
-        Just (Some uniConst@(UniConst uni' _)) -> do
-            let err = throwError . TypeMismatchEvalError $ TypeMismatch uniVar uniConst
-            withGeqUni uni uni' err $ return $ EConst uniConst
-instExpr (EIf e e1 e2) = EIf <$> instExpr e <*> instExpr e1 <*> instExpr e2
-instExpr (EAppUnOp op e) = EAppUnOp op <$> instExpr e
-instExpr (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr e1 <*> instExpr e2

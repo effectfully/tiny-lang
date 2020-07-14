@@ -1,3 +1,6 @@
+ext i;
+ext ?i;
+ext #i;
 let ?bool    = ?i;
 let field'   = i;
 let #vector  = #i;

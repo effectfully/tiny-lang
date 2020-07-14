@@ -1,0 +1,5 @@
+ext x;
+for z = 0 to -1 do
+    let x = x;
+end;
+let y = if (0 == x) then 0 else 0;

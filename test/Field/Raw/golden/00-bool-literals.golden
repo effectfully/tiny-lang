@@ -1,1 +1,1 @@
-Program (Statements [ELet (Var "?false") (EConst (Some (UniConst Bool False))),ELet (Var "?true") (EConst (Some (UniConst Bool True)))])
+Program [] Statements [ELet (Var "?false") (EConst (Some (UniConst Bool False))),ELet (Var "?true") (EConst (Some (UniConst Bool True)))]

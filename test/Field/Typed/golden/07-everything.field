@@ -1,3 +1,6 @@
+ext ?i;
+ext i;
+ext #i;
 let ?a = T;
 let ?b = F;
 let #v = {T, F, T};

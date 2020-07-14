@@ -1,3 +1,6 @@
+ext a;
+ext b;
+ext a;
 let a = a;
 let a = a;
 for a = 1 to 2 do

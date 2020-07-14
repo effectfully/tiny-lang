@@ -49,6 +49,7 @@ keyword ::=
     "field"
     "bool"
     "vector"
+    "ext"
 @
 
 == Types/Universes
@@ -133,9 +134,6 @@ prefix-op ::=
 
 == Statement
 
-Program are a bit odd at the moment, as they are neither
-expressions nor the usual statements.
-
 @
 statement ::=
     "let" var "=" expr
@@ -143,8 +141,24 @@ statement ::=
     "for" var "=" int-literal "to" int-literal "do" statements "end"
 
 statements ::=
-    (statement (";" statement)*)?
+    (statement ";")*
 @
+
+== Program
+
+A program is a list of external declarations followed by statements.
+
+@
+program ::=
+    ext-decls statements
+
+ext-decls ::=
+    (ext-decl ";")*
+
+ext-decl ::=
+    "ext" var
+@
+
 
 == Operator Precedence
 
@@ -220,6 +234,7 @@ keywords =
     , "for", "do", "end"
     , "if", "then", "else"
     , "bool", "field", "vector"
+    , "ext"
     ]
 
 isKeyword :: String -> Bool
@@ -367,6 +382,12 @@ pStatement =
               <*   keyword "end"
     ]
 
+pExtDecl :: ParserT m Var
+pExtDecl = keyword "ext" *> pVar
+
+pExtDecls :: ParserT m [Var]
+pExtDecls = many (pExtDecl <* symbol ";")
+
 pStatements :: Field f => ParserT m (RawStatements f)
 pStatements =
     choice
@@ -376,7 +397,7 @@ pStatements =
     ]
 
 pProgram :: Field f => ParserT m (RawProgram f)
-pProgram = Program <$> pStatements
+pProgram = Program <$> pExtDecls <*> pStatements
 
 pTop :: Field f => ParserT m (RawProgram f)
 pTop = top pProgram

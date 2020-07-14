@@ -1,12 +1,16 @@
 module TinyLang.Field.UniConst
     ( Uni(..)
     , UniConst(..)
+    , UniVar(..)
     , SomeUniConst
+    , SomeUniVar
     , SomeUni
     , KnownUni
     , knownUni
     , withGeqUni
     , withGeqUniM
+    , mkSomeUniVar
+    , uniOfVar
     ) where
 
 import           Data.Field
@@ -61,14 +65,28 @@ data UniVar f a = UniVar
 --     }
 
 type SomeUniConst f = Some (UniConst f)
-type SomeUni f = Some (Uni f)
+type SomeUniVar f   = Some (UniVar f)
+type SomeUni f      = Some (Uni f)
 
 
 -- instances
 
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
+
 deriving instance Show (UniVar f a)
+deriving instance Show (SomeUniVar f)
+
+-- This doesn't type check:
+--
+-- > UniConst _ x1 == UniConst _ x2 = x1 == x2
+--
+-- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
+-- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
+-- but then it's easier to just pattern match on universes.
+instance Eq f => Eq (UniVar f a) where
+    UniVar _ v1 == UniVar _ v2 = v1 == v2
+
 
 mapUniConst :: (a -> a) -> UniConst f a -> UniConst f a
 mapUniConst f (UniConst uni x) = UniConst uni $ f x
@@ -130,3 +148,13 @@ instance Eq f => Eq (UniConst f a) where
     UniConst Bool   bool1 == UniConst Bool   bool2 = bool1 == bool2
     UniConst Field  el1   == UniConst Field  el2   = el1 == el2
     UniConst Vector vec1  == UniConst Vector vec2  = vec1 == vec2
+
+uniOfVar :: forall f. String -> SomeUni f
+uniOfVar name
+    | '?':_ <- name = Some Bool
+    | '#':_ <- name = Some Vector
+    | otherwise     = Some Field
+
+mkSomeUniVar :: forall f. Var -> SomeUniVar f
+mkSomeUniVar var = case uniOfVar . _varName $ var of
+                       Some uni -> Some $ UniVar uni var

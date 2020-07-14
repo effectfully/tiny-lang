@@ -19,7 +19,6 @@ library
         Data.Field
         Data.Field.F17
         TinyLang.Environment
-        TinyLang.Generator
         TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var

@@ -9,9 +9,14 @@ import           TinyLang.Field.Typed.Core
 import           Control.Monad.Cont
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
-renameProgram (Program stmts) = do
-    stmtsSupplyFromAtLeastFree stmts
-    Program <$> runRenameM (withRenamedStatementsM stmts pure)
+renameProgram prog@(Program exts stmts) = do
+    -- NOTE:  We are not sure if we need to handle Programs with free variables.
+    -- NOTE:  Compiler will run a renaming step before compilation anyways.
+    progSupplyFromAtLeastFree prog
+    runRenameM $
+        runContT (traverse (ContT . withFreshenedVar) exts) $ \ rVars ->
+            withRenamedStatementsM stmts $ \ rStmts ->
+                pure $ Program rVars rStmts
 
 type RenameM = ReaderT (Env Unique) Supply
 

@@ -9,7 +9,7 @@ module TinyLang.Field.Raw.Core
     , Statement(..)
     , Program
     , pattern C.Program
-    , C.unProgram
+    , C._programStatements
     , Statements
     , pattern C.Statements
     , C.unStatements
@@ -30,7 +30,7 @@ import           Quiet
 type Identifier = String
 
 newtype Var = Var { unVar :: Identifier }
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Ord)
     deriving (Show) via (Quiet Var)
 
 {-| In our AST we have the following
@@ -50,8 +50,8 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f    = C.Program    (Statement v f)
-type Statements v f = C.Statements (Statement v f)
+type Program v f    = C.Program    v (Statement v f)
+type Statements v f = C.Statements   (Statement v f)
 
 data Statement v f
     = ELet    v          (Expr v f)
