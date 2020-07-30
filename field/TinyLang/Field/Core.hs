@@ -1,5 +1,6 @@
 -- | Basic structure of our programs
 
+
 module TinyLang.Field.Core
     ( Program (..)
     , Statements (..)
@@ -25,5 +26,5 @@ instance Bifunctor Program where
     bimap f g (Program exts stmts) = Program (fmap f exts) (fmap g stmts)
 
 -- NOTE:  Adding explicit Show instance to avoid record syntax
-instance (Show var, Show stmt) => Show (Program var stmt) where
-    show (Program exts stmts) = "Program " ++ show exts ++ " " ++ show stmts
+-- instance (Show var, Show stmt) => Show (Program var stmt) where
+--     show (Program exts stmts) = "Program " ++ show exts ++ " " ++ show stmts

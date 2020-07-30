@@ -1,3 +1,3 @@
-let ?bool    = T : bool;
-let field'   = 1 : field;
-let #vector  = { T } : vector;
+let bool'   : bool   = T     : bool;
+let field'  : field  = 1     : field;
+let vector' : vector = { T } : vector;

@@ -1,5 +1,5 @@
-ext a;
-ext b;
+ext a : field;
+ext b : field;
 
 assert
 (neg a and b) <= (neg (a and b))

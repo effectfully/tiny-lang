@@ -30,7 +30,7 @@ library
         TinyLang.Field.Printer
         TinyLang.Field.Rename
         TinyLang.Field.Jubjub
-        TinyLang.Field.UniConst
+        TinyLang.Field.Uni
         TinyLang.Field.Raw.Core
         TinyLang.Field.Raw.Parser
         TinyLang.Field.Typed.Core
@@ -51,6 +51,7 @@ library
         mmorph,
         parser-combinators,
         interpolate,
+        optics-core,
         QuickCheck,
         QuickCheck-GenT,
         quickcheck-instances,

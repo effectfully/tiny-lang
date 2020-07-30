@@ -17,7 +17,6 @@ import           TinyLang.Prelude                 hiding (many, option, some,
 
 import           Data.Field
 import           TinyLang.Field.Raw.Parser
-import           TinyLang.Field.Rename
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Typed.TypeChecker
 import           TinyLang.ParseUtils
@@ -34,8 +33,7 @@ parseProgramFrom
     => String -> String -> m (Program f)
 parseProgramFrom fileName str = do
     progRaw <- parseString (pTop @f) fileName str
-    progTyped <- typeProgram progRaw
-    renameProgram progTyped
+    typeProgram progRaw
 
 
 -- | Convenience version of @parseScopedProgram'@ with an empty file name.

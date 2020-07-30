@@ -1,11 +1,11 @@
-ext a;
-ext b;
-ext c;
-ext d;
-ext e;
-ext f;
-ext g;
-ext h;
+ext a : field;
+ext b : field;
+ext c : field;
+ext d : field;
+ext e : field;
+ext f : field;
+ext g : field;
+ext h : field;
 
 assert
 	  a * b

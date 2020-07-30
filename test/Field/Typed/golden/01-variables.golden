@@ -1,1 +1,6 @@
-Program [i_6,?i_7,#i_8] Statements [ELet (UniVar {_uniVarUni = Bool, _uniVarVar = ?bool_9}) (EVar (UniVar {_uniVarUni = Bool, _uniVarVar = ?i_7})),ELet (UniVar {_uniVarUni = Field, _uniVarVar = field'_10}) (EVar (UniVar {_uniVarUni = Field, _uniVarVar = i_6})),ELet (UniVar {_uniVarUni = Vector, _uniVarVar = #vector_11}) (EVar (UniVar {_uniVarUni = Vector, _uniVarVar = #i_8}))]
+ext ef_0 : field;
+ext eb_1 : bool;
+ext ev_2 : vector;
+let b_3 : bool = (eb_1 : bool);
+let f_4 : field = (ef_0 : field);
+let v_5 : vector = (ev_2 : vector);

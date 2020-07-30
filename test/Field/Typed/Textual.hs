@@ -4,6 +4,8 @@ module Field.Typed.Textual
 
 import           Field.TestUtils
 
+import           TinyLang.Field.Printer ()
+
 import           Data.String
 import           System.FilePath
 import           Test.Tasty

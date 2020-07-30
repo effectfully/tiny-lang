@@ -1,2 +1,2 @@
-let ?false = F;
-let ?true  = T;
+let false : bool = F;
+let true  : bool = T;

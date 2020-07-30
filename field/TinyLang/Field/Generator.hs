@@ -25,17 +25,19 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
+import           TinyLang.Environment             as Env
 import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Typed.Core
-import           TinyLang.Field.UniConst          (mkSomeUniVar)
+import           TinyLang.Field.Uni               (mkSomeUniVar, SomeUni)
 
-import qualified Data.IntMap.Strict               as IntMap
+-- import qualified Data.IntMap.Strict               as IntMap
 import           Data.Kind
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
 import           Test.QuickCheck                  (Arbitrary, Gen, arbitrary,
                                                    arbitrarySizedBoundedIntegral,
-                                                   shrink, shrinkList, sublistOf)
+                                                   shrink, shrinkList, shrinkNothing,
+                                                   sublistOf)
 import           Test.QuickCheck.Instances.Vector ()
 
 
@@ -73,10 +75,7 @@ uniVars =
 genFreshUniVar :: forall f a m. (KnownUni f a, MonadGen m, MonadSupply m) => m (UniVar f a)
 genFreshUniVar = do
     let uni = knownUni @f @a
-    name <- elements $ case uni of
-        Bool   -> map (\c -> '?':[c]) ['a'..'z']
-        Field  -> map (:[]) ['a'..'z']
-        Vector -> map (\c -> '#':[c]) ['a'..'z']
+    name <- elements $ map (:[]) ['a' .. 'z']
     UniVar uni <$> freshVar name
 
 {- The next function does some hacking to adjust the supply of
@@ -107,11 +106,11 @@ adjustUniquesForVars =
 -- | A wrapper around @UniVar f a@ provided for its @Arbitrary@ instance that allows to generate
 -- variables from the default set of them.
 
-defaultIdents :: [String]
+defaultIdents :: [(String, SomeUni f)]
 defaultIdents = concat . transpose $ [fieldIdents, boolIdents, vectorIdents] where
-        fieldIdents   = ["x", "y", "z", "p", "q", "r", "s", "t"]
-        boolIdents    = ["?a", "?b", "?c", "?d", "?e", "?f", "?g", "?h"]
-        vectorIdents  = ["#q", "#r", "#s", "#t", "#u", "#v", "#w"]
+        fieldIdents   = map (\ i -> (i, Some Field))  ["x", "y", "z", "p", "q", "r", "s", "t"]
+        boolIdents    = map (\ i -> (i, Some Bool))   ["a", "b", "c", "d", "e", "f", "g", "h"]
+        vectorIdents  = map (\ i -> (i, Some Vector)) ["q", "r", "s", "t", "u", "v", "w"]
 
 newtype Default a = Default
     { unDefault :: a
@@ -119,16 +118,21 @@ newtype Default a = Default
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 -- type DefaultUniVar f a    = Default (UniVar f a)
-type DefaultVars          = Default [Var]
+-- type DefaultVars          = Default [Var]
 type DefaultSomeUniVars f = Default (Vars f)
 
-instance Arbitrary DefaultVars where
-    arbitrary = do
-        vars <- sublistOf $ defaultIdents
-        pure . Default $ runSupply $ traverse freshVar vars
+-- instance Arbitrary DefaultVars where
+--     arbitrary = do
+--         vars <- sublistOf $ defaultIdents
+--         pure . Default $ runSupply $ traverse freshSomeUniVar vars
+--         where
+--         freshSomeUniVar (name, (Some uni)) = Some . UniVar uni <$> freshVar name
 
 instance Arbitrary (DefaultSomeUniVars f) where
-    arbitrary =  (fmap . fmap . fmap) mkSomeUniVar arbitrary
+    arbitrary = do
+        idents <- sublistOf $ defaultIdents
+        pure . Default $ runSupply $ traverse freshSomeUniVar idents
+        where freshSomeUniVar (name, someUni) = mkSomeUniVar someUni <$> freshVar name
 
 
 
@@ -437,9 +441,8 @@ defaultUniConst =
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
     arbitrary = do
         exts  <- unDefault <$> arbitrary
-        let someUniVars = fmap mkSomeUniVar exts
-        stmts <- runSGen someUniVars $ sized $ \size -> do
-                     adjustUniquesForVars someUniVars
+        stmts <- runSGen exts $ sized $ \size -> do
+                     adjustUniquesForVars exts
                      boundedArbitraryStmts size
         -- NOTE: we should not use arbitrary instance for Statements f directly,
         -- as it can generate a statement that contains free variables.
@@ -447,8 +450,18 @@ instance (Field f, Arbitrary f) => Arbitrary (Program f) where
 
     shrink (Program exts stmts) =
         fmap (uncurry Program) $
-            -- [ (vars', stmts)  | vars'  <- shrinkList (const []) vars ] ++
-            [ (exts , stmts') | stmts' <- shrink stmts ]
+            [ (exts' , stmts)  | exts'  <- shrinkExts ] ++
+            [ (exts  , stmts') | stmts' <- shrink stmts ] where
+        shrinkExts = if Env.null unusedEnv then [] else
+            [ sort (usedExts ++ shrunkUnusedExts)
+                     | shrunkUnusedExts <- shrinkList shrinkNothing unusedExts ]
+        toAscPair someUniVar@(Some (UniVar _ tVar)) = (tVar, someUniVar)
+        oldEnv     = Env.fromVars $ map toAscPair exts
+        newEnv     = progFreeVarSigs $ Program [] stmts
+        usedExts   = Env.elems $ Env.intersection oldEnv newEnv
+        unusedEnv  = Env.difference oldEnv newEnv
+        unusedExts = Env.elems unusedEnv
+
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
     arbitrary = do
@@ -536,11 +549,10 @@ genEnvFromVarSigs =
     traverse $ \(VarSig _ (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
-genInputEnvFromExts :: (Field f, Arbitrary f) => [Var] -> Gen (Env (SomeUniConst f))
-genInputEnvFromExts vars = fromVars . zip vars <$> consts where
-    consts = for vars $ \ tVar ->
-        case uniOfVar . _varName $ tVar of
-            Some (uni :: Uni f a) ->
+genInputEnvFromExts :: (Field f, Arbitrary f) => Vars f -> Gen (Env (SomeUniConst f))
+genInputEnvFromExts vars = fromVars . zip exts <$> consts where
+    exts = map (\ (Some (UniVar _ v)) -> v) vars
+    consts = for vars $ \ (Some (UniVar (uni :: Uni f a) _)) ->
                 Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
 -- | Generate a random ProgramWithEnv.  Note that you can say things like

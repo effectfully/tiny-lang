@@ -42,6 +42,7 @@ import           Prelude                          hiding (div)
 
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Prelude
+import           TinyLang.Field.Printer          ()
 
 import qualified Data.String.Interpolate.IsString as QQ
 import qualified Data.Vector                      as Vector

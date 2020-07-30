@@ -19,6 +19,16 @@ import qualified Data.Vector               as Vector
 -- output of toString we probably don't want the IDs.
 data PrintStyle = WithIDs | NoIDs
 
+toStringSomeUniVar :: PrintStyle -> SomeUniVar f -> String
+toStringSomeUniVar ps = forget (toStringUniVar ps)
+
+toStringUniVar :: PrintStyle -> UniVar f a -> String
+toStringUniVar ps (UniVar uni var) = toStringVar ps var ++ " " ++ suffix uni where
+    suffix :: Uni f a -> String
+    suffix Bool   = ": bool"
+    suffix Field  = ": field"
+    suffix Vector = ": vector"
+
 toStringVar :: PrintStyle -> Var -> String
 toStringVar NoIDs   (Var _ name) = name
 toStringVar WithIDs v            = show v   -- or explicitly tell it what to do?
@@ -65,9 +75,9 @@ toStringUniConst (UniConst Vector v) =
     "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
 stmtToString :: TextField f => PrintStyle -> Statement f -> String
-stmtToString s (ELet (UniVar _ var) def) = concat
+stmtToString s (ELet uniVar def) = concat
     [ "let "
-    , toStringVar s var
+    , toStringUniVar s uniVar
     , " = "
     , exprToString s def
     , ";"
@@ -80,12 +90,12 @@ stmtsToString ps = unlines . (map (stmtToString ps)) . unStatements
 progToString :: TextField f => PrintStyle -> Program f -> String
 progToString ps (Program exts stmts) = unlines vars ++ stmtsToString ps stmts
     where
-        vars = fmap (\ext -> "ext " ++ toStringVar ps ext ++ ";") exts
+        vars = fmap (\ext -> "ext " ++ toStringSomeUniVar ps ext ++ ";") exts
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
 exprToString _ (EConst uv)          = toStringUniConst uv
-exprToString s (EVar (UniVar _ v))  = toStringVar s v
+exprToString s (EVar uniVar)        = "(" ++ toStringUniVar s uniVar ++ ")"
 exprToString s (EAppUnOp op e)      = toStringUnOp op ++ exprToString1 s e
 exprToString s (EAppBinOp op e1 e2) = toStringBinOp op (exprToString1 s e1) (exprToString1 s e2)
 exprToString s (EIf e e1 e2)        = concat
@@ -99,3 +109,6 @@ exprToString s (EIf e e1 e2)        = concat
 
 someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String
 someExprToString s = forget $ exprToString s
+
+instance (TextField f) => Show (Program f) where
+    show = progToString WithIDs

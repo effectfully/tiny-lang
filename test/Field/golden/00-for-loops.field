@@ -1,11 +1,11 @@
 for i = 1 to 2 do
-    let i' = i;
+    let i' : field = i;
     for j = 2 to 3 do
-        let k = i * j;
+        let k : field = i * j;
         assert k == i' * j;
     end;
-    let p = i;
+    let p : field = i;
     for l = 1 to 2 do
-        let p = p * l;
+        let p : field = p * l;
     end;
 end;

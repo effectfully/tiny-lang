@@ -10,7 +10,6 @@ module TinyLang.Field.Typed.Core
     , KnownUni (..)
     , UniConst (..)
     , UniVar (..)
-    , uniOfVar
     , SomeUniConst
     , SomeUniVar
     , SomeUniExpr
@@ -44,8 +43,9 @@ import qualified TinyLang.Field.Core        as C
 import           Data.Field                 as Field
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
-import           TinyLang.Field.UniConst
+import           TinyLang.Field.Uni
 import           TinyLang.Var               as Var
+-- import           TinyLang.Field.Printer    (progToString, PrintStyle(..))
 
 
 type SomeUniExpr f = SomeOf (Uni f) (Expr f)
@@ -73,8 +73,9 @@ data BinOp f a b c where
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
 
-type Program    f = C.Program    Var (Statement f)
-type Statements f = C.Statements     (Statement f)
+type Program    f = C.Program    (SomeUniVar f) (Statement f)
+type Statements f = C.Statements                (Statement f)
+
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -170,7 +171,7 @@ instance Eq f => Eq (Statement f) where
     EAssert {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
-    EConst uval1       == EConst uval2         = uval1 == uval2
+    EConst uval1       == EConst uval2       = uval1 == uval2
     EVar uvar1         == EVar uvar2         = uvar1 == uvar2
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 False $ x1 == x2
@@ -244,9 +245,8 @@ progVS (C.Program exts stmts) = do
     traverse_ extVS exts
     traverse_ stmtVS stmts
 
-extVS :: Var -> State (ScopedVarSigs f) ()
-extVS var = case mkSomeUniVar var of
-    Some uniVar -> bindUniVar uniVar
+extVS :: SomeUniVar f -> State (ScopedVarSigs f) ()
+extVS = forget bindUniVar
 
 -- | Gather VarSigs for a statement
 stmtVS :: Statement f -> State (ScopedVarSigs f) ()

@@ -11,3 +11,6 @@ extra-deps:
 - bitvec-1.0.2.0
 - vector-algorithms-0.8.0.3
 - quiet-0.2
+- optics-core-0.3
+- indexed-profunctors-0.1
+
