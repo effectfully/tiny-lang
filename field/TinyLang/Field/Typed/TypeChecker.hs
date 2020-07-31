@@ -51,9 +51,6 @@ type MonadTypeChecker m f = ( MonadSupply m
 
 {-| == Type Environments
 -}
-
--- NOTE: We use T.Var to track uniques, and we use R.Uni to avoid parameterising
--- everything with @f@ for field.
 type TyEnv f = Map R.Var (SomeUniVar f)
 
 {-| @TypeChecker@ Transformer
