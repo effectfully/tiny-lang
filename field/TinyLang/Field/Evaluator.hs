@@ -42,7 +42,7 @@ import           Prelude                          hiding (div)
 
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Prelude
-import           TinyLang.Field.Printer          ()
+import           TinyLang.Field.Printer           (Pretty(..))
 
 import qualified Data.String.Interpolate.IsString as QQ
 import qualified Data.Vector                      as Vector
@@ -237,9 +237,17 @@ evalExpr :: (Monad m, Eq f, Field f, AsInteger f)
     => Expr f a -> EvalT f m a
 evalExpr = fmap _uniConstVal . evalExprUni
 
+instance (TextField f) => (Show (Pretty (ProgramWithEnv f))) where
+    show (Pretty (ProgramWithEnv prog env)) =
+        unlines [ "program:"
+                , show . Pretty $ prog
+                , "env:"
+                , show . Pretty $ env
+                ]
+
 data ProgramWithEnv f
     = ProgramWithEnv (Program f) (Env (SomeUniConst f))
-      deriving (Show)
+      deriving Show via Pretty (ProgramWithEnv f)
 
 -- | Evaluate a program in a given environment
 evalProgWithEnv :: (Eq f, Field f, AsInteger f)

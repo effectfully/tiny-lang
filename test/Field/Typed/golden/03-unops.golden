@@ -1,5 +1,5 @@
-let not'_0 : bool = not T;
-let neq0'_1 : bool = neq0 0;
-let neg'_2 : field = neg 0;
-let inv'_3 : field = inv 0;
-let unpack'_4 : vector = unpack 1;
+let ?not'_0 = not T;
+let ?neq0'_1 = neq0 0;
+let $neg'_2 = neg 0;
+let $inv'_3 = inv 0;
+let @unpack'_4 = unpack 1;

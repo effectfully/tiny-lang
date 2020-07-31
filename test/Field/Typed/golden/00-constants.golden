@@ -1,4 +1,4 @@
-let true_0 : bool = T;
-let false_1 : bool = F;
-let field'_2 : field = 0;
-let vector'_3 : vector = {T};
+let ?true_0 = T;
+let ?false_1 = F;
+let $field'_2 = 0;
+let @vector'_3 = {T};

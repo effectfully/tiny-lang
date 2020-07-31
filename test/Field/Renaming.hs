@@ -18,6 +18,7 @@ import           TinyLang.Field.Typed.Core
 -- NOTE:  Importing IsString Typed.Core
 import           TinyLang.Field.Typed.Parser ()
 import           TinyLang.Field.Rename
+import           TinyLang.Field.Printer      (Pretty(..))
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -63,27 +64,27 @@ offset prog = runSupply $ do
 prop_fresh_preserves_equality :: (Eq f, TextField f) => Program f -> Either String ()
 prop_fresh_preserves_equality prog = unless (prog == progR) . Left $ unlines message where
     message = [ "ERROR: fresh program"
-              , show progR
+              , show . Pretty $ progR
               , "is not equal to"
-              , show prog
+              , show . Pretty $ prog
               ]
     progR = fresh prog
 
 prop_offset_causes_inequality :: (Eq f, TextField f) => Program f -> Either String ()
 prop_offset_causes_inequality prog = unless (prog /= progO) . Left $ unlines message where
     message = [ "ERROR: offset program"
-              , show progO
+              , show . Pretty $ progO
               , "is equal to"
-              , show prog
+              , show . Pretty $ prog
               ]
     progO = offset prog
 
 prop_fresh_recovers_equality :: (Eq f, TextField f) => Program f -> Either String ()
 prop_fresh_recovers_equality prog = unless (progF == progOF) . Left $ unlines message where
     message = [ "ERROR: fresh . offset $ program"
-              , show progOF
+              , show . Pretty $ progOF
               , "is equal to"
-              , show prog
+              , show . Pretty $ prog
               ]
     progF   = fresh prog
     progOF  = fresh . offset $ prog

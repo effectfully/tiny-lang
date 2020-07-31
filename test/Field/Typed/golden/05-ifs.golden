@@ -1,3 +1,3 @@
-let field'_0 : field = if T then 0 else 0;
-let bool'_1 : bool = if T then T else T;
-let vector'_2 : vector = if T then {T} else {T};
+let $field'_0 = if T then 0 else 0;
+let ?bool'_1 = if T then T else T;
+let @vector'_2 = if T then {T} else {T};

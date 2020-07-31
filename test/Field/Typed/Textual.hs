@@ -4,7 +4,7 @@ module Field.Typed.Textual
 
 import           Field.TestUtils
 
-import           TinyLang.Field.Printer ()
+import           TinyLang.Field.Printer (Pretty(..))
 
 import           Data.String
 import           System.FilePath
@@ -18,7 +18,7 @@ genTest :: FilePath -> TestTree
 genTest filePath = goldenVsString name golden action
     where name = takeBaseName filePath
           golden = goldenFile filePath
-          action = fromString <$> either id show <$> typeCheckFilePath filePath
+          action = fromString <$> either id (show . Pretty) <$> typeCheckFilePath filePath
 
 gen_test_typechecking :: IO TestTree
 gen_test_typechecking =

@@ -5,6 +5,7 @@ module TinyLang.Field.Printer
     , stmtToString
     , stmtsToString
     , progToString
+    , Pretty (Pretty)
     ) where
 
 import           TinyLang.Prelude
@@ -17,21 +18,27 @@ import qualified Data.Vector               as Vector
 -- PrintStyle type determines whether printed variable names include
 -- these or not ("x_5" versus "x").  If we're going to re-parse the
 -- output of toString we probably don't want the IDs.
-data PrintStyle = WithIDs | NoIDs
+data PrintStyle = WithIDs | NoIDs | Prefix
 
 toStringSomeUniVar :: PrintStyle -> SomeUniVar f -> String
 toStringSomeUniVar ps = forget (toStringUniVar ps)
 
 toStringUniVar :: PrintStyle -> UniVar f a -> String
-toStringUniVar ps (UniVar uni var) = toStringVar ps var ++ " " ++ suffix uni where
-    suffix :: Uni f a -> String
-    suffix Bool   = ": bool"
-    suffix Field  = ": field"
-    suffix Vector = ": vector"
+toStringUniVar ps (UniVar uni var) = suffixOrPrefix ps uni $ toStringVar ps var where
+    suffixOrPrefix Prefix  = prefix
+    suffixOrPrefix _       = suffix
+    suffix :: Uni f a -> String -> String
+    suffix Bool   = (++ " : bool")
+    suffix Field  = (++ " : field")
+    suffix Vector = (++ " : vector")
+    prefix :: Uni f a -> String -> String
+    prefix Bool   = ("?" ++)
+    prefix Field  = ("$" ++)
+    prefix Vector = ("@" ++)
 
 toStringVar :: PrintStyle -> Var -> String
 toStringVar NoIDs   (Var _ name) = name
-toStringVar WithIDs v            = show v   -- or explicitly tell it what to do?
+toStringVar _       (Var u name) = name ++ "_" ++ show u
 
 toStringUnOp :: UnOp f a b -> String
 toStringUnOp Not  = "not "
@@ -110,5 +117,11 @@ exprToString s (EIf e e1 e2)        = concat
 someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String
 someExprToString s = forget $ exprToString s
 
-instance (TextField f) => Show (Program f) where
-    show = progToString WithIDs
+newtype Pretty a = Pretty { unPretty :: a }
+
+instance (TextField f) => Show (Pretty (Program f)) where
+    show = progToString Prefix . unPretty
+
+-- TODO:  Impvove the pretty printer
+instance (Show a) => Show (Pretty (Env a)) where
+    show = show . unPretty
