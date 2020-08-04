@@ -51,8 +51,8 @@ test_free_variables = testGroup "free variables"
         emptyEnv = Env mempty
         assertNonEmptyEnv = assertBool "set of free vars should not be empty" . (emptyEnv /=)
 
-fresh :: Program f -> Program f
-fresh = runSupply . renameProgram
+renamed :: Program f -> Program f
+renamed = runSupply . renameProgram
 
 offset :: Program f -> Program f
 offset prog = runSupply $ do
@@ -61,14 +61,14 @@ offset prog = runSupply $ do
     _ <- freshUnique
     renameProgram prog
 
-prop_fresh_preserves_equality :: (Eq f, TextField f) => Program f -> Either String ()
-prop_fresh_preserves_equality prog = unless (prog == progR) . Left $ unlines message where
-    message = [ "ERROR: fresh program"
+prop_renamed_preserves_equality :: (Eq f, TextField f) => Program f -> Either String ()
+prop_renamed_preserves_equality prog = unless (prog == progR) . Left $ unlines message where
+    message = [ "ERROR: renamed program"
               , show . Pretty $ progR
               , "is not equal to"
               , show . Pretty $ prog
               ]
-    progR = fresh prog
+    progR = renamed prog
 
 prop_offset_causes_inequality :: (Eq f, TextField f) => Program f -> Either String ()
 prop_offset_causes_inequality prog = unless (prog /= progO) . Left $ unlines message where
@@ -79,25 +79,26 @@ prop_offset_causes_inequality prog = unless (prog /= progO) . Left $ unlines mes
               ]
     progO = offset prog
 
-prop_fresh_recovers_equality :: (Eq f, TextField f) => Program f -> Either String ()
-prop_fresh_recovers_equality prog = unless (progF == progOF) . Left $ unlines message where
-    message = [ "ERROR: fresh . offset $ program"
+-- NOTE:  We use syntactic equality here
+prop_renamed_recovers_syntactic_equality :: (Eq f, TextField f) => Program f -> Either String ()
+prop_renamed_recovers_syntactic_equality prog = unless (progF == progOF) . Left $ unlines message where
+    message = [ "ERROR: renamed . offset $ program"
               , show . Pretty $ progOF
               , "is equal to"
               , show . Pretty $ prog
               ]
-    progF   = fresh prog
-    progOF  = fresh . offset $ prog
+    progF   = renamed prog
+    progOF  = renamed . offset $ prog
 
 
 test_renaming :: TestTree
 test_renaming = testGroup "renaming"
     [   testGroup "preserves"
         [ testProperty "AST equality" $
-            withMaxSuccess 1000 . property $ prop_fresh_preserves_equality @F17
+            withMaxSuccess 1000 . property $ prop_renamed_preserves_equality @F17
         , testProperty "AST (pseudo)-inequality" $
             withMaxSuccess 1000 . property $ prop_offset_causes_inequality @F17
         , testProperty "AST equality" $
-            withMaxSuccess 1000 . property $ prop_fresh_recovers_equality @F17
+            withMaxSuccess 1000 . property $ prop_renamed_recovers_syntactic_equality @F17
         ]
     ]

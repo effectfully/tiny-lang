@@ -35,8 +35,8 @@ import           Test.Tasty.QuickCheck
 -- Alpha equivalence for Programs
 -- NOTE:  Var/UniVar/SomeUniVar are the same as long as unique is the same
 aEquiv :: (Eq f) => Program f -> Program f -> Bool
-aEquiv a b = fresh a == fresh b where
-    fresh = runSupply . renameProgram
+aEquiv a b = renamed a == renamed b where
+    renamed = runSupply . renameProgram
 
 
 prop_prog_roundtrip :: forall f. (Eq f, TextField f) => Program f -> Either String ()
