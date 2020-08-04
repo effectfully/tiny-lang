@@ -1,6 +1,7 @@
-ext i;
-ext ?i;
-ext #i;
-let ?bool    = ?i;
-let field'   = i;
-let #vector  = #i;
+ext ef : field;
+ext eb : bool;
+ext ev : vector;
+
+let b : bool   = eb;
+let f : field  = ef;
+let v : vector = ev;

@@ -1,4 +1,4 @@
-module TinyLang.Field.UniConst
+module TinyLang.Field.Uni
     ( Uni(..)
     , UniConst(..)
     , UniVar(..)
@@ -10,7 +10,6 @@ module TinyLang.Field.UniConst
     , withGeqUni
     , withGeqUniM
     , mkSomeUniVar
-    , uniOfVar
     ) where
 
 import           Data.Field
@@ -46,17 +45,18 @@ instance f ~ f' => KnownUni f (AField f') where
 instance bool ~ Bool => KnownUni f (Vector bool) where
     knownUni = Vector
 
+-- NOTE:  Custom Show instance below
 -- Needed for the sake of deriving.
 data UniConst f a = UniConst
     { _uniConstUni :: Uni f a
     , _uniConstVal :: a
-    }
+    } deriving (Ord)
 
 -- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
     { _uniVarUni :: Uni f a
     , _uniVarVar :: Var
-    }
+    } deriving (Eq, Ord, Show)
 
 -- -- TODO: We can can unify the two above by the following data type. Should we do that?
 -- data Inhabits f a b = Inhabits
@@ -73,20 +73,52 @@ type SomeUni f      = Some (Uni f)
 
 deriving instance Show (Uni f a)
 deriving instance Eq   (Uni f a)
+-- NOTE:  This instance fixes the uni (similarly to Eq)
+deriving instance Ord  (Uni f a)
 
-deriving instance Show (UniVar f a)
 deriving instance Show (SomeUniVar f)
 
--- This doesn't type check:
---
--- > UniConst _ x1 == UniConst _ x2 = x1 == x2
---
--- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
--- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
--- but then it's easier to just pattern match on universes.
-instance Eq f => Eq (UniVar f a) where
-    UniVar _ v1 == UniVar _ v2 = v1 == v2
+instance Eq (SomeUni f) where
+    Some u1 == Some u2 = withGeqUni u1 u2 False True
 
+instance Ord (SomeUni f) where
+    Some Bool   `compare` Some Bool   = EQ
+    Some Bool   `compare` Some Field  = LT
+    Some Bool   `compare` Some Vector = LT
+    Some Field  `compare` Some Bool   = GT
+    Some Field  `compare` Some Field  = EQ
+    Some Field  `compare` Some Vector = LT
+    Some Vector `compare` Some Bool   = GT
+    Some Vector `compare` Some Field  = GT
+    Some Vector `compare` Some Vector = EQ
+
+-- NOTE:  We require that the type of variable matches
+instance Eq (SomeUniVar f) where
+    Some (UniVar u1 v1) == Some (UniVar u2 v2) = withGeqUni u1 u2 False (v1 == v2)
+
+-- NOTE:  We compare unis, if they are the same, we compare variables
+instance Ord (SomeUniVar f) where
+    Some (UniVar u1 v1) `compare` Some (UniVar u2 v2) =
+        withGeqUni u1 u2 (Some u1 `compare` Some u2) (v1 `compare` v2)
+
+-- NOTE:  Technically, we could use an automatically derived instance and push
+-- the @Eq a@ to `Typed.Core.Expr`
+-- NOTE: UniConst _ x1 == UniConst x2 will not work, as we need an Eq a
+-- instance.
+instance Eq f => Eq (UniConst f a) where
+    UniConst Bool   b1 == UniConst Bool   b2 = b1 == b2
+    UniConst Field  f1 == UniConst Field  f2 = f1 == f2
+    UniConst Vector v1 == UniConst Vector v2 = v1 == v2
+
+-- NOTE: We explicitly match on all universes in False case to ensure that the
+-- compiler will report an error when a new Uni is added.
+instance Eq f => Eq (SomeUniConst f) where
+    Some (UniConst Bool b1)   == Some (UniConst Bool b2)   = b1 == b2
+    Some (UniConst Field f1)  == Some (UniConst Field f2)  = f1 == f2
+    Some (UniConst Vector v1) == Some (UniConst Vector v2) = v1 == v2
+    Some (UniConst Bool _)    == _                         = False
+    Some (UniConst Field _)   == _                         = False
+    Some (UniConst Vector _)  == _                         = False
 
 mapUniConst :: (a -> a) -> UniConst f a -> UniConst f a
 mapUniConst f (UniConst uni x) = UniConst uni $ f x
@@ -137,24 +169,5 @@ withGeqUniM Bool   _      e _ = throwError e
 withGeqUniM Field  _      e _ = throwError e
 withGeqUniM Vector _      e _ = throwError e
 
--- This doesn't type check:
---
--- > UniConst _ x1 == UniConst _ x2 = x1 == x2
---
--- because it requires the type of @x1@ and @x2@ to have an @Eq@ instance.
--- We could provide a similar to 'withGeqUni' combinator that can handle this situation,
--- but then it's easier to just pattern match on universes.
-instance Eq f => Eq (UniConst f a) where
-    UniConst Bool   bool1 == UniConst Bool   bool2 = bool1 == bool2
-    UniConst Field  el1   == UniConst Field  el2   = el1 == el2
-    UniConst Vector vec1  == UniConst Vector vec2  = vec1 == vec2
-
-uniOfVar :: forall f. String -> SomeUni f
-uniOfVar name
-    | '?':_ <- name = Some Bool
-    | '#':_ <- name = Some Vector
-    | otherwise     = Some Field
-
-mkSomeUniVar :: forall f. Var -> SomeUniVar f
-mkSomeUniVar var = case uniOfVar . _varName $ var of
-                       Some uni -> Some $ UniVar uni var
+mkSomeUniVar :: forall f. SomeUni f -> Var -> SomeUniVar f
+mkSomeUniVar (Some uni) var = Some $ UniVar uni var

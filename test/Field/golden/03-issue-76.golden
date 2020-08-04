@@ -1,2 +1,2 @@
-ext x_2;
-let y_3 = if (0 == x_2) then 0 else 0;
+ext x_0 : field;
+let y_1 : field = if (0 == (x_0 : field)) then 0 else 0;

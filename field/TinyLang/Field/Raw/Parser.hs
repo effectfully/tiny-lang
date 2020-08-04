@@ -71,14 +71,23 @@ uni ::=
 
 == Identifiers
 
-To avoid a syntactic clash with /bool-literals/, identifiers for field
-variables start with a lower-case letter.  Identifiers for boolean
-variables are prefiex by @?@ and identifiers for vector variables are
-prefixed by @#@.  We will check if an identifier is not a keyword.
+To avoid a syntactic clash with /bool-literals/, identifiers start with a
+lower-case letter and we check that the identifier is not a keyword.
 
 @
-ident ::= ( "?" | "#" ) [a-z] ([a-z0-9_'])*
+ident ::= [a-z] ([a-z0-9_'])*
 @
+
+== Variable Declarations
+
+We follow the ML-family syntax for variable declarations, where the identifier
+(@ident@) is followed by a colon (@:@) and the type of the variable (@uni@).
+
+@
+var-decl ::=
+    ident ":" uni
+@
+
 
 == Constants
 
@@ -136,7 +145,7 @@ prefix-op ::=
 
 @
 statement ::=
-    "let" var "=" expr
+    "let" var-decl "=" expr
     "assert" expr
     "for" var "=" int-literal "to" int-literal "do" statements "end"
 
@@ -156,9 +165,8 @@ ext-decls ::=
     (ext-decl ";")*
 
 ext-decl ::=
-    "ext" var
+    "ext" var-decl
 @
-
 
 == Operator Precedence
 
@@ -187,7 +195,7 @@ import           TinyLang.Prelude               hiding (many, option, try)
 import           Data.Field
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Raw.Core
-import           TinyLang.Field.UniConst
+import           TinyLang.Field.Uni
 import           TinyLang.ParseUtils
 
 import qualified Control.Monad.Combinators.Expr as Comb
@@ -240,14 +248,33 @@ keywords =
 isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
+
+pUni :: ParserT m (SomeUni f)
+pUni = choice
+    [ Some Bool   <$ keyword "bool"
+    , Some Field  <$ keyword "field"
+    , Some Vector <$ keyword "vector"
+    ]
+
+
+-- TODO:  Consider merging Identifier with Variable
 pIdentifier :: ParserT m Identifier
 pIdentifier =
     lexeme $ do
-        prefix     <- option "" (string "?" <|> string "#")
-        identifier <- (:) <$> lowerChar
-                          <*> takeWhileP (Just identifierCharLabel)
-                              isIdentifierChar
-        pure $ prefix ++ identifier
+        (:) <$> lowerChar
+            <*> takeWhileP (Just identifierCharLabel) isIdentifierChar
+
+-- variable is an identifier that is not a keyword
+pVar :: ParserT m Var
+pVar = do
+    ident <- pIdentifier
+    when (isKeyword ident)
+         (fail ("keyword " ++ show ident ++ " cannot be an identifier"))
+    pure $ Var ident
+
+-- variable declaration
+pVarDecl :: ParserT m (Var, SomeUni f)
+pVarDecl = (,) <$> pVar <*> (symbol ":" *> pUni)
 
 pBoolLiteral :: ParserT m Bool
 pBoolLiteral =
@@ -271,13 +298,6 @@ pVecLiteral =
 pIntLiteral :: ParserT m Integer
 pIntLiteral = signedDecimal
 
--- variable is an identifier that is not a keyword
-pVar :: ParserT m Var
-pVar = do
-    ident <- pIdentifier
-    when (isKeyword ident)
-         (fail ("keyword " ++ show ident ++ " cannot be an identifier"))
-    pure $ Var ident
 
 
 {-| == Parser
@@ -342,14 +362,7 @@ pConst = choice
 
 
 pAnn :: ParserT m (SomeUni f)
-pAnn = symbol ":" *> pSomeUni
-
-pSomeUni :: ParserT m (SomeUni f)
-pSomeUni = choice
-    [ Some Bool   <$ keyword "bool"
-    , Some Field  <$ keyword "field"
-    , Some Vector <$ keyword "vector"
-    ]
+pAnn = symbol ":" *> pUni
 
 pTerm :: Field f => ParserT m (RawExpr f)
 pTerm =
@@ -372,7 +385,7 @@ pStatement =
     choice
     -- This can backtrack for expr starting with a "("
     [ try (parens pStatement)
-    , ELet    <$> (keyword "let"    *> pVar)
+    , ELet    <$> (keyword "let"    *> pVarDecl)
               <*> (symbol  "="      *> pExpr)
     , EAssert <$> (keyword "assert" *> pExpr)
     , EFor    <$> (keyword "for"    *> pVar)
@@ -382,10 +395,10 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExtDecl :: ParserT m Var
-pExtDecl = keyword "ext" *> pVar
+pExtDecl :: ParserT m (Var, SomeUni f)
+pExtDecl = keyword "ext" *> pVarDecl
 
-pExtDecls :: ParserT m [Var]
+pExtDecls :: ParserT m [(Var, SomeUni f)]
 pExtDecls = many (pExtDecl <* symbol ";")
 
 pStatements :: Field f => ParserT m (RawStatements f)

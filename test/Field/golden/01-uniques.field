@@ -1,11 +1,11 @@
-ext a;
-ext b;
-ext a;
-let a = a;
-let a = a;
+ext a : field;
+ext b : field;
+ext a : field;
+let a : field = a;
+let a : field = a;
 for a = 1 to 2 do
-    let a = a;
-    let a = a;
+    let a : field = a;
+    let a : field = a;
 end;
-let a = a;
-let a = a;
+let a : field = a;
+let a : field = a;

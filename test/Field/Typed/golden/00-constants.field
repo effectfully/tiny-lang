@@ -1,4 +1,4 @@
-let ?true    = T;
-let ?false   = F;
-let field'   = 0;
-let #vector  = { T };
+let true    : bool   = T;
+let false   : bool   = F;
+let field'  : field  = 0;
+let vector' : vector = { T };

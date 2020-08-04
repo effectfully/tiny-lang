@@ -13,9 +13,12 @@ module TinyLang.Environment
     , toUniques
     , elems
     , intersection
+    , difference
+    , null
     ) where
 
-import           TinyLang.Prelude
+import           Prelude          hiding (null)
+import           TinyLang.Prelude hiding (null)
 import           TinyLang.Var
 
 import qualified Data.IntMap.Strict as IntMap
@@ -66,3 +69,9 @@ elems =  IntMap.elems . unEnv
 
 intersection :: Env a -> Env b -> Env a
 intersection a b = Env $ IntMap.intersection (unEnv a) (unEnv b)
+
+difference :: Env a -> Env b -> Env a
+difference a b = Env $ IntMap.difference (unEnv a) (unEnv b)
+
+null :: Env a -> Bool
+null = IntMap.null . unEnv

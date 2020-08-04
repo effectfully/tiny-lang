@@ -1,5 +1,5 @@
-ext x;
+ext x : field;
 for z = 0 to -1 do
-    let x = x;
+    let x : field = x;
 end;
-let y = if (0 == x) then 0 else 0;
+let y : field = if (0 == x) then 0 else 0;

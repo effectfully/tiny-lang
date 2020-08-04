@@ -1,5 +1,5 @@
-let zero  = 0;
-let one   = 1;
-let two   = 2;
-let half  = 1/2;
-let third = 1/3;
+let zero  : field = 0;
+let one   : field = 1;
+let two   : field = 2;
+let half  : field = 1/2;
+let third : field = 1/3;

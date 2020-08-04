@@ -10,7 +10,7 @@ module Field.Textual
 
 import           Field.TestUtils
 import           Data.Field.F17
-import           TinyLang.Field.Generator
+import           TinyLang.Field.Generator    ()
 import qualified TinyLang.Field.Jubjub       as JJ
 import           TinyLang.Field.Printer
 import           TinyLang.Field.Typed.Core
@@ -25,33 +25,6 @@ import           Test.Tasty
 import           Test.Tasty.Golden
 import           Test.Tasty.QuickCheck
 
--- TODO: we shouldn't forget uniques, because we ignore name shadowing problems in
--- generators. I.e. we should implement alpha-equality (but it is kind of weird to change
--- uniques of free variables and so we probably want a newtype wrapper around @Expr@ with
--- that very specific @Eq@ instance).
-
-
--- TODO: I can probably remove a lot of code now that @Statements@ and @Program@
--- are functors.
-forgetProgramIDs :: Program f -> Program f
-forgetProgramIDs = fmap forgetStatementIDs
-
-    -- forgetStatementsIDs :: Statements f -> Statements f
--- forgetStatementsIDs = fmap forgetStatementIDs
-
-forgetID :: UniVar f a -> UniVar f a
-forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
-
-forgetStatementIDs :: Statement f -> Statement f
-forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
-forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
-
-forgetIDs :: Expr f a -> Expr f a
-forgetIDs (EConst uval)        = EConst uval
-forgetIDs (EVar uvar)          = EVar $ forgetID uvar
-forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
-forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
-forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
 
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))
@@ -59,13 +32,21 @@ forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
        quickCheck (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
 -}
 
+-- Alpha equivalence for Programs
+-- NOTE:  Var/UniVar/SomeUniVar are the same as long as unique is the same
+aEquiv :: (Eq f) => Program f -> Program f -> Bool
+aEquiv a b = renamed a == renamed b where
+    renamed = runSupply . renameProgram
+
+
 prop_prog_roundtrip :: forall f. (Eq f, TextField f) => Program f -> Either String ()
 prop_prog_roundtrip prog = do
-    prog' <- runSupplyT $ parseProgram @f $ progToString NoIDs prog
-    when (forgetProgramIDs prog /= forgetProgramIDs prog) . Left $ concat
-        [ progToString NoIDs prog
-        , " is not equal to "
-        , progToString NoIDs prog'
+    prog' <- runSupplyT $ parseProgram @f $ progToString WithIDs prog
+    unless (prog `aEquiv` prog') . Left $ concat
+        [ progToString WithIDs prog
+        , "is not equal to \n"
+        , progToString WithIDs prog'
+        , "\n\n"
         ]
 
 data Binding f = forall a. Binding (UniVar f a) (Expr f a)
@@ -105,7 +86,7 @@ test_textual :: TestTree
 test_textual =
     testGroup "textual"
         [ test_printerParserRoundtrip
-       , test_renaming
+        , test_renaming
         ]
 
 parsePrintFilePath :: FilePath -> IO String
@@ -128,7 +109,7 @@ gen_test_roundtrip =
 prop_rename_same :: forall f. (TextField f)
     => Program f -> Either String ()
 prop_rename_same prog =
-    when (norm' /= norm) . Left $ unlines [ "renamed program"
+    unless (norm' == norm) . Left $ unlines [ "renamed program"
                                           , norm'
                                           , "is different from the original program"
                                           , norm
@@ -141,7 +122,7 @@ prop_rename_same prog =
 prop_rename_same_norm :: forall f. (Eq f, TextField f, AsInteger f)
     => ProgramWithEnv f -> Either String ()
 prop_rename_same_norm (ProgramWithEnv prog env) =
-    when (result' /= result) . Left $ unlines message where
+    unless (result' == result) . Left $ unlines message where
         message = [ "ERROR"
                   , ind $ "normalisation of the renamed program did not match the normalisation of the original program"
                   , "INITIAL STATE"
@@ -172,7 +153,7 @@ firstWord = takeWhile (not . isSpace) . show
 prop_rename_same_eval :: forall f. (Eq f, TextField f, AsInteger f)
     => ProgramWithEnv f -> Either String ()
 prop_rename_same_eval (ProgramWithEnv prog env) =
-    when (result' /= result) . Left $ unlines message where
+    unless (result' == result) . Left $ unlines message where
         message = [ "ERROR"
                   , ind $ "evaluation of the renamed program did not match the evaluation of the original program"
                   , "INITIAL STATE"

@@ -1,6 +1,6 @@
-ext a;
-ext b;
-ext c;
+ext a : field;
+ext b : field;
+ext c : field;
 
 assert
     a + b [c] == a + (b [c])

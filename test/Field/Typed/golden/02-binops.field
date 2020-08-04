@@ -1,17 +1,16 @@
-let ?or  = T or T;
-let ?and = T and T;
-let ?xor = T xor T;
+let or'  : bool = T or T;
+let and' : bool = T and T;
+let xor' : bool = T xor T;
 
-let ?feq = 0 == 0;
-let ?fle = 0 <= 1;
-let ?flt = 0 <  1;
-let ?fge = 1 >= 0;
-let ?fgt = 1 >  0;
+let feq : bool = 0 == 0;
+let fle : bool = 0 <= 1;
+let flt : bool = 0 <  1;
+let fge : bool = 1 >= 0;
+let fgt : bool = 1 >  0;
 
-let add = 1 + 1;
-let sub = 1 - 1;
-let mul = 1 * 1;
-let div = 1 / 1;
+let add : field = 1 + 1;
+let sub : field = 1 - 1;
+let mul : field = 1 * 1;
+let div : field = 1 / 1;
 
-let ?bat = { T } [ 0 ];
-
+let bat : bool = { T } [ 0 ];

@@ -1,1 +1,5 @@
-Program [] Statements [ELet (UniVar {_uniVarUni = Bool, _uniVarVar = ?not_5}) (EAppUnOp Not (EConst (UniConst Bool True))),ELet (UniVar {_uniVarUni = Bool, _uniVarVar = ?neq0_6}) (EAppUnOp Neq0 (EConst 0)),ELet (UniVar {_uniVarUni = Field, _uniVarVar = neg'_7}) (EAppUnOp Neg (EConst 0)),ELet (UniVar {_uniVarUni = Field, _uniVarVar = inv'_8}) (EAppUnOp Inv (EConst 0)),ELet (UniVar {_uniVarUni = Vector, _uniVarVar = #unpack_9}) (EAppUnOp Unp (EConst 1))]
+let not'_0 : bool = not T;
+let neq0'_1 : bool = neq0 0;
+let neg'_2 : field = neg 0;
+let inv'_3 : field = inv 0;
+let unpack'_4 : vector = unpack 1;

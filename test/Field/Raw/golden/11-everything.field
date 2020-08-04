@@ -1,38 +1,58 @@
-ext e;
-ext ?e;
-ext #e;
+ext eb : bool;
+ext ef : field;
+ext ev : vector;
 
-let ?a = T;
-let ?b = F;
-let #v = {T, F, T};
-let ?or = ?a or ?b;
-let ?ore = ?a or ?e;
-let ?and = ?or or ?b;
-let ?xor = ?and or ?or;
-let f = 0;
-let g = 1;
-let h = 2;
-let ?feq = g == f;
-let ?feqe = e == f;
-let ?fle = h <= f;
-let ?flt = f < g;
-let ?fge = g >= h;
-let ?fgt = h > f;
-let add = f + g;
-let sub = g - h;
-let mul = h * f;
-let div = f / g;
-let ?bat = #v[f];
-let ?bate = #e[f];
-let ?not = not ?a;
-let ?neq0 = neq0 f;
-let neg' = neg g;
-let inv' = inv h;
-let #unpack = unpack h;
-let ?let = T;
+
+
+let a : bool = T;
+let b : bool = F;
+
+let or'  : bool = a or b;
+let or'' : bool = a or eb;
+let and' : bool = or'' and b;
+let xor' : bool = and' xor or'';
+
+
+
+let f : field = 0;
+let g : field = 1;
+let h : field = 2;
+
+let feq : bool = g  == f;
+let fe' : bool = ef == f;
+let fle : bool = h  <= f;
+let flt : bool = f  <  g;
+let fge : bool = g  >= h;
+let fgt : bool = h  >  f;
+
+let add : field = f + g;
+let ad' : field = f + ef;
+let sub : field = g - h;
+let mul : field = h * f;
+let div : field = f / g;
+
+
+
+let v : vector = {T, F, T};
+let bat : bool =  v[f];
+let ba' : bool = ev[f];
+
+let not'  : bool  = not a;
+let neq0' : bool  = neq0 f;
+
+let neg' : field = neg g;
+let inv' : field = inv h;
+
+let unp : vector = unpack h;
+
+
+
+let let' : bool = T;
 assert T;
 for j = 0 to 2 do end;
-let ?if = if T then T else T;
-let asf = 1 : field;
-let ?as = T : bool;
-let #as = { T } : vector;
+let if' : bool = if T then T else T;
+
+
+let asf : field  = 1 : field;
+let asb : bool   = T : bool;
+let asv : vector = { T } : vector;

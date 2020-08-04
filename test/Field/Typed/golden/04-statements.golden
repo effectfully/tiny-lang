@@ -1,1 +1,3 @@
-Program [] Statements [ELet (UniVar {_uniVarUni = Field, _uniVarVar = x_1}) (EConst 1),EAssert (EConst (UniConst Bool True)),ELet (UniVar {_uniVarUni = Field, _uniVarVar = x_2}) (EConst 1)]
+let x_0 : field = 1;
+assert T;
+let x_1 : field = 1;

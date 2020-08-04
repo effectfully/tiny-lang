@@ -1,7 +1,7 @@
-ext i_1;
-assert i_1 > 0;
-let i_2 = 1;
-assert i_2 > 0;
-let i_3 = 2;
-assert i_3 > 0;
-assert i_3 > 0;
+ext i_0 : field;
+assert (i_0 : field) > 0;
+let i_1 : field = 1;
+assert (i_1 : field) > 0;
+let i_2 : field = 2;
+assert (i_2 : field) > 0;
+assert (i_2 : field) > 0;

@@ -19,8 +19,8 @@ module TinyLang.Field.Raw.Core
     , RawExpr
     ) where
 
-import           TinyLang.Field.UniConst
-import qualified TinyLang.Field.Core as C
+import           TinyLang.Field.Uni  hiding (Uni)
+import qualified TinyLang.Field.Core     as C
 
 import           GHC.Generics
 import           Quiet
@@ -50,13 +50,13 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f    = C.Program    v (Statement v f)
-type Statements v f = C.Statements   (Statement v f)
+type Program    v f  = C.Program    (v, SomeUni f) (Statement v f)
+type Statements v f  = C.Statements                (Statement v f)
 
 data Statement v f
-    = ELet    v          (Expr v f)
+    = ELet    (v, SomeUni f) (Expr v f)
     | EAssert (Expr v f)
-    | EFor    v          Integer    Integer (Statements v f)
+    | EFor    v              Integer    Integer (Statements v f)
     deriving (Show)
 
 data Expr v f
@@ -94,7 +94,7 @@ data UnOp
 
 {-| = Utility Type Aliases
 -}
-type RawProgram    f = Program Var f
+type RawProgram    f = Program    Var f
 type RawStatements f = Statements Var f
-type RawStatement  f = Statement Var f
-type RawExpr       f = Expr Var f
+type RawStatement  f = Statement  Var f
+type RawExpr       f = Expr       Var f

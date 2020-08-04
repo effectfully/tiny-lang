@@ -30,7 +30,7 @@ import           Data.Field
 import           TinyLang.Field.Existential
 import qualified TinyLang.Field.Raw.Core    as R
 import qualified TinyLang.Field.Typed.Core  as T
-import           TinyLang.Field.UniConst
+import           TinyLang.Field.Uni
 import           TinyLang.Var
 
 import           Control.Monad.Cont
@@ -42,30 +42,27 @@ import qualified Data.String.Interpolate    as QQ
 {-| == Utility Type Aliases or Constraints
 -}
 
-type TypeCheckError        = String
-type MonadTypeError   m    = MonadError TypeCheckError m
-type MonadTypeChecker m f  = ( MonadSupply m
-                             , MonadTypeError m
-                             , MonadReader TyEnv m
-                             )
+type TypeCheckError       = String
+type MonadTypeError   m   = MonadError TypeCheckError m
+type MonadTypeChecker m f = ( MonadSupply m
+                            , MonadTypeError m
+                            , MonadReader (TyEnv f) m
+                            )
 
 {-| == Type Environments
 -}
-
--- TODO: Can be parameterised later
-type TyEnv = Map R.Var T.Var
-
+type TyEnv f = Map R.Var (SomeUniVar f)
 
 {-| @TypeChecker@ Transformer
 -}
-newtype TypeCheckerT (m :: Type -> Type) a =
-    TypeChecker { runTypeCheckerT :: (ExceptT TypeCheckError (ReaderT TyEnv (SupplyT m))) a }
+newtype TypeCheckerT (m :: Type -> Type) f a =
+    TypeChecker { runTypeCheckerT :: (ExceptT TypeCheckError (ReaderT (TyEnv f) (SupplyT m))) a }
     deriving newtype ( Monad
                      , Functor
                      , Applicative
                      , MonadError TypeCheckError
                      , MonadSupply
-                     , MonadReader TyEnv
+                     , MonadReader (TyEnv f)
                      )
 
 {-| A simple type checker
@@ -75,7 +72,7 @@ type TypeChecker = TypeCheckerT Identity
 {-| Run a type checker function. Note that if there are several variables with the same textual name
 then the resulting scope will only contain the last one.
 -}
-runTypeChecker :: (MonadError TypeCheckError m, MonadSupply m) => TypeChecker a -> m a
+runTypeChecker :: (MonadError TypeCheckError m, MonadSupply m) => TypeChecker f a -> m a
 runTypeChecker typeChecker =
     liftSupply ( flip runReaderT mempty
                . runExceptT
@@ -94,30 +91,29 @@ typeProgram = runTypeChecker . checkProgram
 {-| Add a variable to type environment
 -}
 -- NOTE:  At the moment this mimics the old scope
--- TODO:  Discuss wether we should add an env on top of @withVar@ or not.
-withVar :: (Monad m) => R.Var -> forall r. (T.Var -> TypeCheckerT m r) -> TypeCheckerT m r
-withVar var kont = do
-    tyEnv <- ask
-    case Map.lookup var tyEnv of
-        Just tVar -> kont tVar
-        Nothing -> do
-            tVar <- freshVar . R.unVar $ var
-            local (Map.insert var tVar) $ kont tVar
+withSomeUniVar :: (Monad m) => (R.Var, SomeUni f) -> forall r. (SomeUniVar f -> TypeCheckerT m f r) -> TypeCheckerT m f r
+withSomeUniVar (var, uni) kont = do
+    someUniVar <- mkSomeUniVar uni <$> (freshVar . R.unVar $ var)
+    local (Map.insert var someUniVar) $ kont someUniVar
+
+withVar :: (Monad m) => (R.Var, SomeUni f) -> forall r. (T.Var -> TypeCheckerT m f r) -> TypeCheckerT m f r
+withVar (var, uni) kont =
+    withSomeUniVar (var, uni) $ \ (Some (UniVar _ tVar)) -> kont tVar
 
 {-| Type inference for variables
 -}
-inferUniVar :: (Monad m) => R.Var -> TypeCheckerT m (T.SomeUniVar f)
+inferUniVar :: (Monad m) => R.Var -> TypeCheckerT m f (T.SomeUniVar f)
 inferUniVar var = do
     tyEnv <- ask
     case Map.lookup var tyEnv of
-        Just tVar -> pure . mkSomeUniVar $ tVar
+        Just someUniVar -> pure someUniVar
         Nothing -> throwError $ unboundVariable var tyEnv
        
 {-| Type inference for expressions
 -}
 inferExpr ::
     forall m f. (Monad m, TextField f)
-    => R.Expr R.Var f -> TypeCheckerT m (T.SomeUniExpr f)
+    => R.Expr R.Var f -> TypeCheckerT m f (T.SomeUniExpr f)
 inferExpr (R.EConst (Some c@(T.UniConst uni _))) =
     pure $ SomeOf uni $ T.EConst c
 inferExpr (R.EVar v) = do
@@ -134,8 +130,7 @@ inferExpr (R.EIf l m n) = do
     SomeOf uni tM <- inferExpr m
     tN <- T.withKnownUni uni $ checkExpr n
     pure $ SomeOf uni $ T.EIf tL tM tN
-inferExpr (R.ETypeAnn (Some uni) m) =
-    T.withKnownUni uni $ SomeOf uni <$> checkExpr m
+inferExpr (R.ETypeAnn (Some uni) m) = T.withKnownUni uni $ SomeOf uni <$> checkExpr m
 
 {-| Mapping from Raw UnOp to Typed UnOp
 -}
@@ -171,7 +166,7 @@ withTypedUnOp R.Unp  k = k T.Unp
 -}
 checkExpr ::
     forall m f a. (Monad m, TextField f, KnownUni f a)
-    => R.Expr R.Var f -> TypeCheckerT m (T.Expr f a)
+    => R.Expr R.Var f -> TypeCheckerT m f (T.Expr f a)
 checkExpr (R.EIf l m n) = T.EIf <$> checkExpr l <*> checkExpr m <*> checkExpr n
 checkExpr m = do
     SomeOf mUni tM <- inferExpr m
@@ -181,13 +176,13 @@ checkExpr m = do
 
 checkProgram ::
     forall m f. (Monad m, TextField f)
-    => R.Program R.Var f -> TypeCheckerT m (T.Program f)
+    => R.Program R.Var f -> TypeCheckerT m f (T.Program f)
 checkProgram (R.Program exts stmts) =
-    runContT (traverse (ContT . withVar) exts) $ \tVars -> checkStatements stmts (pure . T.Program tVars)
+    runContT (traverse (ContT . withSomeUniVar) exts) $ \tVars -> checkStatements stmts (pure . T.Program tVars)
 
 checkStatements ::
     forall m f. (Monad m , TextField f)
-    => R.Statements R.Var f -> forall r. (T.Statements f -> TypeCheckerT m r) -> TypeCheckerT m r
+    => R.Statements R.Var f -> forall r. (T.Statements f -> TypeCheckerT m f r) -> TypeCheckerT m f r
 checkStatements (R.Statements stmts) kont =
     runContT (foldMapA (ContT . checkStatement) stmts) $ kont . T.Statements
 
@@ -195,18 +190,16 @@ checkStatements (R.Statements stmts) kont =
 -}
 checkStatement ::
     forall m f. (Monad m , TextField f)
-    => R.Statement R.Var f -> forall r. ([T.Statement f] -> TypeCheckerT m r) -> TypeCheckerT m r
-checkStatement (R.ELet var m) kont =
-    case uniOfVar . R.unVar $ var of
-        Some uni -> do
-                tM <- T.withKnownUni uni $ checkExpr m
-                withVar var $ \ tVar -> kont [T.ELet (UniVar uni tVar) tM]
+    => R.Statement R.Var f -> forall r. ([T.Statement f] -> TypeCheckerT m f r) -> TypeCheckerT m f r
+checkStatement (R.ELet (var, someUni@(Some uni)) m) kont = do
+    tM <- T.withKnownUni uni $ checkExpr m
+    withVar (var, someUni) $ \ tVar -> kont [T.ELet (UniVar uni tVar) tM]
 checkStatement (R.EAssert m) kont = do
     tM <- checkExpr m
     kont [T.EAssert tM]
 checkStatement (R.EFor var start end stmts) kont = do
     runContT (foldMapA (ContT . iter) [start .. end]) kont where
-        iter i ikont = withVar var $ \ tVar ->
+        iter i ikont = withVar (var, Some Field) $ \ tVar ->
             checkStatements stmts $ \ (T.Statements tStmts) -> do
                 let uVar = T.UniVar Field tVar
                 ikont $ T.ELet uVar (T.EConst . fromIntegral $ i) : tStmts
@@ -222,7 +215,7 @@ typeMismatch expr expected found =
          Expected: #{show expected}
          Found:    #{show found}|]
 
-unboundVariable :: R.Var -> TyEnv -> TypeCheckError
+unboundVariable :: R.Var -> (TyEnv f) -> TypeCheckError
 unboundVariable var tyEnv =
     [QQ.i|error: Unbound variable:
            #{R.unVar var}
