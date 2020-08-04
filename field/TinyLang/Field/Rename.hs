@@ -33,11 +33,11 @@ withFreshenedSomeUniVar :: SomeUniVar f -> (SomeUniVar f -> RenameM c) -> Rename
 withFreshenedSomeUniVar (Some uniVar) kont =
     withFreshenedUniVar uniVar $ kont . Some
 
+-- NOTE:  Convenience method of wraping and unwrapping univar
 withFreshenedUniVar :: UniVar f a -> (UniVar f a -> RenameM c) -> RenameM c
 withFreshenedUniVar (UniVar uni var) kont =
     withFreshenedVar var $ kont . UniVar uni
 
--- NOTE:  This one is probably not needed
 withFreshenedVar :: Var -> (Var -> RenameM c) -> RenameM c
 withFreshenedVar var kont = do
     uniqNew <- freshUnique
