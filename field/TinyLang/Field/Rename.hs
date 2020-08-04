@@ -1,6 +1,5 @@
 module TinyLang.Field.Rename
     ( renameProgram
-    , renameProgramFresh
     ) where
 
 import           TinyLang.Prelude
@@ -16,11 +15,10 @@ renameProgram prog = do
     -- NOTE:  We are not sure if we need to handle Programs with free variables.
     -- NOTE:  Compiler will run a renaming step before compilation anyways.
     progSupplyFromAtLeastFree prog
-    renameProgramFresh prog
+    renameProgram' prog
 
--- TODO:  Rename this!
-renameProgramFresh :: MonadSupply m => Program f -> m (Program f)
-renameProgramFresh (Program exts stmts) = do
+renameProgram' :: MonadSupply m => Program f -> m (Program f)
+renameProgram' (Program exts stmts) = do
     runRenameM $
         runContT (traverse (ContT . withFreshenedSomeUniVar) exts) $ \ rVars ->
             withRenamedStatementsM stmts $ \ rStmts ->
