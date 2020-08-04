@@ -1,6 +1,6 @@
-ext $ef_0;
-ext ?eb_1;
-ext @ev_2;
-let ?b_3 = (?eb_1);
-let $f_4 = ($ef_0);
-let @v_5 = (@ev_2);
+ext ef_0 : field;
+ext eb_1 : bool;
+ext ev_2 : vector;
+let b_3 : bool = (eb_1 : bool);
+let f_4 : field = (ef_0 : field);
+let v_5 : vector = (ev_2 : vector);

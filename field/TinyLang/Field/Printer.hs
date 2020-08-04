@@ -18,27 +18,21 @@ import qualified Data.Vector               as Vector
 -- PrintStyle type determines whether printed variable names include
 -- these or not ("x_5" versus "x").  If we're going to re-parse the
 -- output of toString we probably don't want the IDs.
-data PrintStyle = WithIDs | NoIDs | Prefix
+data PrintStyle = WithIDs | NoIDs
 
 toStringSomeUniVar :: PrintStyle -> SomeUniVar f -> String
 toStringSomeUniVar ps = forget (toStringUniVar ps)
 
 toStringUniVar :: PrintStyle -> UniVar f a -> String
-toStringUniVar ps (UniVar uni var) = suffixOrPrefix ps uni $ toStringVar ps var where
-    suffixOrPrefix Prefix  = prefix
-    suffixOrPrefix _       = suffix
+toStringUniVar ps (UniVar uni var) = suffix uni $ toStringVar ps var where
     suffix :: Uni f a -> String -> String
     suffix Bool   = (++ " : bool")
     suffix Field  = (++ " : field")
     suffix Vector = (++ " : vector")
-    prefix :: Uni f a -> String -> String
-    prefix Bool   = ("?" ++)
-    prefix Field  = ("$" ++)
-    prefix Vector = ("@" ++)
 
 toStringVar :: PrintStyle -> Var -> String
 toStringVar NoIDs   (Var _ name) = name
-toStringVar _       (Var u name) = name ++ "_" ++ show u
+toStringVar WithIDs (Var u name) = name ++ "_" ++ show u
 
 toStringUnOp :: UnOp f a b -> String
 toStringUnOp Not  = "not "
@@ -120,7 +114,7 @@ someExprToString s = forget $ exprToString s
 newtype Pretty a = Pretty { unPretty :: a }
 
 instance (TextField f) => Show (Pretty (Program f)) where
-    show = progToString Prefix . unPretty
+    show = progToString WithIDs . unPretty
 
 -- TODO:  Impvove the pretty printer
 instance (Show a) => Show (Pretty (Env a)) where

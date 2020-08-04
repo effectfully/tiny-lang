@@ -1,3 +1,3 @@
-let ?bool'_0 = T;
-let $field'_1 = 1;
-let @vector'_2 = {T};
+let bool'_0 : bool = T;
+let field'_1 : field = 1;
+let vector'_2 : vector = {T};
