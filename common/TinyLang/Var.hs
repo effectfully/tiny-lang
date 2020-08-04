@@ -19,7 +19,7 @@ module TinyLang.Var
 import           TinyLang.Prelude
 
 import           Control.Monad.Morph
-import           Optics.Lens
+import           Control.Lens
 import qualified Data.IntMap.Strict  as IntMap
 
 -- TODO: Use a library.

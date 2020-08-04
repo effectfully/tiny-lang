@@ -51,7 +51,7 @@ library
         mmorph,
         parser-combinators,
         interpolate,
-        optics-core,
+        lens,
         QuickCheck,
         QuickCheck-GenT,
         quickcheck-instances,

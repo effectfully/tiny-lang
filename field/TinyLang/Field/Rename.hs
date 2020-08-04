@@ -7,7 +7,7 @@ import           TinyLang.Prelude
 import           TinyLang.Field.Typed.Core
 
 import           Control.Monad.Cont
-import           Optics.Setter
+import           Control.Lens
 
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
@@ -67,5 +67,5 @@ renameExprM (EConst uniConst)            = pure $ EConst uniConst
 renameExprM (EVar (UniVar uni var))      = EVar . UniVar uni <$> renameVarM var
 renameExprM (EIf cond expr1 expr2)       =
     EIf <$> renameExprM cond <*> renameExprM expr1 <*> renameExprM expr2
-renameExprM (EAppUnOp op expr)           = EAppUnOp op <$> renameExprM expr
-renameExprM (EAppBinOp op expr1 expr2)   = EAppBinOp op <$> renameExprM expr1 <*> renameExprM expr2
+renameExprM (EAppUnOp unOp expr)           = EAppUnOp unOp <$> renameExprM expr
+renameExprM (EAppBinOp binOp expr1 expr2)   = EAppBinOp binOp <$> renameExprM expr1 <*> renameExprM expr2
