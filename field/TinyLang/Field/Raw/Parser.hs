@@ -250,8 +250,8 @@ isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
 
-pUniType :: ParserT m (T.UniType f)
-pUniType = choice
+pType :: ParserT m (T.Type f)
+pType = choice
     [ T.Bool   <$ keyword "bool"
     , T.Field  <$ keyword "field"
     , T.Vector <$ keyword "vector"
@@ -274,8 +274,8 @@ pVar = do
     pure $ Var ident
 
 -- variable declaration
-pVarDecl :: ParserT m (Var, T.UniType f)
-pVarDecl = (,) <$> pVar <*> (symbol ":" *> pUniType)
+pVarDecl :: ParserT m (Var, T.Type f)
+pVarDecl = (,) <$> pVar <*> (symbol ":" *> pType)
 
 pBoolLiteral :: ParserT m Bool
 pBoolLiteral =
@@ -362,8 +362,8 @@ pConst = choice
     ]
 
 
-pAnn :: ParserT m (T.UniType f)
-pAnn = symbol ":" *> pUniType
+pAnn :: ParserT m (T.Type f)
+pAnn = symbol ":" *> pType
 
 pTerm :: Field f => ParserT m (RawExpr f)
 pTerm =
@@ -396,10 +396,10 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExtDecl :: ParserT m (Var, T.UniType f)
+pExtDecl :: ParserT m (Var, T.Type f)
 pExtDecl = keyword "ext" *> pVarDecl
 
-pExtDecls :: ParserT m [(Var, T.UniType f)]
+pExtDecls :: ParserT m [(Var, T.Type f)]
 pExtDecls = many (pExtDecl <* symbol ";")
 
 pStatements :: Field f => ParserT m (RawStatements f)

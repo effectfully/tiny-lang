@@ -92,12 +92,12 @@ typeProgram = runTypeChecker . checkProgram
 {-| Add a variable to type environment
 -}
 -- NOTE:  At the moment this mimics the old scope
-withSomeUniVar :: (Monad m) => (R.Var, R.UniType f) -> forall r. (T.SomeUniVar f -> TypeCheckerT m f r) -> TypeCheckerT m f r
+withSomeUniVar :: (Monad m) => (R.Var, R.Type f) -> forall r. (T.SomeUniVar f -> TypeCheckerT m f r) -> TypeCheckerT m f r
 withSomeUniVar (var, R.UniType uni) kont = do
     someUniVar <- T.mkSomeUniVar (Some uni) <$> (freshVar . R.unVar $ var)
     local (Map.insert var someUniVar) $ kont someUniVar
 
-withVar :: (Monad m) => (R.Var, R.UniType f) -> forall r. (T.Var -> TypeCheckerT m f r) -> TypeCheckerT m f r
+withVar :: (Monad m) => (R.Var, R.Type f) -> forall r. (T.Var -> TypeCheckerT m f r) -> TypeCheckerT m f r
 withVar (var, uni) kont =
     withSomeUniVar (var, uni) $ \ (Some (T.UniVar _ tVar)) -> kont tVar
 

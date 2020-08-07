@@ -1,6 +1,5 @@
 module TinyLang.Field.Type
     ( Type(..)
-    , UniType
     , pattern UniType
     , pattern Bool
     , pattern Field
@@ -12,26 +11,25 @@ import qualified TinyLang.Field.Uni         as U
 import           TinyLang.Field.Existential
 
 -- Types
-data Type uni f
-    = BuiltIn (Some (TypeIn uni f))
-    | TyFun   (Type uni f)          (Type uni f)
+data Type f
+    = BuiltIn (Some (TypeIn U.Uni f))
+    | TyFun   (Type f)          (Type f)
 
-type UniType = Type U.Uni
 
-pattern UniType :: U.Uni f a -> UniType f
+pattern UniType :: U.Uni f a -> Type f
 pattern UniType uni = BuiltIn (Some (TypeIn uni))
 
-deriving instance (TextField f) => Show (UniType f)
-deriving instance Eq  (UniType f)
-deriving instance Ord (UniType f)
+deriving instance (TextField f) => Show (Type f)
+deriving instance Eq  (Type f)
+deriving instance Ord (Type f)
 
-pattern Bool :: UniType f
+pattern Bool :: Type f
 pattern Bool = UniType U.Bool
 
-pattern Field :: UniType f
+pattern Field :: Type f
 pattern Field = UniType U.Field
 
-pattern Vector :: UniType f
+pattern Vector :: Type f
 pattern Vector = UniType U.Vector
 
 newtype TypeIn uni f a = TypeIn (uni f a)

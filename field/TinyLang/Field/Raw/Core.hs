@@ -52,8 +52,8 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f = C.Program (v, T.UniType f) (Statement v f)
-pattern Program :: [(v, T.UniType f)] -> Statements v f -> Program v f
+type Program v f = C.Program (v, T.Type f) (Statement v f)
+pattern Program :: [(v, T.Type f)] -> Statements v f -> Program v f
 pattern Program exts stmts = C.Program exts stmts
 
 type Statements v f = C.Statements (Statement v f)
@@ -61,7 +61,7 @@ pattern Statements :: [Statement v f] -> Statements v f
 pattern Statements stmts = C.Statements stmts
 
 data Statement v f
-    = ELet    (v, T.UniType f) (Expr v f)
+    = ELet    (v, T.Type f) (Expr v f)
     | EAssert (Expr v f)
     | EFor    v              Integer    Integer (Statements v f)
     deriving (Show)
@@ -72,7 +72,7 @@ data Expr v f
     | EAppBinOp  BinOp              (Expr v f) (Expr v f)
     | EAppUnOp   UnOp               (Expr v f)
     | EIf        (Expr v f)         (Expr v f) (Expr v f)
-    | ETypeAnn   (T.UniType f)      (Expr v f)
+    | ETypeAnn   (T.Type f)         (Expr v f)
     deriving (Show)
 
 data BinOp
