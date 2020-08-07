@@ -8,10 +8,11 @@ module TinyLang.Field.Raw.Core
     , UnOp(..)
     , Statement(..)
     , Program
-    , pattern C.Program
+    , pattern Program
     , C._programStatements
+    , C._programExts
     , Statements
-    , pattern C.Statements
+    , pattern Statements
     , C.unStatements
     , RawProgram
     , RawStatements
@@ -19,7 +20,8 @@ module TinyLang.Field.Raw.Core
     , RawExpr
     ) where
 
-import           TinyLang.Field.Uni  hiding (Uni)
+import qualified TinyLang.Field.Uni      as U
+import qualified TinyLang.Field.Type     as T
 import qualified TinyLang.Field.Core     as C
 
 import           GHC.Generics
@@ -50,22 +52,27 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program    v f  = C.Program    (v, SomeUni f) (Statement v f)
-type Statements v f  = C.Statements                (Statement v f)
+type Program v f = C.Program (v, T.UniType f) (Statement v f)
+pattern Program :: [(v, T.UniType f)] -> Statements v f -> Program v f
+pattern Program exts stmts = C.Program exts stmts
+
+type Statements v f = C.Statements (Statement v f)
+pattern Statements :: [Statement v f] -> Statements v f
+pattern Statements stmts = C.Statements stmts
 
 data Statement v f
-    = ELet    (v, SomeUni f) (Expr v f)
+    = ELet    (v, T.UniType f) (Expr v f)
     | EAssert (Expr v f)
     | EFor    v              Integer    Integer (Statements v f)
     deriving (Show)
 
 data Expr v f
-    = EConst     (SomeUniConst f)
+    = EConst     (U.SomeUniConst f)
     | EVar       v
-    | EAppBinOp  BinOp           (Expr v f) (Expr v f)
-    | EAppUnOp   UnOp            (Expr v f)
-    | EIf        (Expr v f)      (Expr v f) (Expr v f)
-    | ETypeAnn   (SomeUni f)     (Expr v f)
+    | EAppBinOp  BinOp              (Expr v f) (Expr v f)
+    | EAppUnOp   UnOp               (Expr v f)
+    | EIf        (Expr v f)         (Expr v f) (Expr v f)
+    | ETypeAnn   (T.UniType f)      (Expr v f)
     deriving (Show)
 
 data BinOp

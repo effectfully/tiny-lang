@@ -1,1 +1,1 @@
-Program [(Var "a",Some Field),(Var "b",Some Field)] Statements [EAssert (EAppBinOp FLe (EAppBinOp And (EAppUnOp Neg (EVar (Var "a"))) (EVar (Var "b"))) (EAppUnOp Neg (EAppBinOp And (EVar (Var "a")) (EVar (Var "b")))))]
+Program [(Var "a",BuiltIn (Some Field)),(Var "b",BuiltIn (Some Field))] Statements [EAssert (EAppBinOp FLe (EAppBinOp And (EAppUnOp Neg (EVar (Var "a"))) (EVar (Var "b"))) (EAppUnOp Neg (EAppBinOp And (EVar (Var "a")) (EVar (Var "b")))))]

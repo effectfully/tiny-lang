@@ -54,7 +54,7 @@ keyword ::=
 
 == Types/Universes
 
-Currently we only support 3 types/universes:
+Currently we only support 3 types:
 
 * booleans,
 * fields, and
@@ -63,7 +63,7 @@ Currently we only support 3 types/universes:
 We use them to annotate expressions with their desired type.
 
 @
-uni ::=
+type ::=
     "bool"
     "field"
     "vector"
@@ -85,7 +85,7 @@ We follow the ML-family syntax for variable declarations, where the identifier
 
 @
 var-decl ::=
-    ident ":" uni
+    ident ":" type
 @
 
 
@@ -117,7 +117,7 @@ expr ::=
     expr "[" expr "]"
     statement ";" expr
     "if" expr "then" expr "else" expr
-    expr ":" uni
+    expr ":" type
 
 infix-op ::=
     "and"
@@ -195,7 +195,8 @@ import           TinyLang.Prelude               hiding (many, option, try)
 import           Data.Field
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Raw.Core
-import           TinyLang.Field.Uni
+import qualified TinyLang.Field.Uni             as U
+import qualified TinyLang.Field.Type            as T
 import           TinyLang.ParseUtils
 
 import qualified Control.Monad.Combinators.Expr as Comb
@@ -249,11 +250,11 @@ isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
 
-pUni :: ParserT m (SomeUni f)
-pUni = choice
-    [ Some Bool   <$ keyword "bool"
-    , Some Field  <$ keyword "field"
-    , Some Vector <$ keyword "vector"
+pUniType :: ParserT m (T.UniType f)
+pUniType = choice
+    [ T.Bool   <$ keyword "bool"
+    , T.Field  <$ keyword "field"
+    , T.Vector <$ keyword "vector"
     ]
 
 
@@ -273,8 +274,8 @@ pVar = do
     pure $ Var ident
 
 -- variable declaration
-pVarDecl :: ParserT m (Var, SomeUni f)
-pVarDecl = (,) <$> pVar <*> (symbol ":" *> pUni)
+pVarDecl :: ParserT m (Var, T.UniType f)
+pVarDecl = (,) <$> pVar <*> (symbol ":" *> pUniType)
 
 pBoolLiteral :: ParserT m Bool
 pBoolLiteral =
@@ -344,16 +345,16 @@ operatorTable =
       ]
     ]
 
-vBool :: ParserT m (SomeUniConst f)
-vBool  = Some . UniConst Bool <$> pBoolLiteral
+vBool :: ParserT m (U.SomeUniConst f)
+vBool  = Some . U.UniConst U.Bool <$> pBoolLiteral
 
-vVec :: ParserT m (SomeUniConst f)
-vVec   = Some . UniConst Vector <$> pVecLiteral
+vVec :: ParserT m (U.SomeUniConst f)
+vVec   = Some . U.UniConst U.Vector <$> pVecLiteral
 
-vField :: Field f => ParserT m (SomeUniConst f)
-vField = Some . UniConst Field . fromInteger <$> signedDecimal
+vField :: Field f => ParserT m (U.SomeUniConst f)
+vField = Some . U.UniConst U.Field . fromInteger <$> signedDecimal
 
-pConst :: Field f => ParserT m (SomeUniConst f)
+pConst :: Field f => ParserT m (U.SomeUniConst f)
 pConst = choice
     [ vBool
     , vVec
@@ -361,8 +362,8 @@ pConst = choice
     ]
 
 
-pAnn :: ParserT m (SomeUni f)
-pAnn = symbol ":" *> pUni
+pAnn :: ParserT m (T.UniType f)
+pAnn = symbol ":" *> pUniType
 
 pTerm :: Field f => ParserT m (RawExpr f)
 pTerm =
@@ -395,10 +396,10 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExtDecl :: ParserT m (Var, SomeUni f)
+pExtDecl :: ParserT m (Var, T.UniType f)
 pExtDecl = keyword "ext" *> pVarDecl
 
-pExtDecls :: ParserT m [(Var, SomeUni f)]
+pExtDecls :: ParserT m [(Var, T.UniType f)]
 pExtDecls = many (pExtDecl <* symbol ";")
 
 pStatements :: Field f => ParserT m (RawStatements f)
