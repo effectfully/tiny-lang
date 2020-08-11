@@ -81,7 +81,8 @@ benchmark bench-generators
     build-depends:
         tiny-lang,
         base >= 4.7 && < 5,
-        QuickCheck
+        QuickCheck,
+        lens
     default-extensions:
         BangPatterns
     ghc-options:
