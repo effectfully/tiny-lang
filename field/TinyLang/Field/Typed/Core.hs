@@ -38,6 +38,10 @@ module TinyLang.Field.Typed.Core
     , progSubStatements
     , progSubStatement
     , stmtsSubStatement
+    , progSubExpr
+    , stmtsSubExpr
+    , stmtSubExpr
+    , exprSubExpr
     ) where
 
 import           Prelude                    hiding (div)
@@ -308,3 +312,51 @@ progSubStatement = C.progSubStatement
 
 stmtsSubStatement :: Traversal' (Statements f) (Statement f)
 stmtsSubStatement = C.stmtsSubStatement
+
+-- Some helper methods for handling transitions between Expr and SomeUniExpr
+box :: (KnownUni f a) => Expr f a -> SomeUniExpr f
+box expr = SomeOf knownUni expr
+
+unbox :: forall f a. (KnownUni f a) => SomeUniExpr f -> Expr f a
+unbox (SomeOf uni expr) = withGeqUni uni (knownUni :: Uni f a) (error message) expr where
+    message = "Uni mismatch!"
+
+-- boxF :: (KnownUni f a, Functor t) => t (Expr f a) -> t (SomeUniExpr f)
+-- boxF = fmap box
+
+unboxF :: (KnownUni f a, Functor t) => t (SomeUniExpr f) -> t (Expr f a)
+unboxF = fmap unbox
+
+wrapF :: (KnownUni f a, KnownUni f b, Functor t) => (SomeUniExpr f -> t (SomeUniExpr f)) -> Expr f a -> t (Expr f b)
+wrapF f = unboxF . f . box
+
+progSubExpr :: Traversal' (Program f) (SomeUniExpr f)
+progSubExpr = progSubStatements . stmtsSubExpr
+
+stmtsSubExpr :: Traversal' (Statements f) (SomeUniExpr f)
+stmtsSubExpr = stmtsSubStatement . stmtSubExpr
+
+stmtSubExpr :: forall f. Traversal' (Statement f) (SomeUniExpr f)
+stmtSubExpr f = \case
+    ELet uniVar@(UniVar uni _) expr ->
+        withKnownUni uni $
+            ELet uniVar <$> wrapF f expr
+    EAssert expr ->
+        EAssert <$> wrapF f expr
+
+exprSubExpr :: Traversal' (SomeUniExpr f) (SomeUniExpr f)
+exprSubExpr f = \case
+    SomeOf uni e0 -> SomeOf uni <$> case e0 of
+        EAppUnOp unOp e ->
+            withKnownUni (uniOfExpr e) $
+            EAppUnOp unOp <$> wrapF f e
+        EAppBinOp binOp e1 e2 ->
+            withKnownUni (uniOfExpr e1) $
+            withKnownUni (uniOfExpr e2) $
+                EAppBinOp binOp <$> wrapF f e1 <*> wrapF f e2
+        EIf e e1 e2 ->
+            withKnownUni (uniOfExpr e)  $
+            withKnownUni (uniOfExpr e1) $
+            withKnownUni (uniOfExpr e2) $
+                EIf <$> wrapF f e <*> wrapF f e1 <*> wrapF f e2
+        x -> pure x
