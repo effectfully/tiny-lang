@@ -73,6 +73,7 @@ uni ::=
 @
 type ::=
     uni
+    type -> type
 @
 
 == Identifiers
@@ -263,12 +264,19 @@ pUni = choice
     , Some U.Vector <$ keyword "vector"
     ]
 
-pType :: ParserT m (T.Type f)
-pType = choice
-    [ T.Bool   <$ keyword "bool"
-    , T.Field  <$ keyword "field"
-    , T.Vector <$ keyword "vector"
-    ]
+
+pType :: forall m f. ParserT m (T.Type f)
+pType =
+    choice
+        -- NOTE:  this backtracks when no parentheses
+        [ try (parens pType)
+        -- NOTE:  this backtracks if not a function type
+        , try pFunType
+        , pUniType
+        ] where
+    pUniType    = fromSomeUni <$> pUni
+    pFunType    = T.TyFun <$> pUniType <*> (symbol "->" *> pType)
+    fromSomeUni = forget T.UniType
 
 
 -- TODO:  Consider merging Identifier with Variable
