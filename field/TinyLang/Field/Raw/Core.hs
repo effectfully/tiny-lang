@@ -18,12 +18,22 @@ module TinyLang.Field.Raw.Core
     , RawStatements
     , RawStatement
     , RawExpr
+    , progSubExt
+    , progSubStatements
+    , progSubStatement
+    , stmtsSubStatement
+    , stmtSubStatement
+    , progSubExpr
+    , stmtsSubExpr
+    , stmtSubExpr
+    , exprSubExpr
     ) where
 
 import qualified TinyLang.Field.Uni      as U
 import qualified TinyLang.Field.Type     as T
 import qualified TinyLang.Field.Core     as C
 
+import           Control.Lens
 import           GHC.Generics
 import           Quiet
 
@@ -53,12 +63,18 @@ mappable over a list of statements.
 -}
 
 type Program v f = C.Program (v, T.Type f) (Statement v f)
+
+{-# COMPLETE Program #-}
 pattern Program :: [(v, T.Type f)] -> Statements v f -> Program v f
 pattern Program exts stmts = C.Program exts stmts
 
+
 type Statements v f = C.Statements (Statement v f)
+
+{-# COMPLETE Statements #-}
 pattern Statements :: [Statement v f] -> Statements v f
 pattern Statements stmts = C.Statements stmts
+
 
 data Statement v f
     = ELet    (v, T.Type f) (Expr v f)
@@ -105,3 +121,42 @@ type RawProgram    f = Program    Var f
 type RawStatements f = Statements Var f
 type RawStatement  f = Statement  Var f
 type RawExpr       f = Expr       Var f
+
+
+-- Traversals
+progSubExt :: Traversal' (Program v f) (v, T.Type f)
+progSubExt = C.progSubExt
+
+progSubStatements :: Traversal' (Program v f) (Statements v f)
+progSubStatements = C.progSubStatements
+
+progSubStatement :: Traversal' (Program v f) (Statement v f)
+progSubStatement = C.progSubStatement
+
+stmtsSubStatement :: Traversal' (Statements v f) (Statement v f)
+stmtsSubStatement = C.stmtsSubStatement
+
+stmtSubStatement :: Traversal' (Statement v f) (Statement v f)
+stmtSubStatement f = \case
+   EFor var i j stmts -> EFor var i j <$> stmtsSubStatement f stmts
+   x -> pure x
+
+progSubExpr :: Traversal' (Program v f) (Expr v f)
+progSubExpr = progSubStatements . stmtsSubExpr
+
+stmtsSubExpr :: Traversal' (Statements v f) (Expr v f)
+stmtsSubExpr = stmtsSubStatement . stmtSubExpr
+
+stmtSubExpr :: Traversal' (Statement v f) (Expr v f)
+stmtSubExpr f = \case
+    ELet var expr -> ELet var <$> f expr
+    EAssert expr -> EAssert <$> f expr
+    EFor var i j stmts -> EFor var i j <$> stmtsSubExpr f stmts
+
+exprSubExpr :: Traversal' (Expr v f) (Expr v f)
+exprSubExpr f = \case
+    EAppUnOp  unOp  expr1       -> EAppUnOp  unOp  <$> f expr1
+    EAppBinOp binOp expr1 expr2 -> EAppBinOp binOp <$> f expr1 <*> f expr2
+    EIf       expr  expr1 expr2 -> EIf <$> f expr  <*> f expr1 <*> f expr2
+    ETypeAnn  typ   expr        -> ETypeAnn typ    <$> f expr
+    x                           -> pure x
