@@ -62,10 +62,11 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f = C.Program (v, T.Type f) (Statement v f)
+-- NOTE: Exts are annotated with SomeUni, as we only support constant externals.
+type Program v f = C.Program (v, U.SomeUni f) (Statement v f)
 
 {-# COMPLETE Program #-}
-pattern Program :: [(v, T.Type f)] -> Statements v f -> Program v f
+pattern Program :: [(v, U.SomeUni f)] -> Statements v f -> Program v f
 pattern Program exts stmts = C.Program exts stmts
 
 
@@ -124,7 +125,7 @@ type RawExpr       f = Expr       Var f
 
 
 -- Traversals
-progSubExt :: Traversal' (Program v f) (v, T.Type f)
+progSubExt :: Traversal' (Program v f) (v, U.SomeUni f)
 progSubExt = C.progSubExt
 
 progSubStatements :: Traversal' (Program v f) (Statements v f)

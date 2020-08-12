@@ -54,19 +54,25 @@ keyword ::=
 
 == Types/Universes
 
-Currently we only support 3 types:
+We distinguish between types and universes. Types include function types, while
+universes include the following types of contants:
 
 * booleans,
 * fields, and
 * vectors.
 
-We use them to annotate expressions with their desired type.
+We can use types to annotate expressions.
 
 @
-type ::=
+uni ::=
     "bool"
     "field"
     "vector"
+@
+
+@
+type ::=
+    uni
 @
 
 == Identifiers
@@ -165,7 +171,7 @@ ext-decls ::=
     (ext-decl ";")*
 
 ext-decl ::=
-    "ext" var-decl
+    "ext" ident ":" uni
 @
 
 == Operator Precedence
@@ -249,6 +255,13 @@ keywords =
 isKeyword :: String -> Bool
 isKeyword = (`member` keywords)
 
+
+pUni :: ParserT m (U.SomeUni f)
+pUni = choice
+    [ Some U.Bool   <$ keyword "bool"
+    , Some U.Field  <$ keyword "field"
+    , Some U.Vector <$ keyword "vector"
+    ]
 
 pType :: ParserT m (T.Type f)
 pType = choice
@@ -396,10 +409,10 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExtDecl :: ParserT m (Var, T.Type f)
-pExtDecl = keyword "ext" *> pVarDecl
+pExtDecl :: ParserT m (Var, U.SomeUni f)
+pExtDecl = (,) <$> (keyword "ext" *> pVar) <*> (symbol ":" *> pUni)
 
-pExtDecls :: ParserT m [(Var, T.Type f)]
+pExtDecls :: ParserT m [(Var, U.SomeUni f)]
 pExtDecls = many (pExtDecl <* symbol ";")
 
 pStatements :: Field f => ParserT m (RawStatements f)
