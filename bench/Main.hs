@@ -28,21 +28,11 @@ unboxF = fmap unbox
 wrapF :: (KnownUni f a, KnownUni f b, Functor t) => (SomeUniExpr f -> t (SomeUniExpr f)) -> Expr f a -> t (Expr f b)
 wrapF f = unboxF . f . box
 
-progSubStatement :: Traversal' (Program f) (Statement f)
-progSubStatement f = \case
-    Program exts stmts ->
-        Program exts <$> stmtsSubStatement f stmts
-
-stmtsSubStatement :: Traversal' (Statements f) (Statement f)
-stmtsSubStatement f = \case
-    Statements stmts ->
-        Statements <$> traverse f stmts
 
 progSubExpr :: Traversal' (Program f) (SomeUniExpr f)
 progSubExpr f = \case
     Program exts stmts ->
         Program exts <$> stmtsSubExpr f stmts
-
 stmtsSubExpr :: Traversal' (Statements f) (SomeUniExpr f)
 stmtsSubExpr f = \case
     Statements stmts ->

@@ -34,6 +34,10 @@ module TinyLang.Field.Typed.Core
     , progExtVarSigs
     , progSupplyFromAtLeastFree
     , uniOfExpr
+    , progSubExt
+    , progSubStatements
+    , progSubStatement
+    , stmtsSubStatement
     ) where
 
 import           Prelude                    hiding (div)
@@ -41,11 +45,11 @@ import           TinyLang.Prelude
 
 import qualified TinyLang.Field.Core        as C
 import           Data.Field                 as Field
+import           Control.Lens
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Uni
 import           TinyLang.Var               as Var
--- import           TinyLang.Field.Printer    (progToString, PrintStyle(..))
 
 
 type SomeUniExpr f = SomeOf (Uni f) (Expr f)
@@ -140,8 +144,8 @@ withBinOpUnis BAt k = k knownUni knownUni knownUni
 uniOfExpr :: Expr f a -> Uni f a
 uniOfExpr (EConst (UniConst uni _)) = uni
 uniOfExpr (EVar (UniVar uni _))     = uni
-uniOfExpr (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
-uniOfExpr (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
+uniOfExpr (EAppUnOp unOp _)         = withUnOpUnis unOp $ \_ resUni -> resUni
+uniOfExpr (EAppBinOp binOp _ _)     = withBinOpUnis binOp $ \_ _ resUni -> resUni
 uniOfExpr (EIf _ x _)               = uniOfExpr x
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
@@ -291,3 +295,16 @@ progSupplyFromAtLeastFree =
     . _scopedVarSigsFree
     . execSVS
     . progVS
+
+-- Traversals, specialised for types
+progSubExt :: Traversal' (Program f) (SomeUniVar f)
+progSubExt = C.progSubExt
+
+progSubStatements :: Traversal' (Program f) (Statements f)
+progSubStatements = C.progSubStatements
+
+progSubStatement :: Traversal' (Program f) (Statement f)
+progSubStatement = C.progSubStatement
+
+stmtsSubStatement :: Traversal' (Statements f) (Statement f)
+stmtsSubStatement = C.stmtsSubStatement
