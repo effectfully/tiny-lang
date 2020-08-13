@@ -1,3 +1,6 @@
+(**
+  * Checking for whitespace in for statement
+  *)
 for
 
 i

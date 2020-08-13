@@ -1,12 +1,15 @@
+(**
+  * Checking Lexer Whitespace
+  *)
       let
 
 x:
 
-
+// NOTE:  throwing some comments in the mix
 field=
 
 
-1           /         2
+1           /         2    // WARN:  inline comments are bad!
 
 
 

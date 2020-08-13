@@ -1,3 +1,6 @@
+(**
+  * Checking precedence with [] operator
+  *)
 ext a : field;
 ext b : field;
 ext c : field;

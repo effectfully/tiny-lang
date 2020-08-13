@@ -1,3 +1,6 @@
+(**
+  * More operator precedence tests
+  *)
 ext a : field;
 ext b : field;
 

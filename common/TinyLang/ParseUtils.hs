@@ -33,16 +33,18 @@ parseString parser fileName str =
     liftEither . first errorBundlePretty $ runParser parser fileName str
 
 -- Consume whitespace
-ws :: (MonadParsec e s m, Token s ~ Char) => m ()
-ws = L.space space1 empty empty
--- Last two arguments are for comment delimiters.  Let's not have any comments for now.
+ws :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m ()
+ws = L.space space1 lineComment blockComment where
+    -- NOTE:  Mimicking ML-family syntax comments for now
+    lineComment  = L.skipLineComment "//"
+    blockComment = L.skipBlockComment "(*" "*)"
 
 -- Parse the whole of an input stream
-top :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
+top :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
 top = between ws eof
 
 -- Wrapper to consume whitespace after parsing an item using the wrapped parser
-lexeme :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
+lexeme :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
 lexeme = L.lexeme ws
 
 -- Parse a fixed string
