@@ -34,6 +34,14 @@ module TinyLang.Field.Typed.Core
     , progExtVarSigs
     , progSupplyFromAtLeastFree
     , uniOfExpr
+    , progSubExt
+    , progSubStatements
+    , progSubStatement
+    , stmtsSubStatement
+    , progSubExpr
+    , stmtsSubExpr
+    , stmtSubExpr
+    , exprSubExpr
     ) where
 
 import           Prelude                    hiding (div)
@@ -41,11 +49,11 @@ import           TinyLang.Prelude
 
 import qualified TinyLang.Field.Core        as C
 import           Data.Field                 as Field
+import           Control.Lens
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.Uni
 import           TinyLang.Var               as Var
--- import           TinyLang.Field.Printer    (progToString, PrintStyle(..))
 
 
 type SomeUniExpr f = SomeOf (Uni f) (Expr f)
@@ -140,8 +148,8 @@ withBinOpUnis BAt k = k knownUni knownUni knownUni
 uniOfExpr :: Expr f a -> Uni f a
 uniOfExpr (EConst (UniConst uni _)) = uni
 uniOfExpr (EVar (UniVar uni _))     = uni
-uniOfExpr (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
-uniOfExpr (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
+uniOfExpr (EAppUnOp unOp _)         = withUnOpUnis unOp $ \_ resUni -> resUni
+uniOfExpr (EAppBinOp binOp _ _)     = withBinOpUnis binOp $ \_ _ resUni -> resUni
 uniOfExpr (EIf _ x _)               = uniOfExpr x
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
@@ -291,3 +299,64 @@ progSupplyFromAtLeastFree =
     . _scopedVarSigsFree
     . execSVS
     . progVS
+
+-- Traversals, specialised for types
+progSubExt :: Traversal' (Program f) (SomeUniVar f)
+progSubExt = C.progSubExt
+
+progSubStatements :: Traversal' (Program f) (Statements f)
+progSubStatements = C.progSubStatements
+
+progSubStatement :: Traversal' (Program f) (Statement f)
+progSubStatement = C.progSubStatement
+
+stmtsSubStatement :: Traversal' (Statements f) (Statement f)
+stmtsSubStatement = C.stmtsSubStatement
+
+-- Some helper methods for handling transitions between Expr and SomeUniExpr
+box :: (KnownUni f a) => Expr f a -> SomeUniExpr f
+box expr = SomeOf knownUni expr
+
+unbox :: forall f a. (KnownUni f a) => SomeUniExpr f -> Expr f a
+unbox (SomeOf uni expr) = withGeqUni uni (knownUni :: Uni f a) (error message) expr where
+    message = "Uni mismatch!"
+
+-- boxF :: (KnownUni f a, Functor t) => t (Expr f a) -> t (SomeUniExpr f)
+-- boxF = fmap box
+
+unboxF :: (KnownUni f a, Functor t) => t (SomeUniExpr f) -> t (Expr f a)
+unboxF = fmap unbox
+
+wrapF :: (KnownUni f a, KnownUni f b, Functor t) => (SomeUniExpr f -> t (SomeUniExpr f)) -> Expr f a -> t (Expr f b)
+wrapF f = unboxF . f . box
+
+progSubExpr :: Traversal' (Program f) (SomeUniExpr f)
+progSubExpr = progSubStatements . stmtsSubExpr
+
+stmtsSubExpr :: Traversal' (Statements f) (SomeUniExpr f)
+stmtsSubExpr = stmtsSubStatement . stmtSubExpr
+
+stmtSubExpr :: forall f. Traversal' (Statement f) (SomeUniExpr f)
+stmtSubExpr f = \case
+    ELet uniVar@(UniVar uni _) expr ->
+        withKnownUni uni $
+            ELet uniVar <$> wrapF f expr
+    EAssert expr ->
+        EAssert <$> wrapF f expr
+
+exprSubExpr :: Traversal' (SomeUniExpr f) (SomeUniExpr f)
+exprSubExpr f = \case
+    SomeOf uni e0 -> SomeOf uni <$> case e0 of
+        EAppUnOp unOp e ->
+            withKnownUni (uniOfExpr e) $
+            EAppUnOp unOp <$> wrapF f e
+        EAppBinOp binOp e1 e2 ->
+            withKnownUni (uniOfExpr e1) $
+            withKnownUni (uniOfExpr e2) $
+                EAppBinOp binOp <$> wrapF f e1 <*> wrapF f e2
+        EIf e e1 e2 ->
+            withKnownUni (uniOfExpr e)  $
+            withKnownUni (uniOfExpr e1) $
+            withKnownUni (uniOfExpr e2) $
+                EIf <$> wrapF f e <*> wrapF f e1 <*> wrapF f e2
+        x -> pure x

@@ -1,44 +1,45 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 import           TinyLang.Field.Generator  ()
 import           TinyLang.Field.Typed.Core
 
+import           Control.Lens
 import           Control.Monad
 import           Data.List
+import           Data.Semigroup
 import           Test.QuickCheck
 
--- A couple of functions for checking the output of generators
-progNodes :: Program f -> Int
-progNodes = stmtsNodes . _programStatements
+progNodes :: Program f -> Sum Int
+progNodes prog =
+    foldMapOf progSubExt (const (Sum 1)) prog
+    <> foldMapOf progSubStatements stmtsNodes prog
 
-stmtsNodes :: Statements f -> Int
-stmtsNodes = sum . map stmtNodes . unStatements
+stmtsNodes :: Statements f -> Sum Int
+stmtsNodes stmts = foldMapOf stmtsSubStatement stmtNodes stmts
 
-stmtNodes :: Statement f -> Int
-stmtNodes (ELet _ e)         = 1 + exprNodes e
-stmtNodes (EAssert e)        = 1 + exprNodes e
+stmtNodes :: Statement f -> Sum Int
+stmtNodes stmt = Sum 1 <> foldMapOf stmtSubExpr exprNodes stmt
 
-exprNodes :: Expr f a -> Int
-exprNodes (EConst _)          = 1
-exprNodes (EVar   _)          = 1
-exprNodes (EAppUnOp _ e)      = 1 + exprNodes e
-exprNodes (EAppBinOp _ e1 e2) = 1 + exprNodes e1 + exprNodes e2
-exprNodes (EIf e e1 e2)       = 1 + exprNodes e + exprNodes e1 + exprNodes e2
+exprNodes :: SomeUniExpr f -> Sum Int
+exprNodes e = Sum 1 <> foldMapOf exprSubExpr exprNodes e
 
-progDepth :: Program f -> Int
-progDepth = stmtsDepth . _programStatements
+-- NOTE:  We need Max 0 for the empty case
+progDepth :: Program f -> Max Int
+progDepth prog =
+    Max 0
+    <> foldMapOf progSubExt (const (Max 1)) prog
+    <> foldMapOf progSubStatements stmtsDepth prog
 
-stmtsDepth :: Statements f -> Int
-stmtsDepth = maximum . (0:) . map stmtDepth . unStatements
+stmtsDepth :: Statements f -> Max Int
+stmtsDepth stmts = Max 0 <> foldMapOf stmtsSubStatement stmtDepth stmts
 
-stmtDepth :: Statement f -> Int
-stmtDepth (ELet _ e)         = 1 + exprDepth e
-stmtDepth (EAssert e)        = 1 + exprDepth e
+stmtDepth :: Statement f -> Max Int
+stmtDepth stmt = (+1) <$> Max 0 <> foldMapOf stmtSubExpr exprDepth stmt
 
-exprDepth :: Expr f a -> Int
-exprDepth (EConst _)          = 1
-exprDepth (EVar _)            = 1
-exprDepth (EAppUnOp _ e)      = 1 + exprDepth e
-exprDepth (EAppBinOp _ e1 e2) = 1 + max (exprDepth e1) (exprDepth e2)
-exprDepth (EIf e e1 e2)       = 1 + max (exprDepth e)  (max (exprDepth e1) (exprDepth e2))
+exprDepth :: SomeUniExpr f -> Max Int
+exprDepth expr = (+1) <$> Max 0 <>  foldMapOf exprSubExpr exprDepth expr
 
 data TestResult = TestResult { nodes :: Int
                              , depth :: Int
@@ -48,7 +49,7 @@ data TestResult = TestResult { nodes :: Int
 runGen :: Int -> IO TestResult
 runGen size = do
     prog <- generate (resize size arbitrary) :: IO (Program (AField Rational))
-    pure $ TestResult (progNodes prog) (progDepth prog)
+    pure $ TestResult (getSum (progNodes prog)) (getMax (progDepth prog))
 
 average :: (Real a, Fractional b) => [a] -> b
 average xs = realToFrac (sum xs) / genericLength xs
