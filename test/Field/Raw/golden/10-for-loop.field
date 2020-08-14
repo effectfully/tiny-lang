@@ -1,3 +1,6 @@
+/**
+  * TODO:  Figure out which test case from ZCash spec this was
+  */
 for i = 1 to 2 do
     let i' : field = i;
     for j = 2 to 3 do

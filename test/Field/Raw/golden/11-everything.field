@@ -1,3 +1,6 @@
+/**
+  * Parsing rules for everything
+  */
 ext eb : bool;
 ext ef : field;
 ext ev : vector;

@@ -1,2 +1,5 @@
+/**
+  * Parsing booleans
+  */
 let false : bool = F;
 let true  : bool = T;

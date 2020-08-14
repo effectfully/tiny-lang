@@ -1,2 +1,5 @@
 
   assert T;
+/**
+  * Checking how whitespace at the begging of the file would behave
+  */
