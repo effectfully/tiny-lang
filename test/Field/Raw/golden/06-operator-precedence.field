@@ -1,6 +1,6 @@
-(**
+/**
   * Parsing operator precedence
-  *)
+  */
 
 // Externals
 ext a : field;

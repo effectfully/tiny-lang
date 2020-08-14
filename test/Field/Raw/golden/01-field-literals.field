@@ -1,6 +1,6 @@
-(**
+/**
   * Parsing field literals
-  *)
+  */
 let zero  : field = 0;
 let one   : field = 1;
 let two   : field = 2;

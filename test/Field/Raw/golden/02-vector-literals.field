@@ -1,6 +1,6 @@
-(**
+/**
   * Parsing vector literals
-  *)
+  */
 let one   : vector = { T };
 let two   : vector = { T , F };
 let three : vector = { T , F , T };

@@ -1,6 +1,6 @@
-(**
+/**
   * Checking Lexer Whitespace
-  *)
+  */
       let
 
 x:

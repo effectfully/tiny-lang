@@ -35,9 +35,9 @@ parseString parser fileName str =
 -- Consume whitespace
 ws :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m ()
 ws = L.space space1 lineComment blockComment where
-    -- NOTE:  Mimicking ML-family syntax comments for now
+    -- NOTE:  Using C-family style for comments
     lineComment  = L.skipLineComment "//"
-    blockComment = L.skipBlockComment "(*" "*)"
+    blockComment = L.skipBlockComment "/*" "*/"
 
 -- Parse the whole of an input stream
 top :: (MonadParsec e s m, Token s ~ Char, Tokens s ~ [Char]) => m a -> m a
